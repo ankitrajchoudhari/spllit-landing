@@ -133,15 +133,17 @@ router.post('/create', authenticate, async (req: AuthRequest, res: Response) => 
                 name,
                 email: email.toLowerCase(),
                 password: hashedPassword,
-                phone: phone || null,
+                phone: phone || '',
                 phoneHash,
-                college: college || 'Admin',
+                college: college || 'Spllit Admin',
                 gender: gender || 'other',
                 role: 'subadmin',
                 isAdmin: true,
                 adminStatus: 'active',
                 emailVerified: true, // Auto-verify for admins
-                createdBy: req.user.userId
+                phoneVerified: true,
+                isActive: true,
+                createdBy: req.user?.userId || null
             },
             select: {
                 id: true,
@@ -149,6 +151,7 @@ router.post('/create', authenticate, async (req: AuthRequest, res: Response) => 
                 email: true,
                 college: true,
                 role: true,
+                isAdmin: true,
                 adminStatus: true,
                 createdAt: true
             }
@@ -160,7 +163,10 @@ router.post('/create', authenticate, async (req: AuthRequest, res: Response) => 
         });
     } catch (error) {
         console.error('Create subadmin error:', error);
-        res.status(500).json({ error: 'Failed to create subadmin' });
+        res.status(500).json({ 
+            error: 'Failed to create subadmin',
+            details: error.message || 'Unknown error'
+        });
     }
 });
 
