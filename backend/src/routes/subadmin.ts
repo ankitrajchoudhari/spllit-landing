@@ -39,10 +39,22 @@ const isValidEmailDomain = (email: string): boolean => {
  * Check if user is master admin
  */
 const isMasterAdmin = async (userId: string): Promise<boolean> => {
-    const user = await prisma.user.findUnique({
-        where: { id: userId }
-    });
-    return user?.role === 'admin' && user.isAdmin === true;
+    try {
+        if (!userId) return false;
+        
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                role: true,
+                isAdmin: true
+            }
+        });
+        
+        return user?.role === 'admin' && user.isAdmin === true;
+    } catch (error) {
+        console.error('isMasterAdmin error:', error);
+        return false;
+    }
 };
 
 /**
