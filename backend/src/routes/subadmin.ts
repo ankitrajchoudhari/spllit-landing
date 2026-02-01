@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import prisma from '../utils/prisma.js';
 import bcrypt from 'bcrypt';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, AuthRequest } from '../middleware/auth.js';
 
 const router = express.Router();
 
