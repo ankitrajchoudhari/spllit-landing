@@ -25,6 +25,10 @@ model User {
   profilePhoto      String?
   rating            Float     @default(0)
   totalRides        Int       @default(0)
+  role              String    @default("user") // user, admin, subadmin
+  isAdmin           Boolean   @default(false)
+  adminStatus       String    @default("active") // active, inactive, deleted
+  createdBy         String?   // ID of master admin who created this subadmin
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   lastSeen          DateTime  @default(now())
@@ -43,6 +47,8 @@ model User {
   @@index([email])
   @@index([phoneHash])
   @@index([college])
+  @@index([role])
+  @@index([adminStatus])
 }
 
 // Ride model for ride creation and searching

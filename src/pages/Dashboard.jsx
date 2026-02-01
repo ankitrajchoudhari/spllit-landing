@@ -7,6 +7,7 @@ import socketService from '../services/socket';
 import { ridesAPI, matchesAPI } from '../services/api';
 import { NotificationContainer } from '../components/UserNotification';
 import ChatModal from '../components/ChatModal';
+import SubadminManagement from '../components/SubadminManagement';
 import { io } from 'socket.io-client';
 
 // Load Google Maps script with async
@@ -732,6 +733,17 @@ const Dashboard = () => {
                             </div>
                         </motion.div>
                     </div>
+
+                    {/* Subadmin Management - Only show for master admin */}
+                    {user?.role === 'admin' && user?.isAdmin === true && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-8"
+                        >
+                            <SubadminManagement />
+                        </motion.div>
+                    )}
 
                     {/* Success Message */}
                     {success && (
