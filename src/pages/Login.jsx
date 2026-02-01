@@ -144,8 +144,18 @@ const Login = () => {
         setError('');
 
         try {
+            // Handle both regular users and subadmins
+            let email;
+            if (emailId.includes('@')) {
+                // If email already has @, use it as is (for subadmins)
+                email = emailId;
+            } else {
+                // For regular users, append @study.iitm.ac.in
+                email = `${emailId}@study.iitm.ac.in`;
+            }
+
             const credentials = {
-                email: `${emailId.split('@')[0]}@study.iitm.ac.in`,
+                email: email,
                 password: password
             };
 
@@ -343,21 +353,24 @@ const Login = () => {
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 {/* Email Input */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">Official Student Email</label>
+                                    <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">Student Email or Admin Email</label>
                                     <div className="flex flex-col sm:flex-row gap-2">
                                         <div className="relative flex-1">
                                             <input
                                                 required
                                                 type="text"
-                                                placeholder="Roll No (e.g. 25f36563058)"
+                                                placeholder="Roll No (e.g. 25f36563058) or email@spllit.app"
                                                 value={emailId}
                                                 onChange={(e) => setEmailId(e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl sm:rounded-l-2xl sm:rounded-r-none px-12 py-4.5 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
+                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4.5 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
                                             />
                                             <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
                                         </div>
-                                        <div className="bg-white/10 border border-t-0 sm:border-t sm:border-l-0 border-white/10 rounded-2xl sm:rounded-r-2xl sm:rounded-l-none px-4 py-4.5 text-gray-400 font-medium text-xs flex items-center justify-center whitespace-nowrap">
-                                            study.iitm.ac.in
+                                        {!emailId.includes('@') && (
+                                            <div className="bg-white/10 border border-t-0 sm:border-t sm:border-l-0 border-white/10 rounded-2xl px-4 py-4.5 text-gray-400 font-medium text-xs flex items-center justify-center whitespace-nowrap">
+                                                @study.iitm.ac.in
+                                            </div>
+                                        )}
                                         </div>
                                     </div>
                                 </div>

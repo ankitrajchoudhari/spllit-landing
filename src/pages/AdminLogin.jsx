@@ -15,6 +15,14 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if email is a subadmin email (@spllit.app but not master admin)
+    if (credentials.email.endsWith('@spllit.app') && credentials.email !== 'ankit@spllit.app') {
+      setError('Subadmins must use the regular login page. Redirecting...');
+      setTimeout(() => navigate('/login'), 2000);
+      return;
+    }
+    
     const result = await login(credentials);
     if (result.success) navigate('/admin/dashboard');
   };
