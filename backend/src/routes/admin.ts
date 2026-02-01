@@ -59,7 +59,58 @@ router.post('/login', async (req: Request, res: Response) => {
   try {
     const data = adminLoginSchema.parse(req.body);
 
-    // First, try to find in admin table (for master admin)
+    // First check users table for subadmins (they take priority for @spllit.app emails)
+    const subadmin = await prisma.user.findUnique({
+      where: { email: data.email }
+    });
+
+    // If found in users table as subadmin, authenticate from there
+    if (subadmin && (subadmin.role === 'subadmin' || subadmin.isAdmin)) {
+      // Check if subadmin is active
+      if (subadmin.adminStatus === 'inactive') {
+        return res.status(403).json({ error: 'SUBADMIN_DEACTIVATED: Your admin account has been deactivated by the master admin.' });
+      }
+
+      if (subadmin.adminStatus === 'deleted') {
+        return res.status(403).json({ error: 'SUBADMIN_DELETED: This admin account no longer exists.' });
+      }
+
+      if (!subadmin.isActive) {
+        return res.status(403).json({ error: 'SUBADMIN_INACTIVE: Your account is not active.' });
+      }
+
+      // Verify password
+      const isValidPassword = await comparePassword(data.password, subadmin.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Invalid admin credentials' });
+      }
+
+      // Update last seen
+      await prisma.user.update({
+        where: { id: subadmin.id },
+        data: { lastSeen: new Date() }
+      });
+
+      // Generate token for subadmin
+      const token = jwt.sign(
+        { userId: subadmin.id, email: subadmin.email, role: subadmin.role },
+        process.env.JWT_SECRET!,
+        { expiresIn: '24h' }
+      );
+
+      return res.json({
+        message: 'Admin login successful',
+        admin: {
+          id: subadmin.id,
+          email: subadmin.email,
+          name: subadmin.name,
+          role: subadmin.role
+        },
+        token
+      });
+    }
+
+    // Then check admin table (for master admin only)
     let admin = await prisma.admin.findUnique({
       where: { email: data.email }
     });
@@ -77,10 +128,10 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // If found in admin table, use that
+    // If found in admin table
     if (admin) {
       if (!admin.isActive) {
-        return res.status(401).json({ error: 'Admin account is deactivated' });
+        return res.status(401).json({ error: 'MASTER_ADMIN_DEACTIVATED: This master admin account is deactivated.' });
       }
 
       // Verify password
@@ -114,57 +165,8 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // If not found in admin table, check users table for subadmins
-    const subadmin = await prisma.user.findUnique({
-      where: { email: data.email }
-    });
-
-    if (!subadmin || (subadmin.role !== 'subadmin' && !subadmin.isAdmin)) {
-      return res.status(401).json({ error: 'Invalid admin credentials' });
-    }
-
-    // Check if subadmin is active
-    if (subadmin.adminStatus === 'inactive') {
-      return res.status(403).json({ error: 'Your admin account has been deactivated. Please contact the master administrator.' });
-    }
-
-    if (subadmin.adminStatus === 'deleted') {
-      return res.status(403).json({ error: 'This admin account no longer exists.' });
-    }
-
-    if (!subadmin.isActive) {
-      return res.status(403).json({ error: 'Your account is not active. Please contact the master administrator.' });
-    }
-
-    // Verify password
-    const isValidPassword = await comparePassword(data.password, subadmin.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid admin credentials' });
-    }
-
-    // Update last seen
-    await prisma.user.update({
-      where: { id: subadmin.id },
-      data: { lastSeen: new Date() }
-    });
-
-    // Generate token for subadmin (using userId for compatibility with user routes)
-    const token = jwt.sign(
-      { userId: subadmin.id, email: subadmin.email },
-      process.env.JWT_SECRET!,
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      message: 'Admin login successful',
-      admin: {
-        id: subadmin.id,
-        email: subadmin.email,
-        name: subadmin.name,
-        role: subadmin.role
-      },
-      token
-    });
+    // Not found in either table
+    return res.status(401).json({ error: 'Invalid admin credentials - account not found' });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
