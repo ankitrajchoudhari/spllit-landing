@@ -371,7 +371,6 @@ const Login = () => {
                                                 @study.iitm.ac.in
                                             </div>
                                         )}
-                                        </div>
                                     </div>
                                 </div>
 
