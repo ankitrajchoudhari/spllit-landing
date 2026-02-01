@@ -176,12 +176,16 @@ router.post('/create', authenticate, async (req: AuthRequest, res: Response) => 
  */
 router.get('/list', authenticate, async (req: AuthRequest, res: Response) => {
     try {
+        console.log('GET /list - User:', req.user);
+        
         if (!req.user) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
         // Check if requester is master admin
         const isMaster = await isMasterAdmin(req.user.userId);
+        console.log('Is master admin:', isMaster);
+        
         if (!isMaster) {
             return res.status(403).json({ error: 'Only master admin can view subadmins' });
         }
@@ -211,10 +215,15 @@ router.get('/list', authenticate, async (req: AuthRequest, res: Response) => {
             }
         });
 
+        console.log('Found subadmins:', subadmins.length);
+        
         res.json({ subadmins });
     } catch (error) {
         console.error('List subadmins error:', error);
-        res.status(500).json({ error: 'Failed to list subadmins' });
+        res.status(500).json({ 
+            error: 'Failed to list subadmins',
+            details: error.message || 'Unknown error'
+        });
     }
 });
 
