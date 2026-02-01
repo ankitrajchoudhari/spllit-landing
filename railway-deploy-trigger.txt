@@ -1,0 +1,9 @@
+Railway Deployment Trigger - Sun Feb  1 18:54:32 UTC 2026
+
+DATABASE STATUS (Confirmed):
+- saurav@spllit.app: ACTIVE ✅
+- co-founder@spllit.app (Rounak): ACTIVE ✅
+
+BACKEND CODE: Updated to check both admin and users tables
+
+DEPLOY THIS IMMEDIATELY!
