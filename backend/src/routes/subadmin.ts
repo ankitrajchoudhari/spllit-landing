@@ -1,9 +1,62 @@
 import express, { Request, Response } from 'express';
 import prisma from '../utils/prisma.js';
 import bcrypt from 'bcrypt';
-import { authenticate, AuthRequest } from '../middleware/auth.js';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
+
+// Admin auth interface
+interface AdminRequest extends Request {
+    admin?: {
+        id: string;
+        email: string;
+        role: string;
+    };
+}
+
+// Admin authentication middleware
+const authenticateAdmin = async (req: AdminRequest, res: Response, next: any) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'Admin authentication required' });
+        }
+
+        const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+        
+        // Check if it's an admin token (has adminId)
+        if (!decoded.adminId) {
+            return res.status(401).json({ error: 'Invalid admin token' });
+        }
+
+        const admin = await prisma.admin.findUnique({
+            where: { id: decoded.adminId }
+        });
+
+        if (!admin || !admin.isActive) {
+            return res.status(401).json({ error: 'Invalid admin credentials' });
+        }
+
+        req.admin = {
+            id: admin.id,
+            email: admin.email,
+            role: admin.role
+        };
+        
+        next();
+    } catch (error) {
+        console.error('Admin authentication error:', error);
+        res.status(401).json({ error: 'Invalid admin token' });
+    }
+};
+
+// Check if master admin
+const requireMaster = (req: AdminRequest, res: Response, next: any) => {
+    if (req.admin?.role !== 'master') {
+        return res.status(403).json({ error: 'Master admin access required' });
+    }
+    next();
+};
 
 // Allowed email domains for security
 const ALLOWED_EMAIL_DOMAINS = [
@@ -36,65 +89,11 @@ const isValidEmailDomain = (email: string): boolean => {
 };
 
 /**
- * Check if user is master admin
- */
-const isMasterAdmin = async (userId: string): Promise<boolean> => {
-    try {
-        console.log('=== isMasterAdmin CHECK ===');
-        console.log('Checking userId:', userId);
-        
-        if (!userId) {
-            console.log('ERROR: No userId provided');
-            return false;
-        }
-        
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: {
-                id: true,
-                email: true,
-                role: true,
-                isAdmin: true,
-                adminStatus: true
-            }
-        });
-        
-        console.log('User found:', JSON.stringify(user, null, 2));
-        
-        if (!user) {
-            console.log('ERROR: User not found in database');
-            return false;
-        }
-        
-        const isMaster = user.role === 'admin' && user.isAdmin === true;
-        console.log('Role:', user.role);
-        console.log('isAdmin:', user.isAdmin);
-        console.log('Final result:', isMaster);
-        
-        return isMaster;
-    } catch (error) {
-        console.error('=== isMasterAdmin ERROR ===');
-        console.error('Error:', error);
-        console.error('Stack:', error.stack);
-        return false;
-    }
-};
-
-/**
  * POST /api/subadmin/create
  * Master admin creates a subadmin
  */
-router.post('/create', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/create', authenticateAdmin, requireMaster, async (req: AdminRequest, res: Response) => {
     try {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        // Check if requester is master admin
-        const isMaster = await isMasterAdmin(req.user.userId);
-        if (!isMaster) {
-            return res.status(403).json({ error: 'Only master admin can create subadmins' });
-        }
 
         const { name, email, password, college, gender, phone } = req.body;
 
@@ -131,7 +130,7 @@ router.post('/create', authenticate, async (req: AuthRequest, res: Response) => 
                         isAdmin: true,
                         adminStatus: 'active',
                         isActive: true,
-                        createdBy: req.user.userId,
+                        createdBy: req.admin?.id || null,
                         updatedAt: new Date()
                     },
                     select: {
@@ -178,7 +177,7 @@ router.post('/create', authenticate, async (req: AuthRequest, res: Response) => 
                 emailVerified: true, // Auto-verify for admins
                 phoneVerified: true,
                 isActive: true,
-                createdBy: req.user?.userId || null
+                createdBy: req.admin?.id || null
             },
             select: {
                 id: true,
@@ -209,29 +208,11 @@ router.post('/create', authenticate, async (req: AuthRequest, res: Response) => 
  * GET /api/subadmin/list
  * Master admin lists all subadmins
  */
-router.get('/list', authenticate, async (req: AuthRequest, res: Response) => {
+router.get('/list', authenticateAdmin, requireMaster, async (req: AdminRequest, res: Response) => {
     try {
         console.log('=== GET /list DEBUG ===');
-        console.log('Headers:', req.headers);
-        console.log('User from token:', req.user);
+        console.log('Admin from token:', req.admin);
         
-        if (!req.user) {
-            console.log('ERROR: No user in request');
-            return res.status(401).json({ error: 'Unauthorized - No user found' });
-        }
-
-        console.log('Checking if user is master admin...');
-        console.log('User ID:', req.user.userId);
-        
-        // Check if requester is master admin
-        const isMaster = await isMasterAdmin(req.user.userId);
-        console.log('Is master admin result:', isMaster);
-        
-        if (!isMaster) {
-            console.log('ERROR: User is not master admin');
-            return res.status(403).json({ error: 'Only master admin can view subadmins. Please ensure you are logged in as master admin.' });
-        }
-
         console.log('Fetching subadmins...');
         
         // Get all subadmins (excluding deleted ones by default)
@@ -260,13 +241,11 @@ router.get('/list', authenticate, async (req: AuthRequest, res: Response) => {
         });
 
         console.log('Found subadmins:', subadmins.length);
-        console.log('Subadmins:', JSON.stringify(subadmins, null, 2));
         
         res.json({ subadmins });
     } catch (error) {
         console.error('=== List subadmins error ===');
         console.error('Error:', error);
-        console.error('Stack:', error.stack);
         res.status(500).json({ 
             error: 'Failed to list subadmins',
             details: error.message || 'Unknown error'
@@ -278,18 +257,8 @@ router.get('/list', authenticate, async (req: AuthRequest, res: Response) => {
  * PUT /api/subadmin/:id/deactivate
  * Master admin deactivates a subadmin
  */
-router.put('/:id/deactivate', authenticate, async (req: AuthRequest, res: Response) => {
+router.put('/:id/deactivate', authenticateAdmin, requireMaster, async (req: AdminRequest, res: Response) => {
     try {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        // Check if requester is master admin
-        const isMaster = await isMasterAdmin(req.user.userId);
-        if (!isMaster) {
-            return res.status(403).json({ error: 'Only master admin can deactivate subadmins' });
-        }
-
         const { id } = req.params;
 
         // Check if subadmin exists
@@ -332,18 +301,8 @@ router.put('/:id/deactivate', authenticate, async (req: AuthRequest, res: Respon
  * PUT /api/subadmin/:id/activate
  * Master admin activates a subadmin
  */
-router.put('/:id/activate', authenticate, async (req: AuthRequest, res: Response) => {
+router.put('/:id/activate', authenticateAdmin, requireMaster, async (req: AdminRequest, res: Response) => {
     try {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        // Check if requester is master admin
-        const isMaster = await isMasterAdmin(req.user.userId);
-        if (!isMaster) {
-            return res.status(403).json({ error: 'Only master admin can activate subadmins' });
-        }
-
         const { id } = req.params;
 
         // Check if subadmin exists
@@ -386,18 +345,8 @@ router.put('/:id/activate', authenticate, async (req: AuthRequest, res: Response
  * DELETE /api/subadmin/:id
  * Master admin permanently deletes a subadmin
  */
-router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticateAdmin, requireMaster, async (req: AdminRequest, res: Response) => {
     try {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        // Check if requester is master admin
-        const isMaster = await isMasterAdmin(req.user.userId);
-        if (!isMaster) {
-            return res.status(403).json({ error: 'Only master admin can delete subadmins' });
-        }
-
         const { id } = req.params;
 
         // Check if subadmin exists
@@ -433,18 +382,8 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
  * PUT /api/subadmin/:id/update
  * Master admin updates subadmin details
  */
-router.put('/:id/update', authenticate, async (req: AuthRequest, res: Response) => {
+router.put('/:id/update', authenticateAdmin, requireMaster, async (req: AdminRequest, res: Response) => {
     try {
-        if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        // Check if requester is master admin
-        const isMaster = await isMasterAdmin(req.user.userId);
-        if (!isMaster) {
-            return res.status(403).json({ error: 'Only master admin can update subadmins' });
-        }
-
         const { id } = req.params;
         const { name, password, college, gender, phone } = req.body;
 
