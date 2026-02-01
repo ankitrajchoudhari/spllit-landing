@@ -40,19 +40,42 @@ const isValidEmailDomain = (email: string): boolean => {
  */
 const isMasterAdmin = async (userId: string): Promise<boolean> => {
     try {
-        if (!userId) return false;
+        console.log('=== isMasterAdmin CHECK ===');
+        console.log('Checking userId:', userId);
+        
+        if (!userId) {
+            console.log('ERROR: No userId provided');
+            return false;
+        }
         
         const user = await prisma.user.findUnique({
             where: { id: userId },
             select: {
+                id: true,
+                email: true,
                 role: true,
-                isAdmin: true
+                isAdmin: true,
+                adminStatus: true
             }
         });
         
-        return user?.role === 'admin' && user.isAdmin === true;
+        console.log('User found:', JSON.stringify(user, null, 2));
+        
+        if (!user) {
+            console.log('ERROR: User not found in database');
+            return false;
+        }
+        
+        const isMaster = user.role === 'admin' && user.isAdmin === true;
+        console.log('Role:', user.role);
+        console.log('isAdmin:', user.isAdmin);
+        console.log('Final result:', isMaster);
+        
+        return isMaster;
     } catch (error) {
-        console.error('isMasterAdmin error:', error);
+        console.error('=== isMasterAdmin ERROR ===');
+        console.error('Error:', error);
+        console.error('Stack:', error.stack);
         return false;
     }
 };
@@ -188,20 +211,29 @@ router.post('/create', authenticate, async (req: AuthRequest, res: Response) => 
  */
 router.get('/list', authenticate, async (req: AuthRequest, res: Response) => {
     try {
-        console.log('GET /list - User:', req.user);
+        console.log('=== GET /list DEBUG ===');
+        console.log('Headers:', req.headers);
+        console.log('User from token:', req.user);
         
         if (!req.user) {
-            return res.status(401).json({ error: 'Unauthorized' });
+            console.log('ERROR: No user in request');
+            return res.status(401).json({ error: 'Unauthorized - No user found' });
         }
 
+        console.log('Checking if user is master admin...');
+        console.log('User ID:', req.user.userId);
+        
         // Check if requester is master admin
         const isMaster = await isMasterAdmin(req.user.userId);
-        console.log('Is master admin:', isMaster);
+        console.log('Is master admin result:', isMaster);
         
         if (!isMaster) {
-            return res.status(403).json({ error: 'Only master admin can view subadmins' });
+            console.log('ERROR: User is not master admin');
+            return res.status(403).json({ error: 'Only master admin can view subadmins. Please ensure you are logged in as master admin.' });
         }
 
+        console.log('Fetching subadmins...');
+        
         // Get all subadmins (excluding deleted ones by default)
         const subadmins = await prisma.user.findMany({
             where: {
@@ -228,10 +260,13 @@ router.get('/list', authenticate, async (req: AuthRequest, res: Response) => {
         });
 
         console.log('Found subadmins:', subadmins.length);
+        console.log('Subadmins:', JSON.stringify(subadmins, null, 2));
         
         res.json({ subadmins });
     } catch (error) {
-        console.error('List subadmins error:', error);
+        console.error('=== List subadmins error ===');
+        console.error('Error:', error);
+        console.error('Stack:', error.stack);
         res.status(500).json({ 
             error: 'Failed to list subadmins',
             details: error.message || 'Unknown error'
