@@ -15,14 +15,6 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Check if email is a subadmin email (@spllit.app but not master admin)
-    if (credentials.email.endsWith('@spllit.app') && credentials.email !== 'ankit@spllit.app') {
-      setError('Subadmins must use the regular login page. Redirecting...');
-      setTimeout(() => navigate('/login'), 2000);
-      return;
-    }
-    
     const result = await login(credentials);
     if (result.success) navigate('/admin/dashboard');
   };
@@ -42,11 +34,11 @@ const AdminLogin = () => {
           {/* Info box for subadmins */}
           <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
             <p className="text-blue-400 text-xs sm:text-sm">
-              <span className="font-bold">Subadmins:</span> Please use the regular{' '}
+              <span className="font-bold">Note:</span> Both master admin and subadmins can login here. 
+              Alternatively, subadmins can use the{' '}
               <button onClick={() => navigate('/login')} className="underline hover:text-blue-300">
-                User Login page
-              </button>{' '}
-              to access the admin dashboard.
+                regular login page
+              </button>.
             </p>
           </div>
           

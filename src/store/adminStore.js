@@ -18,6 +18,8 @@ const useAdminStore = create((set) => ({
       const { admin, token } = response.data;
       
       localStorage.setItem('adminToken', token);
+      // Also set as accessToken for compatibility with user routes (for subadmins)
+      localStorage.setItem('accessToken', token);
       localStorage.setItem('admin', JSON.stringify(admin));
       
       set({
