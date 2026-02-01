@@ -152,8 +152,12 @@ const Login = () => {
             const result = await login(credentials);
 
             if (result.success) {
-                // Redirect to dashboard after successful login
-                navigate('/dashboard');
+                // Check if user is a subadmin and redirect accordingly
+                if (result.user?.role === 'subadmin' || result.user?.isAdmin) {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/dashboard');
+                }
             } else {
                 setError(result.error || 'Login failed. Please check your credentials.');
             }

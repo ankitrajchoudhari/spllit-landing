@@ -9,13 +9,30 @@ import {
   FaPhone, FaAmbulance, FaLifeRing
 } from 'react-icons/fa';
 import useAdminStore from '../store/adminStore';
+import useAuthStore from '../store/authStore';
 import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, deleteAdmin } from '../services/adminAPI';
 import NotificationContainer from '../components/NotificationToast';
 import io from 'socket.io-client';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { admin, isAuthenticated, logout } = useAdminStore();
+  const adminStore = useAdminStore();
+  const authStore = useAuthStore();
+  
+  // Check both authentication methods
+  const isAuthenticated = adminStore.isAuthenticated || (authStore.isAuthenticated && (authStore.user?.role === 'subadmin' || authStore.user?.isAdmin));
+  const admin = adminStore.admin || authStore.user;
+  const isMasterAdmin = adminStore.admin?.role === 'master';
+  const isSubAdmin = authStore.user?.role === 'subadmin' || authStore.user?.isAdmin;
+  
+  const logout = () => {
+    if (adminStore.isAuthenticated) {
+      adminStore.logout();
+    } else {
+      authStore.logout();
+    }
+    navigate('/');
+  };
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [rides, setRides] = useState([]);
@@ -141,7 +158,7 @@ const AdminDashboard = () => {
       } else if (activeTab === 'matches') {
         const response = await fetchMatches();
         setMatches(response.data.matches);
-      } else if (activeTab === 'admins' && admin?.role === 'master') {
+      } else if (activeTab === 'admins' && isMasterAdmin) {
         const response = await fetchAdmins();
         setAdmins(response.data.subadmins || response.data.admins || []);
       }
@@ -275,10 +292,16 @@ const AdminDashboard = () => {
                     </div>
                     <span className="text-[11px] sm:text-xs text-gray-300 whitespace-nowrap">Admin</span>
                   </div>
-                  {admin?.role === 'master' && (
+                  {isMasterAdmin && (
                     <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-lg">
                       <FaCrown className="text-yellow-400 text-[10px]" />
                       <span className="text-[10px] text-yellow-400 font-semibold whitespace-nowrap">MASTER</span>
+                    </div>
+                  )}
+                  {isSubAdmin && !isMasterAdmin && (
+                    <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-1 rounded-lg">
+                      <FaUserShield className="text-blue-400 text-[10px]" />
+                      <span className="text-[10px] text-blue-400 font-semibold whitespace-nowrap">SUBADMIN</span>
                     </div>
                   )}
                 </div>
@@ -332,7 +355,7 @@ const AdminDashboard = () => {
               { id: 'rides', label: 'Rides', icon: FaCar },
               { id: 'matches', label: 'Matches', icon: FaHandshake },
               { id: 'emergency', label: 'Emergency', icon: FaExclamationTriangle },
-              ...(admin?.role === 'master' ? [{ id: 'admins', label: 'Admins', icon: FaUserShield }] : [])
+              ...(isMasterAdmin ? [{ id: 'admins', label: 'Admins', icon: FaUserShield }] : [])
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1005,7 +1028,7 @@ const AdminDashboard = () => {
             )}
 
             {/* Admins Tab (Master Only) */}
-            {activeTab === 'admins' && admin?.role === 'master' && (
+            {activeTab === 'admins' && isMasterAdmin && (
               <div className="space-y-4 sm:space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <h2 className="text-xl sm:text-2xl font-bold">Admin Management</h2>
