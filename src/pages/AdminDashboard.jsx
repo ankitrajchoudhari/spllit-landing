@@ -1019,14 +1019,16 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="grid gap-3 sm:gap-4">
-                  {admins.map((adm) => (
+                  {admins.map((adm) => {
+                    console.log('Admin item:', adm);
+                    return (
                     <div key={adm.id} className="bg-bg-secondary border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
                           <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 ${
-                            adm.role === 'master' ? 'bg-yellow-500/20' : 'bg-accent-green/20'
+                            adm.role === 'admin' || adm.role === 'master' ? 'bg-yellow-500/20' : 'bg-accent-green/20'
                           }`}>
-                            {adm.role === 'master' ? (
+                            {adm.role === 'admin' || adm.role === 'master' ? (
                               <FaCrown className="text-yellow-400 text-xl sm:text-2xl" />
                             ) : (
                               <FaUserShield className="text-accent-green text-xl sm:text-2xl" />
@@ -1035,7 +1037,7 @@ const AdminDashboard = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="text-base sm:text-xl font-bold">{adm.name}</h3>
-                              {adm.role === 'master' && (
+                              {(adm.role === 'admin' || adm.role === 'master') && adm.isAdmin && (
                                 <span className="text-[10px] sm:text-xs bg-yellow-500/20 text-yellow-400 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full whitespace-nowrap">
                                   Master Admin
                                 </span>
@@ -1055,7 +1057,7 @@ const AdminDashboard = () => {
                           }`}>
                             {adm.adminStatus === 'active' ? '● Enabled' : '○ Disabled'}
                           </span>
-                          {adm.role !== 'master' && adm.adminStatus === 'active' && (
+                          {adm.role === 'subadmin' && adm.adminStatus === 'active' && (
                             <button
                               onClick={() => handleDeactivateAdmin(adm.id)}
                               className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-all text-xs sm:text-sm font-medium"
@@ -1064,7 +1066,7 @@ const AdminDashboard = () => {
                               Disable
                             </button>
                           )}
-                          {adm.role !== 'master' && adm.adminStatus === 'inactive' && (
+                          {adm.role === 'subadmin' && adm.adminStatus === 'inactive' && (
                             <>
                               <button
                                 onClick={() => handleActivateAdmin(adm.id)}
@@ -1085,7 +1087,8 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}
