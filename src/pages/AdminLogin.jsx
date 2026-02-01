@@ -30,6 +30,18 @@ const AdminLogin = () => {
             <h1 className="text-3xl font-bold text-white mb-2">Admin Login</h1>
             <p className="text-gray-400 text-sm">Authorized access only</p>
           </div>
+          
+          {/* Info box for subadmins */}
+          <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+            <p className="text-blue-400 text-xs sm:text-sm">
+              <span className="font-bold">Subadmins:</span> Please use the regular{' '}
+              <button onClick={() => navigate('/login')} className="underline hover:text-blue-300">
+                User Login page
+              </button>{' '}
+              to access the admin dashboard.
+            </p>
+          </div>
+          
           {error && (<div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl"><p className="text-red-400 text-sm">{error}</p></div>)}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

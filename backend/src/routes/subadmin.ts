@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import prisma from '../utils/prisma.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { io } from '../server.js';
 
 const router = express.Router();
 
@@ -288,6 +289,16 @@ router.put('/:id/deactivate', authenticateAdmin, requireMaster, async (req: Admi
             }
         });
 
+        // Emit real-time update
+        io.emit('subadmin-status-changed', {
+            id: updated.id,
+            email: updated.email,
+            name: updated.name,
+            status: 'inactive',
+            isActive: false,
+            timestamp: new Date()
+        });
+
         res.json({
             message: 'Subadmin deactivated successfully',
             subadmin: updated
@@ -330,6 +341,16 @@ router.put('/:id/activate', authenticateAdmin, requireMaster, async (req: AdminR
                 adminStatus: true,
                 isActive: true
             }
+        });
+
+        // Emit real-time update
+        io.emit('subadmin-status-changed', {
+            id: updated.id,
+            email: updated.email,
+            name: updated.name,
+            status: 'active',
+            isActive: true,
+            timestamp: new Date()
         });
 
         res.json({

@@ -130,6 +130,21 @@ const AdminDashboard = () => {
       }
     });
 
+    // Listen for subadmin status changes (real-time)
+    newSocket.on('subadmin-status-changed', (data) => {
+      console.log('Subadmin status changed:', data);
+      addNotification({
+        type: 'admin',
+        title: 'Subadmin Status Changed',
+        message: `${data.name} is now ${data.status}`,
+        timestamp: Date.now()
+      });
+      // Refresh admin list if on admins tab
+      if (activeTab === 'admins') {
+        loadData();
+      }
+    });
+
     return () => {
       newSocket.disconnect();
     };
