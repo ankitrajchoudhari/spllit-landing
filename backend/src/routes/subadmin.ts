@@ -69,6 +69,7 @@ const ALLOWED_EMAIL_DOMAINS = [
     'icloud.com',
     'aol.com',
     'mail.com',
+    'spllit.app',  // Official Spllit domain
     // Educational domains
     'edu',
     'ac.in',
