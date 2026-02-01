@@ -112,6 +112,19 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    // Check if user is active (for subadmins and admins)
+    if (user.role === 'subadmin' || user.role === 'admin') {
+      if (user.adminStatus === 'inactive') {
+        return res.status(403).json({ error: 'Your account has been deactivated. Please contact the administrator.' });
+      }
+      if (user.adminStatus === 'deleted') {
+        return res.status(403).json({ error: 'This account no longer exists.' });
+      }
+      if (!user.isActive) {
+        return res.status(403).json({ error: 'Your account is not active. Please contact the administrator.' });
+      }
+    }
+
     // Update last seen
     await prisma.user.update({
       where: { id: user.id },

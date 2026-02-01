@@ -171,13 +171,13 @@ const SubadminManagement = () => {
                                 <div className="flex items-center gap-3 mb-2">
                                     <h3 className="text-lg font-semibold text-white">{admin.name}</h3>
                                     <span
-                                        className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                        className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
                                             admin.adminStatus === 'active'
-                                                ? 'bg-green-500/20 text-green-400'
-                                                : 'bg-gray-500/20 text-gray-400'
+                                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
                                         }`}
                                     >
-                                        {admin.adminStatus}
+                                        {admin.adminStatus === 'active' ? '● Enabled' : '○ Disabled'}
                                     </span>
                                 </div>
                                 <p className="text-gray-400 text-sm">{admin.email}</p>
@@ -190,28 +190,31 @@ const SubadminManagement = () => {
                                 {admin.adminStatus === 'active' ? (
                                     <button
                                         onClick={() => handleDeactivate(admin.id)}
-                                        className="p-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors"
-                                        title="Deactivate"
+                                        className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors font-medium"
+                                        title="Deactivate this subadmin - they won't be able to login"
                                     >
                                         <FaToggleOff />
+                                        <span>Disable</span>
                                     </button>
                                 ) : (
                                     <button
                                         onClick={() => handleActivate(admin.id)}
-                                        className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors"
-                                        title="Activate"
+                                        className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors font-medium"
+                                        title="Activate this subadmin - they will be able to login"
                                     >
                                         <FaToggleOn />
+                                        <span>Enable</span>
                                     </button>
                                 )}
 
                                 {admin.adminStatus === 'inactive' && (
                                     <button
                                         onClick={() => handleDelete(admin.id)}
-                                        className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
-                                        title="Delete (Allows email reuse)"
+                                        className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors font-medium"
+                                        title="Delete permanently - email can be reused"
                                     >
                                         <FaTrash />
+                                        <span>Delete</span>
                                     </button>
                                 )}
                             </div>
