@@ -9,7 +9,7 @@ import {
   FaPhone, FaAmbulance, FaLifeRing
 } from 'react-icons/fa';
 import useAdminStore from '../store/adminStore';
-import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchAdmins, createAdmin, deactivateAdmin } from '../services/adminAPI';
+import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, deleteAdmin } from '../services/adminAPI';
 import NotificationContainer from '../components/NotificationToast';
 import io from 'socket.io-client';
 
@@ -143,7 +143,7 @@ const AdminDashboard = () => {
         setMatches(response.data.matches);
       } else if (activeTab === 'admins' && admin?.role === 'master') {
         const response = await fetchAdmins();
-        setAdmins(response.data.admins);
+        setAdmins(response.data.subadmins || response.data.admins || []);
       }
       setLoading(false);
     } catch (error) {
@@ -183,13 +183,34 @@ const AdminDashboard = () => {
   };
 
   const handleDeactivateAdmin = async (id) => {
-    if (!confirm('Are you sure you want to deactivate this admin?')) return;
+    if (!confirm('Are you sure you want to disable this admin? They will not be able to login.')) return;
     try {
       await deactivateAdmin(id);
       loadData();
-      alert('Admin deactivated successfully!');
+      alert('Admin disabled successfully!');
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to deactivate admin');
+      alert(error.response?.data?.error || 'Failed to disable admin');
+    }
+  };
+
+  const handleActivateAdmin = async (id) => {
+    try {
+      await activateAdmin(id);
+      loadData();
+      alert('Admin enabled successfully!');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to enable admin');
+    }
+  };
+
+  const handleDeleteAdmin = async (id) => {
+    if (!confirm('Are you sure you want to permanently delete this admin? The email can be reused after deletion.')) return;
+    try {
+      await deleteAdmin(id);
+      loadData();
+      alert('Admin deleted successfully! Email can now be reused.');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to delete admin');
     }
   };
 
@@ -1027,18 +1048,39 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
-                          <span className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full whitespace-nowrap ${
-                            adm.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                          <span className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full whitespace-nowrap font-bold uppercase ${
+                            adm.adminStatus === 'active' 
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                              : 'bg-red-500/20 text-red-400 border border-red-500/30'
                           }`}>
-                            {adm.isActive ? 'Active' : 'Inactive'}
+                            {adm.adminStatus === 'active' ? '● Enabled' : '○ Disabled'}
                           </span>
-                          {adm.role !== 'master' && adm.isActive && (
+                          {adm.role !== 'master' && adm.adminStatus === 'active' && (
                             <button
                               onClick={() => handleDeactivateAdmin(adm.id)}
-                              className="p-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-all"
+                              className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-all text-xs sm:text-sm font-medium"
+                              title="Disable this admin - they won't be able to login"
                             >
-                              <FaTrash className="text-sm" />
+                              Disable
                             </button>
+                          )}
+                          {adm.role !== 'master' && adm.adminStatus === 'inactive' && (
+                            <>
+                              <button
+                                onClick={() => handleActivateAdmin(adm.id)}
+                                className="px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-all text-xs sm:text-sm font-medium"
+                                title="Enable this admin - they will be able to login"
+                              >
+                                Enable
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAdmin(adm.id)}
+                                className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all text-xs sm:text-sm font-medium"
+                                title="Delete permanently - email can be reused"
+                              >
+                                Delete
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
