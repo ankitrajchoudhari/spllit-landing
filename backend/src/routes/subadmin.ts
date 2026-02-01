@@ -380,19 +380,21 @@ router.delete('/:id', authenticateAdmin, requireMaster, async (req: AdminRequest
             return res.status(404).json({ error: 'Subadmin not found' });
         }
 
-        // Soft delete by marking as deleted (allows email reuse)
-        await prisma.user.update({
-            where: { id },
-            data: {
-                adminStatus: 'deleted',
-                isActive: false,
-                email: `deleted_${Date.now()}_${subadmin.email}`, // Modify email to allow reuse
-                updatedAt: new Date()
-            }
+        // Permanently delete the subadmin (hard delete)
+        await prisma.user.delete({
+            where: { id }
+        });
+
+        // Emit real-time update
+        io.emit('subadmin-deleted', {
+            id: subadmin.id,
+            email: subadmin.email,
+            name: subadmin.name,
+            timestamp: new Date()
         });
 
         res.json({
-            message: 'Subadmin deleted successfully. Email can be reused for new admin.'
+            message: 'Subadmin permanently deleted. Email can be reused.'
         });
     } catch (error) {
         console.error('Delete subadmin error:', error);

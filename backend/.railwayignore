@@ -1,0 +1,6 @@
+node_modules
+.env.local
+*.log
+.DS_Store
+force-activate-subadmin.*
+check-all-subadmins.*

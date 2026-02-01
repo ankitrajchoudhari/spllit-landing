@@ -1,6 +1,6 @@
 {
   "name": "spllit-backend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Backend for Spllit ride-matching platform",
   "main": "dist/server.js",
   "type": "module",
