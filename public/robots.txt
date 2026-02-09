@@ -1,5 +1,11 @@
+# robots.txt for Spllit.app
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /dashboard
+
+# Crawl-delay for bots
+Crawl-delay: 0
 
 # Host
 Host: https://spllit.app

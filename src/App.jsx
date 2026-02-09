@@ -16,6 +16,7 @@ import SEO from './components/SEO';
 const About = lazy(() => import('./pages/About'));
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
+const IITMadras = lazy(() => import('./pages/IITMadras'));
 const Blog = lazy(() => import('./pages/Blog'));
 const FAQ = lazy(() => import('./pages/FAQ'));
 const Pricing = lazy(() => import('./pages/Pricing'));
@@ -119,6 +120,7 @@ function App() {
                       <HowItWorksPage />
                     </>
                   } />
+                  <Route path="/iit-madras" element={<IITMadras />} />
                   <Route path="/blog" element={
                     <>
                       <SEO
