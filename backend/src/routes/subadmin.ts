@@ -1,19 +1,11 @@
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import prisma from '../utils/prisma.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { io } from '../server.js';
+import { AdminRequest } from '../types/express.js';
 
 const router = express.Router();
-
-// Admin auth interface
-interface AdminRequest extends Request {
-    admin?: {
-        id: string;
-        email: string;
-        role: string;
-    };
-}
 
 // Admin authentication middleware
 const authenticateAdmin = async (req: AdminRequest, res: Response, next: any) => {

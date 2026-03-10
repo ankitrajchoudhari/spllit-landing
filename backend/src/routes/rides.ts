@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
-import { authenticate, AuthRequest } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth.js';
+import { AuthRequest } from '../types/express.js';
 import { calculateDistance, isTimeWithinWindow } from '../utils/helpers.js';
 import { io } from '../server.js';
 

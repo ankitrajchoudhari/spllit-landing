@@ -1,12 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/helpers.js';
-
-export interface AuthRequest extends Request {
-  user?: {
-    userId: string;
-    email: string;
-  };
-}
+import { AuthRequest } from '../types/express.js';
 
 /**
  * Middleware to verify JWT token and attach user to request
