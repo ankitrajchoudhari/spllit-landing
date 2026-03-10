@@ -4,6 +4,7 @@ services:
     env: node
     region: oregon # Change to your preferred region
     plan: free # Change to 'starter' or other paid plans as needed
+    rootDir: backend # IMPORTANT: Points to backend folder in monorepo
     buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm start
     healthCheckPath: /health
