@@ -8,6 +8,10 @@ export interface AuthRequest extends Request {
     userId: string;
     email: string;
   };
+  body: any;
+  params: any;
+  query: any;
+  headers: any;
 }
 
 /**
@@ -19,4 +23,8 @@ export interface AdminRequest extends Request {
     email: string;
     role: string;
   };
+  body: any;
+  params: any;
+  query: any;
+  headers: any;
 }
