@@ -2,6 +2,27 @@
 
 Backend server for Spllit ride-matching platform with real-time chat, location sharing, and smart matching algorithm.
 
+## 🚀 Deploy to Render
+
+**Ready to deploy?** Your backend is fully configured for Render!
+
+👉 **[Click here for complete deployment guide](./DEPLOYMENT_COMPLETE.md)**
+
+**Quick Deploy:**
+```bash
+./deploy-to-render.sh  # Generates secrets and shows next steps
+```
+
+**Your Service:** https://dashboard.render.com/web/srv-d6o6nji4d50c73fdl27g
+
+**Documentation:**
+- [Complete Deployment Guide](./DEPLOYMENT_COMPLETE.md)
+- [Quick Reference](./RENDER_QUICK_REFERENCE.md)
+- [Detailed Setup](./RENDER_SETUP.md)
+- [Frontend Configuration](../FRONTEND_RENDER_CONFIG.md)
+
+---
+
 ## Features
 
 ✅ **JWT Authentication** - Secure user registration and login  

@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: spllit-backend
+    env: node
+    region: oregon # Change to your preferred region
+    plan: free # Change to 'starter' or other paid plans as needed
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # Set manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1h
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_URL
+        value: https://spllit.app
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false # Set manually in Render dashboard
