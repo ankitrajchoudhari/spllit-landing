@@ -380,6 +380,14 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Ride not found or unauthorized' });
     }
 
+    // Delete related matches and their messages first (no cascade in MongoDB)
+    const matches = await prisma.match.findMany({ where: { rideId: id }, select: { id: true } });
+    if (matches.length > 0) {
+      const matchIds = matches.map(m => m.id);
+      await prisma.message.deleteMany({ where: { matchId: { in: matchIds } } });
+      await prisma.match.deleteMany({ where: { rideId: id } });
+    }
+
     await prisma.ride.delete({
       where: { id }
     });

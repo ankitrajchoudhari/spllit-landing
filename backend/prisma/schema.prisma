@@ -6,13 +6,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 // User model with authentication and profile data
 model User {
-  id                String    @id @default(cuid())
+  id                String    @id @default(cuid()) @map("_id")
   name              String
   email             String    @unique
   phone             String?   // Phone number for display
@@ -44,8 +44,6 @@ model User {
   blockingUsers     Block[]   @relation("Blocking")
   emergencies       Emergency[]
   
-  @@index([email])
-  @@index([phoneHash])
   @@index([college])
   @@index([role])
   @@index([adminStatus])
@@ -53,7 +51,7 @@ model User {
 
 // Ride model for ride creation and searching
 model Ride {
-  id              String    @id @default(cuid())
+  id              String    @id @default(cuid()) @map("_id")
   userId          String
   origin          String    // Starting location name
   originLat       Float?
@@ -71,7 +69,7 @@ model Ride {
   updatedAt       DateTime  @updatedAt
   
   // Relations
-  creator         User      @relation("RideCreator", fields: [userId], references: [id], onDelete: Cascade)
+  creator         User      @relation("RideCreator", fields: [userId], references: [id])
   matches         Match[]
   
   @@index([userId])
@@ -83,7 +81,7 @@ model Ride {
 
 // Match model for connecting users
 model Match {
-  id              String    @id @default(cuid())
+  id              String    @id @default(cuid()) @map("_id")
   rideId          String
   user1Id         String    // Ride creator
   user2Id         String    // Matched user
@@ -94,19 +92,18 @@ model Match {
   completedAt     DateTime?
   
   // Relations
-  ride            Ride      @relation(fields: [rideId], references: [id], onDelete: Cascade)
-  user1           User      @relation("MatchUser1", fields: [user1Id], references: [id], onDelete: Cascade)
-  user2           User      @relation("MatchUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  ride            Ride      @relation(fields: [rideId], references: [id])
+  user1           User      @relation("MatchUser1", fields: [user1Id], references: [id])
+  user2           User      @relation("MatchUser2", fields: [user2Id], references: [id])
   messages        Message[]
   
   @@unique([rideId, user1Id, user2Id])
-  @@index([chatRoomId])
   @@index([status])
 }
 
 // Message model for chat
 model Message {
-  id              String    @id @default(cuid())
+  id              String    @id @default(cuid()) @map("_id")
   matchId         String
   senderId        String
   content         String
@@ -116,8 +113,8 @@ model Message {
   createdAt       DateTime  @default(now())
   
   // Relations
-  match           Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  sender          User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  match           Match     @relation(fields: [matchId], references: [id])
+  sender          User      @relation(fields: [senderId], references: [id])
   
   @@index([matchId])
   @@index([senderId])
@@ -126,7 +123,7 @@ model Message {
 
 // Location model for live tracking
 model Location {
-  id              String    @id @default(cuid())
+  id              String    @id @default(cuid()) @map("_id")
   userId          String
   latitude        Float
   longitude       Float
@@ -137,7 +134,7 @@ model Location {
   createdAt       DateTime  @default(now())
   
   // Relations
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id])
   
   @@index([userId])
   @@index([createdAt])
@@ -146,15 +143,15 @@ model Location {
 
 // Block model for user safety
 model Block {
-  id              String    @id @default(cuid())
+  id              String    @id @default(cuid()) @map("_id")
   blockerId       String
   blockedId       String
   reason          String?
   createdAt       DateTime  @default(now())
   
   // Relations
-  blocker         User      @relation("BlockedBy", fields: [blockerId], references: [id], onDelete: Cascade)
-  blocked         User      @relation("Blocking", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocker         User      @relation("BlockedBy", fields: [blockerId], references: [id])
+  blocked         User      @relation("Blocking", fields: [blockedId], references: [id])
   
   @@unique([blockerId, blockedId])
   @@index([blockerId])
@@ -163,7 +160,7 @@ model Block {
 
 // Admin model for platform management
 model Admin {
-  id              String    @id @default(cuid())
+  id              String    @id @default(cuid()) @map("_id")
   email           String    @unique
   password        String    // Hashed password
   name            String
@@ -174,13 +171,12 @@ model Admin {
   updatedAt       DateTime  @updatedAt
   createdBy       String?   // ID of master admin who created this admin
   
-  @@index([email])
   @@index([role])
 }
 
 // Emergency model for SOS alerts
 model Emergency {
-  id              String    @id @default(cuid())
+  id              String    @id @default(cuid()) @map("_id")
   userId          String
   locationLat     Float
   locationLng     Float
@@ -192,7 +188,7 @@ model Emergency {
   updatedAt       DateTime  @updatedAt
   
   // Relations
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id])
   
   @@index([userId])
   @@index([status])

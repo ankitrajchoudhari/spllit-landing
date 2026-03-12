@@ -372,6 +372,20 @@ router.delete('/:id', authenticateAdmin, requireMaster, async (req: AdminRequest
             return res.status(404).json({ error: 'Subadmin not found' });
         }
 
+        // Delete related records first (no cascade in MongoDB)
+        await prisma.emergency.deleteMany({ where: { userId: id } });
+        await prisma.block.deleteMany({ where: { OR: [{ blockerId: id }, { blockedId: id }] } });
+        await prisma.location.deleteMany({ where: { userId: id } });
+        await prisma.message.deleteMany({ where: { senderId: id } });
+        await prisma.match.deleteMany({ where: { OR: [{ user1Id: id }, { user2Id: id }] } });
+        const rides = await prisma.ride.findMany({ where: { userId: id }, select: { id: true } });
+        if (rides.length > 0) {
+          const rideIds = rides.map(r => r.id);
+          await prisma.message.deleteMany({ where: { match: { rideId: { in: rideIds } } } });
+          await prisma.match.deleteMany({ where: { rideId: { in: rideIds } } });
+        }
+        await prisma.ride.deleteMany({ where: { userId: id } });
+
         // Permanently delete the subadmin (hard delete)
         await prisma.user.delete({
             where: { id }

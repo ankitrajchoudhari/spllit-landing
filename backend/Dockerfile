@@ -23,6 +23,10 @@ RUN npx prisma generate
 # Copy source code
 COPY src ./src
 
+# Copy start script
+COPY start.sh ./start.sh
+RUN chmod +x start.sh
+
 # Build TypeScript
 RUN npm run build
 
