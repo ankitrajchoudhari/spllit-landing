@@ -25,7 +25,8 @@ const io = new Server(httpServer, {
       'https://www.spllit.app',
       'https://spllit-landing.vercel.app',
       'https://spllit-landing-git-main-25f3003058-afks-projects.vercel.app',
-      /\.vercel\.app$/
+      /\.vercel\.app$/,
+      /\.onrender\.com$/
     ],
     methods: ['GET', 'POST'],
     credentials: true,
@@ -42,7 +43,8 @@ app.use(cors({
     'https://www.spllit.app',
     'https://spllit-landing.vercel.app',
     'https://spllit-landing-git-main-25f3003058-afks-projects.vercel.app',
-    /\.vercel\.app$/
+    /\.vercel\.app$/,
+    /\.onrender\.com$/
   ],
   credentials: true,
   allowedHeaders: ['*'],

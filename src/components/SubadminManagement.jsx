@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FaUserShield, FaPlus, FaTimes, FaTrash, FaToggleOn, FaToggleOff, FaEdit } from 'react-icons/fa';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://ankit-production-f3d4.up.railway.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://srv-d6o6nji4d50c73fdl27g.onrender.com/api';
 
 const SubadminManagement = () => {
     const [subadmins, setSubadmins] = useState([]);

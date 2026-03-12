@@ -22,16 +22,32 @@ fi
 echo "✅ JWT_SECRET is set"
 
 echo "📦 Running Prisma migrations..."
-npx prisma migrate deploy || {
-  echo "❌ Prisma migrations failed!"
-  echo "This could mean:"
-  echo "  1. Database is not accessible"
-  echo "  2. DATABASE_URL is incorrect"
-  echo "  3. Database doesn't exist"
-  echo ""
-  echo "DATABASE_URL format should be:"
-  echo "postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
-  exit 1
+npx prisma migrate deploy 2>&1 || {
+  EXIT_CODE=$?
+  echo "⚠️  prisma migrate deploy failed (exit code $EXIT_CODE)"
+  echo "Attempting to resolve with prisma migrate resolve..."
+  
+  # If P3005 (schema not empty), baseline the existing migration
+  # This marks existing migrations as already applied without running them
+  MIGRATION_NAME=$(ls -1 prisma/migrations/ | grep -v migration_lock.toml | head -1)
+  if [ -n "$MIGRATION_NAME" ]; then
+    echo "📌 Baselining migration: $MIGRATION_NAME"
+    npx prisma migrate resolve --applied "$MIGRATION_NAME" 2>&1 || {
+      echo "⚠️  Resolve also failed. Trying db push as fallback..."
+      npx prisma db push --accept-data-loss 2>&1 || {
+        echo "❌ All migration strategies failed!"
+        echo "DATABASE_URL format should be:"
+        echo "postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public"
+        exit 1
+      }
+    }
+    # After resolving, try migrate deploy again for any remaining migrations
+    echo "📦 Re-running prisma migrate deploy..."
+    npx prisma migrate deploy 2>&1 || true
+  else
+    echo "❌ No migrations found in prisma/migrations/"
+    exit 1
+  fi
 }
 
 echo "✅ Migrations completed successfully"

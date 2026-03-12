@@ -67,7 +67,7 @@ const AdminDashboard = () => {
 
   // Socket.IO for real-time notifications
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://ankit-production-f3d4.up.railway.app';
+    const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://srv-d6o6nji4d50c73fdl27g.onrender.com';
     const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling']
     });
