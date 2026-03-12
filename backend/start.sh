@@ -7,7 +7,7 @@ echo "🔍 Checking environment..."
 if [ -z "$DATABASE_URL" ]; then
   echo "❌ ERROR: DATABASE_URL environment variable is not set!"
   echo "Please set DATABASE_URL in Render Dashboard → Environment tab"
-  echo "Format: mongodb+srv://USER:PASSWORD@cluster.mongodb.net/DATABASE"
+  echo "Format: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>"
   exit 1
 fi
 
@@ -31,7 +31,7 @@ npx prisma db push 2>&1 || {
   echo "  3. MongoDB cluster is not reachable"
   echo ""
   echo "DATABASE_URL format should be:"
-  echo "mongodb+srv://USER:PASSWORD@cluster.mongodb.net/DATABASE"
+  echo "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>"
   exit 1
 }
 
