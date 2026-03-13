@@ -1,12 +1,25 @@
 #!/bin/bash
 set -e
 
+# Load local environment files for development before validating required vars.
+if [ -f ".env" ]; then
+  set -a
+  . ".env"
+  set +a
+fi
+
+if [ -f ".env.local" ]; then
+  set -a
+  . ".env.local"
+  set +a
+fi
+
 echo "🔍 Checking environment..."
 
 # Check if DATABASE_URL is set
 if [ -z "$DATABASE_URL" ]; then
   echo "❌ ERROR: DATABASE_URL environment variable is not set!"
-  echo "Please set DATABASE_URL in Render Dashboard → Environment tab"
+  echo "Set DATABASE_URL in backend/.env for local development or in your host environment for deployment"
   echo "Format: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>"
   exit 1
 fi
@@ -16,7 +29,7 @@ echo "✅ DATABASE_URL is set"
 # Check if JWT_SECRET is set
 if [ -z "$JWT_SECRET" ]; then
   echo "❌ ERROR: JWT_SECRET environment variable is not set!"
-  echo "Please set JWT_SECRET in Render Dashboard → Environment tab"
+  echo "Set JWT_SECRET in backend/.env for local development or in your host environment for deployment"
   exit 1
 fi
 
