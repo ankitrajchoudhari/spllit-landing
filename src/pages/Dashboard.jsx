@@ -9,6 +9,7 @@ import { NotificationContainer } from '../components/UserNotification';
 import ChatModal from '../components/ChatModal';
 import SubadminManagement from '../components/SubadminManagement';
 import { io } from 'socket.io-client';
+import { SOCKET_BASE_URL } from '../config/backendUrl';
 
 // Load Google Maps script with async
 const loadGoogleMaps = (callback) => {
@@ -74,7 +75,7 @@ const Dashboard = () => {
         }
 
         // Connect to Socket.IO for real-time features
-        const socketUrl = import.meta.env.VITE_API_URL || 'https://srv-d6o6nji4d50c73fdl27g.onrender.com';
+        const socketUrl = SOCKET_BASE_URL;
         const newSocket = io(socketUrl, {
             transports: ['websocket', 'polling'],
             reconnection: true,

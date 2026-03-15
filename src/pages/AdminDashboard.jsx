@@ -13,6 +13,7 @@ import useAuthStore from '../store/authStore';
 import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, deleteAdmin } from '../services/adminAPI';
 import NotificationContainer from '../components/NotificationToast';
 import io from 'socket.io-client';
+import { SOCKET_BASE_URL } from '../config/backendUrl';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ const AdminDashboard = () => {
 
   // Socket.IO for real-time notifications
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://srv-d6o6nji4d50c73fdl27g.onrender.com';
+    const socketUrl = SOCKET_BASE_URL;
     const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling']
     });

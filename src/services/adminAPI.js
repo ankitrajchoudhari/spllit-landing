@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config/backendUrl';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://srv-d6o6nji4d50c73fdl27g.onrender.com/api';
+const API_URL = API_BASE_URL;
 
 const getAdminToken = () => localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
 
