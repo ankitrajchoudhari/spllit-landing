@@ -44,7 +44,7 @@ fi
 
 echo "✅ JWT_SECRET is set"
 
-echo "📦 Syncing Prisma schema with MongoDB (non-fatal)..."
+echo "📦 Syncing Prisma schema with MongoDB (best-effort)..."
 # Add short timeout so we don't block the deploy for 30 s if Atlas is unreachable
 PRISMA_DB_URL="$DATABASE_URL"
 if [[ "$DATABASE_URL" != *"serverSelectionTimeoutMS"* ]]; then
