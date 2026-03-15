@@ -123,6 +123,7 @@ const Login = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [authMethod, setAuthMethod] = useState('');
     const [googleReady, setGoogleReady] = useState(false);
+    const [googleInitialized, setGoogleInitialized] = useState(false);
 
     const [emailId, setEmailId] = useState('');
     const [password, setPassword] = useState('');
@@ -143,6 +144,7 @@ const Login = () => {
 
     useEffect(() => {
         if (!isModalOpen || authMethod !== 'google') return;
+        if (googleInitialized) return;
 
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
         if (!clientId) {
@@ -226,8 +228,8 @@ const Login = () => {
             return;
         }
 
-        if (!window.google?.accounts?.id) {
-            setError('Google Sign-In is still loading. Please try again.');
+        if (googleInitialized) {
+            window.google.accounts.id.prompt();
             return;
         }
 
@@ -256,6 +258,7 @@ const Login = () => {
             }
         });
 
+        setGoogleInitialized(true);
         window.google.accounts.id.prompt();
     };
 
