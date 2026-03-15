@@ -58,7 +58,7 @@ class SocketService {
 
     joinMatches(matchIds) {
         if (!this.socket) return;
-        this.socket.emit('join_matches', matchIds);
+        this.socket.emit('join_matches', { matchIds });
         console.log('Joined matches:', matchIds);
     }
 
@@ -79,21 +79,21 @@ class SocketService {
         this.socket.on('new_message', callback);
     }
 
-    markMessagesAsRead(matchId) {
+    markMessagesAsRead(messageId) {
         if (!this.socket) return;
-        this.socket.emit('mark_read', { matchId });
+        this.socket.emit('mark_read', { messageId });
     }
 
     onMessagesRead(callback) {
         if (!this.socket) return;
-        this.socket.on('messages_read', callback);
+        this.socket.on('message_read', callback);
     }
 
     // ============ TYPING EVENTS ============
 
     sendTyping(matchId) {
         if (!this.socket) return;
-        this.socket.emit('typing', { matchId });
+        this.socket.emit('typing', { matchId, isTyping: true });
     }
 
     onUserTyping(callback) {
