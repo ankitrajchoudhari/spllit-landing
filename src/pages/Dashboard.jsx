@@ -16,7 +16,8 @@ const loadGoogleMaps = (callback) => {
     const existingScript = document.getElementById('googleMaps');
     if (!existingScript) {
         const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
         script.id = 'googleMaps';
         script.async = true;
         script.defer = true;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaPhone, FaUserAlt, FaTimes, FaLock } from 'react-icons/fa';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaTimes, FaLock, FaGoogle } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
 
 
@@ -118,12 +118,10 @@ const PainPointTicker = () => (
 
 const Login = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { login, isLoading, isAuthenticated } = useAuthStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [loginData, setLoginData] = useState({
-        email: '',
-        password: ''
-    });
+    const [authMethod, setAuthMethod] = useState('');
 
     const [emailId, setEmailId] = useState('');
     const [password, setPassword] = useState('');
@@ -136,6 +134,12 @@ const Login = () => {
         }
     }, [isAuthenticated, navigate]);
 
+    useEffect(() => {
+        if (searchParams.get('signin') === '1') {
+            setIsModalOpen(true);
+        }
+    }, [searchParams]);
+
     // Stats Counter Animation
     const [count, setCount] = useState(0);
     
@@ -143,10 +147,20 @@ const Login = () => {
         e.preventDefault();
         setError('');
 
+        if (!authMethod) {
+            setError('Please choose Sign in with Google or Sign in with Email.');
+            return;
+        }
+
+        if (authMethod === 'google' && !emailId.toLowerCase().includes('@gmail.com')) {
+            setError('For Google sign in, enter your Gmail ID (example@gmail.com).');
+            return;
+        }
+
         try {
             // Handle both regular users and subadmins
             let email;
-            if (emailId.includes('@')) {
+            if (authMethod === 'google' || emailId.includes('@')) {
                 // If email already has @, use it as is (for subadmins)
                 email = emailId;
             } else {
@@ -239,7 +253,7 @@ const Login = () => {
                                     onClick={() => setIsModalOpen(true)}
                                     className="px-8 py-4.5 bg-accent-green text-black font-black rounded-2xl hover:bg-opacity-90 transition-all shadow-[0_10px_20px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2 text-lg"
                                 >
-                                    Login to Connect
+                                    Sign In
                                 </motion.button>
 
                                 <motion.a
@@ -317,7 +331,7 @@ const Login = () => {
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="bg-[#0f0f0f] border-t sm:border border-white/10 w-full max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 md:p-12 relative shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+                            className="bg-black border-t sm:border border-white/10 w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 md:p-8 relative shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
                         >
                             {/* Drag Indicator for Mobile */}
                             <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8 sm:hidden" />
@@ -334,12 +348,12 @@ const Login = () => {
                             </button>
 
                             {/* Header */}
-                            <div className="text-center mb-10 relative z-10">
+                            <div className="text-center mb-8 relative z-10">
                                 <h2 className="text-3xl md:text-4xl font-black text-white mb-3 tracking-tight uppercase">
-                                    WELCOME <span className="text-accent-green">BACK</span>
+                                    SIGN <span className="text-accent-green">IN</span>
                                 </h2>
                                 <p className="text-gray-400 text-xs leading-relaxed">
-                                    Login to find your <span className="text-accent-green font-bold text-sm">ride matches</span>.
+                                    Choose your sign-in method to continue.
                                 </p>
                             </div>
 
@@ -349,24 +363,52 @@ const Login = () => {
                                 </div>
                             )}
 
-                            {/* Login Form */}
+                            {/* Sign-in Method */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setAuthMethod('google')}
+                                    className={`border rounded-2xl px-4 py-3 flex items-center justify-center gap-2 font-semibold transition-all ${authMethod === 'google'
+                                            ? 'border-accent-green bg-accent-green/10 text-white'
+                                            : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                                        }`}
+                                >
+                                    <FaGoogle />
+                                    Sign in with Google
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setAuthMethod('email')}
+                                    className={`border rounded-2xl px-4 py-3 flex items-center justify-center gap-2 font-semibold transition-all ${authMethod === 'email'
+                                            ? 'border-accent-green bg-accent-green/10 text-white'
+                                            : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                                        }`}
+                                >
+                                    <FaEnvelope />
+                                    Sign in with Email
+                                </button>
+                            </div>
+
+                            {/* Sign-in Form */}
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 {/* Email Input */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">Student Email or Admin Email</label>
+                                    <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">
+                                        {authMethod === 'google' ? 'Google Gmail ID' : 'Student Email or Admin Email'}
+                                    </label>
                                     <div className="flex flex-col sm:flex-row gap-2">
                                         <div className="relative flex-1">
                                             <input
                                                 required
                                                 type="text"
-                                                placeholder="Roll No (e.g. 25f36563058) or email@spllit.app"
+                                                placeholder={authMethod === 'google' ? 'example@gmail.com' : 'Roll No (e.g. 25f36563058) or email@spllit.app'}
                                                 value={emailId}
                                                 onChange={(e) => setEmailId(e.target.value)}
                                                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4.5 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
                                             />
                                             <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
                                         </div>
-                                        {!emailId.includes('@') && (
+                                        {authMethod !== 'google' && !emailId.includes('@') && (
                                             <div className="bg-white/10 border border-t-0 sm:border-t sm:border-l-0 border-white/10 rounded-2xl px-4 py-4.5 text-gray-400 font-medium text-xs flex items-center justify-center whitespace-nowrap">
                                                 @study.iitm.ac.in
                                             </div>
@@ -395,23 +437,11 @@ const Login = () => {
                                     disabled={isLoading}
                                     className="w-full py-5 bg-gradient-to-r from-accent-green to-emerald-500 text-black font-black text-xl rounded-2xl shadow-[0_15px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.4)] hover:-translate-y-1 active:scale-95 transition-all mt-4 uppercase tracking-tighter disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isLoading ? 'LOGGING IN...' : 'Login to Connect'}
+                                    {isLoading ? 'SIGNING IN...' : 'Submit'}
                                 </button>
 
                                 <div className="text-center mt-6">
-                                    <p className="text-gray-500 text-sm">
-                                        Don't have an account?{' '}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setIsModalOpen(false);
-                                                // Open signup modal (you may need to pass this from parent)
-                                            }}
-                                            className="text-accent-green font-bold hover:underline"
-                                        >
-                                            Sign Up
-                                        </button>
-                                    </p>
+                                    <p className="text-gray-500 text-sm">Use your existing account to continue.</p>
                                     <button
                                         type="button"
                                         onClick={() => navigate('/admin/login')}

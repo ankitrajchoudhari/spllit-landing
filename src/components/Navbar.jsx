@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaArrowLeft } from 'react-icons/fa';
-import SignupModal from './SignupModal';
 
 const Navbar = () => {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [isSignupOpen, setIsSignupOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -64,16 +62,17 @@ const Navbar = () => {
 
                             <div className="w-px h-6 bg-white/10 mx-4"></div>
 
-                            <Link to="/login">
-                                <button className="relative overflow-hidden bg-white/5 hover:bg-white/10 text-white px-6 py-2.5 rounded-xl font-medium transition-all border border-white/10 hover:border-accent-green/30 group">
-                                    <span className="relative z-10">Login</span>
-                                </button>
-                            </Link>
                             <button
-                                onClick={() => setIsSignupOpen(true)}
+                                onClick={() => navigate('/login?signin=1')}
+                                className="relative overflow-hidden bg-white/5 hover:bg-white/10 text-white px-6 py-2.5 rounded-xl font-medium transition-all border border-white/10 hover:border-accent-green/30 group"
+                            >
+                                <span className="relative z-10">Sign In</span>
+                            </button>
+                            <button
+                                onClick={() => navigate('/login?signin=1')}
                                 className="ml-3 bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all transform hover:-translate-y-0.5 active:scale-95"
                             >
-                                Get Started
+                                Sign In
                             </button>
                         </div>
 
@@ -105,28 +104,29 @@ const Navbar = () => {
                                 <MobileNavLink to="/pricing" onClick={() => setMobileMenuOpen(false)}>Pricing</MobileNavLink>
                                 <MobileNavLink to="/blog" onClick={() => setMobileMenuOpen(false)}>Blog</MobileNavLink>
                                 <div className="h-px bg-white/10 my-2"></div>
-                                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                                    <button className="bg-white/5 text-white px-6 py-3 rounded-xl font-medium w-full mb-2">
-                                        Login
-                                    </button>
-                                </Link>
                                 <button
                                     onClick={() => {
                                         setMobileMenuOpen(false);
-                                        setIsSignupOpen(true);
+                                        navigate('/login?signin=1');
+                                    }}
+                                    className="bg-white/5 text-white px-6 py-3 rounded-xl font-medium w-full mb-2"
+                                >
+                                    Sign In
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setMobileMenuOpen(false);
+                                        navigate('/login?signin=1');
                                     }}
                                     className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-3 rounded-xl font-semibold w-full"
                                 >
-                                    Get Started
+                                    Sign In
                                 </button>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
             </nav>
-
-            {/* Signup Modal */}
-            <SignupModal isOpen={isSignupOpen} onClose={() => setIsSignupOpen(false)} />
         </>
     );
 };
