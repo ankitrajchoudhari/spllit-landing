@@ -119,9 +119,10 @@ const PainPointTicker = () => (
 const Login = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { login, isLoading, isAuthenticated } = useAuthStore();
+    const { login, loginWithGoogle, isLoading, isAuthenticated } = useAuthStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [authMethod, setAuthMethod] = useState('');
+    const [googleReady, setGoogleReady] = useState(false);
 
     const [emailId, setEmailId] = useState('');
     const [password, setPassword] = useState('');
@@ -140,6 +141,33 @@ const Login = () => {
         }
     }, [searchParams]);
 
+    useEffect(() => {
+        if (!isModalOpen || authMethod !== 'google') return;
+
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        if (!clientId) {
+            setGoogleReady(false);
+            return;
+        }
+
+        if (window.google?.accounts?.id) {
+            setGoogleReady(true);
+            return;
+        }
+
+        const existingScript = document.getElementById('google-identity-script');
+        if (existingScript) return;
+
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.id = 'google-identity-script';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => setGoogleReady(true);
+        script.onerror = () => setGoogleReady(false);
+        document.body.appendChild(script);
+    }, [isModalOpen, authMethod]);
+
     // Stats Counter Animation
     const [count, setCount] = useState(0);
     
@@ -152,8 +180,8 @@ const Login = () => {
             return;
         }
 
-        if (authMethod === 'google' && !emailId.toLowerCase().includes('@gmail.com')) {
-            setError('For Google sign in, enter your Gmail ID (example@gmail.com).');
+        if (authMethod === 'google') {
+            handleGoogleSignIn();
             return;
         }
 
@@ -189,6 +217,46 @@ const Login = () => {
             console.error('Login error:', error);
             setError('Login failed. Please try again.');
         }
+    };
+
+    const handleGoogleSignIn = () => {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        if (!clientId) {
+            setError('Google sign-in is not configured. Please add VITE_GOOGLE_CLIENT_ID.');
+            return;
+        }
+
+        if (!window.google?.accounts?.id) {
+            setError('Google Sign-In is still loading. Please try again.');
+            return;
+        }
+
+        window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: async (response) => {
+                try {
+                    if (!response?.credential) {
+                        setError('Google authentication failed. Please try again.');
+                        return;
+                    }
+
+                    const result = await loginWithGoogle(response.credential);
+                    if (result.success) {
+                        if (result.user?.role === 'subadmin' || result.user?.isAdmin) {
+                            navigate('/admin/dashboard');
+                        } else {
+                            navigate('/dashboard');
+                        }
+                    } else {
+                        setError(result.error || 'Google login failed.');
+                    }
+                } catch (error) {
+                    setError('Google login failed. Please try again.');
+                }
+            }
+        });
+
+        window.google.accounts.id.prompt();
     };
 
 
@@ -367,7 +435,10 @@ const Login = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                                 <button
                                     type="button"
-                                    onClick={() => setAuthMethod('google')}
+                                    onClick={() => {
+                                        setAuthMethod('google');
+                                        setError('');
+                                    }}
                                     className={`border rounded-2xl px-4 py-3 flex items-center justify-center gap-2 font-semibold transition-all ${authMethod === 'google'
                                             ? 'border-accent-green bg-accent-green/10 text-white'
                                             : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
@@ -378,7 +449,10 @@ const Login = () => {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setAuthMethod('email')}
+                                    onClick={() => {
+                                        setAuthMethod('email');
+                                        setError('');
+                                    }}
                                     className={`border rounded-2xl px-4 py-3 flex items-center justify-center gap-2 font-semibold transition-all ${authMethod === 'email'
                                             ? 'border-accent-green bg-accent-green/10 text-white'
                                             : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
@@ -391,37 +465,51 @@ const Login = () => {
 
                             {/* Sign-in Form */}
                             <form onSubmit={handleSubmit} className="space-y-6">
+                                {authMethod === 'google' && (
+                                    <div className="p-4 rounded-2xl border border-white/10 bg-white/5 text-center">
+                                        <p className="text-sm text-gray-300">
+                                            Press submit to continue with your Google account popup.
+                                        </p>
+                                        {!googleReady && (
+                                            <p className="text-xs text-gray-500 mt-2">Loading Google Sign-In...</p>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Email Input */}
+                                {authMethod !== 'google' && (
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">
-                                        {authMethod === 'google' ? 'Google Gmail ID' : 'Student Email or Admin Email'}
+                                        Student Email or Admin Email
                                     </label>
                                     <div className="flex flex-col sm:flex-row gap-2">
                                         <div className="relative flex-1">
                                             <input
-                                                required
+                                                required={authMethod !== 'google'}
                                                 type="text"
-                                                placeholder={authMethod === 'google' ? 'example@gmail.com' : 'Roll No (e.g. 25f36563058) or email@spllit.app'}
+                                                placeholder="Roll No (e.g. 25f36563058) or email@spllit.app"
                                                 value={emailId}
                                                 onChange={(e) => setEmailId(e.target.value)}
                                                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4.5 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
                                             />
                                             <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
                                         </div>
-                                        {authMethod !== 'google' && !emailId.includes('@') && (
+                                        {!emailId.includes('@') && (
                                             <div className="bg-white/10 border border-t-0 sm:border-t sm:border-l-0 border-white/10 rounded-2xl px-4 py-4.5 text-gray-400 font-medium text-xs flex items-center justify-center whitespace-nowrap">
                                                 @study.iitm.ac.in
                                             </div>
                                         )}
                                     </div>
                                 </div>
+                                )}
 
                                 {/* Password Input */}
+                                {authMethod !== 'google' && (
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">Password</label>
                                     <div className="relative group">
                                         <input
-                                            required
+                                            required={authMethod !== 'google'}
                                             type="password"
                                             placeholder="Enter your password"
                                             value={password}
@@ -431,13 +519,14 @@ const Login = () => {
                                         <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
                                     </div>
                                 </div>
+                                )}
 
                                 <button
                                     type="submit"
                                     disabled={isLoading}
                                     className="w-full py-5 bg-gradient-to-r from-accent-green to-emerald-500 text-black font-black text-xl rounded-2xl shadow-[0_15px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.4)] hover:-translate-y-1 active:scale-95 transition-all mt-4 uppercase tracking-tighter disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isLoading ? 'SIGNING IN...' : 'Submit'}
+                                    {isLoading ? 'SIGNING IN...' : authMethod === 'google' ? 'Continue with Google' : 'Submit'}
                                 </button>
 
                                 <div className="text-center mt-6">

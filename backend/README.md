@@ -266,6 +266,7 @@ JWT_REFRESH_SECRET=your_refresh_secret_here
 JWT_EXPIRES_IN=1h
 JWT_REFRESH_EXPIRES_IN=7d
 FRONTEND_URL=https://yourdomain.com
+GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
 \`\`\`
 
 ## Security Best Practices

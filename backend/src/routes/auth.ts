@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { randomBytes } from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import prisma from '../utils/prisma.js';
 import { hashPassword, comparePassword, hashPhone, generateAccessToken, generateRefreshToken, sanitizeUser } from '../utils/helpers.js';
 import { io } from '../server.js';
@@ -21,6 +23,13 @@ const loginSchema = z.object({
   email: z.string().email(),
   password: z.string()
 });
+
+const googleLoginSchema = z.object({
+  idToken: z.string().min(1)
+});
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
+const googleOAuthClient = googleClientId ? new OAuth2Client(googleClientId) : null;
 
 /**
  * POST /api/auth/register
@@ -149,6 +158,101 @@ router.post('/login', async (req: Request, res: Response) => {
     }
     console.error('Login error:', error);
     res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+/**
+ * POST /api/auth/google
+ * Login/register user via Google OAuth id token
+ */
+router.post('/google', async (req: Request, res: Response) => {
+  try {
+    if (!googleOAuthClient || !googleClientId) {
+      return res.status(500).json({ error: 'Google login is not configured on server' });
+    }
+
+    const { idToken } = googleLoginSchema.parse(req.body);
+    const ticket = await googleOAuthClient.verifyIdToken({
+      idToken,
+      audience: googleClientId
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload?.email) {
+      return res.status(401).json({ error: 'Invalid Google token' });
+    }
+
+    const email = payload.email.toLowerCase();
+    const name = payload.name || email.split('@')[0];
+    const avatarUrl = payload.picture || null;
+
+    let user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      const randomPassword = randomBytes(24).toString('hex');
+      const hashedPassword = await hashPassword(randomPassword);
+      const placeholderPhoneSeed = `+91${Math.floor(1000000000 + Math.random() * 9000000000)}-${email}`;
+
+      user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          phone: null,
+          phoneHash: hashPhone(placeholderPhoneSeed),
+          password: hashedPassword,
+          college: 'IIT Madras (BS Degree)',
+          gender: 'other',
+          emailVerified: true,
+          profilePhoto: avatarUrl
+        }
+      });
+
+      io.emit('new-user-registered', {
+        name: user.name,
+        college: user.college,
+        email: user.email,
+        timestamp: user.createdAt
+      });
+    } else {
+      if (user.role === 'subadmin' || user.role === 'admin') {
+        if (user.adminStatus === 'inactive') {
+          return res.status(403).json({ error: 'Your account has been deactivated. Please contact the administrator.' });
+        }
+        if (user.adminStatus === 'deleted') {
+          return res.status(403).json({ error: 'This account no longer exists.' });
+        }
+        if (!user.isActive) {
+          return res.status(403).json({ error: 'Your account is not active. Please contact the administrator.' });
+        }
+      }
+
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          lastSeen: new Date(),
+          emailVerified: true,
+          ...(avatarUrl ? { profilePhoto: avatarUrl } : {})
+        }
+      });
+    }
+
+    const accessToken = generateAccessToken(user.id, user.email);
+    const refreshToken = generateRefreshToken(user.id);
+
+    res.json({
+      message: 'Google login successful',
+      user: sanitizeUser(user),
+      tokens: {
+        accessToken,
+        refreshToken
+      }
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Google login error:', error);
+    res.status(401).json({ error: 'Google authentication failed' });
   }
 });
 

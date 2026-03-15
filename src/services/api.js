@@ -77,6 +77,12 @@ export const authAPI = {
         return response.data;
     },
 
+    // Login user with Google id token
+    googleLogin: async (idToken) => {
+        const response = await api.post('/auth/google', { idToken });
+        return response.data;
+    },
+
     // Refresh access token
     refreshToken: async (refreshToken) => {
         const response = await api.post('/auth/refresh', { refreshToken });
