@@ -48,8 +48,11 @@ app.use(cors({
   ],
   credentials: true,
   allowedHeaders: ['*'],
-  exposedHeaders: ['*']
+  exposedHeaders: ['*'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  optionsSuccessStatus: 200
 }));
+app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
