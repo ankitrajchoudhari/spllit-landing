@@ -26,6 +26,15 @@ fi
 
 echo "✅ DATABASE_URL is set"
 
+if [[ "$DATABASE_URL" != mongodb://* && "$DATABASE_URL" != mongodb+srv://* ]]; then
+  echo "❌ ERROR: DATABASE_URL is invalid for MongoDB"
+  echo "Current value must start with mongodb:// or mongodb+srv://"
+  echo "Example: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>"
+  exit 1
+fi
+
+echo "✅ DATABASE_URL uses MongoDB protocol"
+
 # Check if JWT_SECRET is set
 if [ -z "$JWT_SECRET" ]; then
   echo "❌ ERROR: JWT_SECRET environment variable is not set!"

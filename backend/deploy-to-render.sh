@@ -40,7 +40,7 @@ cat > .env.render << EOF
 
 NODE_ENV=production
 PORT=10000
-DATABASE_URL=<REPLACE_WITH_YOUR_POSTGRESQL_URL>
+DATABASE_URL=<REPLACE_WITH_YOUR_MONGODB_URL>
 JWT_SECRET=$JWT_SECRET
 JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
 JWT_EXPIRES_IN=1h
@@ -72,10 +72,11 @@ echo "   (The file has been created in this directory)"
 echo ""
 echo "4. Make sure to replace <REPLACE_WITH_YOUR_POSTGRESQL_URL>"
 echo "   with your actual database URL"
+echo "   Format: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>"
 echo ""
 echo "5. Go to 'Settings' tab and verify:"
 echo "   - Build Command: npm install && npx prisma generate && npm run build"
-echo "   - Start Command: npx prisma migrate deploy && npm start"
+echo "   - Start Command: chmod +x start.sh && ./start.sh"
 echo "   - Health Check Path: /health"
 echo ""
 echo "6. Click 'Manual Deploy' → 'Deploy latest commit'"

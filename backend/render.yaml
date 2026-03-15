@@ -6,7 +6,7 @@ services:
     plan: free # Change to 'starter' or other paid plans as needed
     rootDir: backend # IMPORTANT: Points to backend folder in monorepo
     buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: ./start.sh
+    startCommand: chmod +x start.sh && ./start.sh
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

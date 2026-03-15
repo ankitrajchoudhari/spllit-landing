@@ -80,7 +80,7 @@ npm install && npx prisma generate && npm run build
 
 **Start Command:**
 ```
-npx prisma migrate deploy && npm start
+chmod +x start.sh && ./start.sh
 ```
 
 **Root Directory:**
@@ -113,38 +113,32 @@ FRONTEND_URL = https://spllit.app
 
 **⚠️ CRITICAL:** Add DATABASE_URL
 ```
-DATABASE_URL = <Your PostgreSQL connection string>
+DATABASE_URL = <Your MongoDB connection string>
 ```
 
 **Method 2: Use .env file**
 1. Click "Add from .env"
 2. Copy contents from `backend/.env.render`
 3. Paste and import
-4. **Remember to replace** `<REPLACE_WITH_YOUR_POSTGRESQL_URL>` with your actual database URL
+4. **Remember to replace** `<REPLACE_WITH_YOUR_MONGODB_URL>` with your actual database URL
 
 ---
 
 ### Phase 3: Set Up Database (10 minutes)
 
-You need a PostgreSQL database. Choose one option:
+You need a MongoDB database. Choose one option:
 
-#### Option A: Render PostgreSQL (Easiest)
+#### Option A: MongoDB Atlas (Recommended)
 
-1. In Render Dashboard, click **"New +"** → **"PostgreSQL"**
-2. Settings:
-   - Name: `spllit-database`
-   - Database: `spllit_db`
-   - User: `spllit_user`
-   - Region: **Same as your backend** (important for free tier)
-   - Plan: Free
-3. Click **"Create Database"**
-4. Wait 1-2 minutes for provisioning
-5. Click on the database name
-6. **Copy "Internal Database URL"** (NOT External)
-   - Format: `postgresql://user:password@internal-host.oregon-postgres.render.com/dbname`
+1. Go to https://www.mongodb.com/atlas
+2. Create a free shared cluster
+3. Create DB user + password
+4. Add network access (Render egress / temporary 0.0.0.0/0 for testing)
+5. Click Connect → Drivers and copy SRV URI
+6. Format: `mongodb+srv://user:password@cluster.mongodb.net/spllit`
 7. Go back to your backend service
 8. Environment tab → Edit `DATABASE_URL`
-9. Paste the Internal Database URL
+9. Paste the MongoDB URL
 10. Save
 
 **Why Internal URL?**
@@ -152,28 +146,18 @@ You need a PostgreSQL database. Choose one option:
 - Faster connection
 - More secure
 
-#### Option B: Supabase (Free, Popular)
+#### Option B: Other MongoDB Host
 
-1. Go to https://supabase.com
-2. Sign in with GitHub
-3. Click "New Project"
-4. Settings:
-   - Name: `spllit`
-   - Database Password: (generate or create strong password - save it!)
-   - Region: Choose closest to your users
-   - Plan: Free
-5. Wait 2-3 minutes for provisioning
-6. Go to Settings → Database
-7. Connection String → Copy "URI" format
-8. Replace `[YOUR-PASSWORD]` with your database password
-9. Format: `postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres`
-10. Add to Render as `DATABASE_URL`
+1. Get MongoDB URI from provider
+2. Ensure user/password and database name are present
+3. Format: `mongodb://user:password@host:27017/spllit` or SRV URI
+4. Add to Render as `DATABASE_URL`
 
-#### Option C: Railway, Neon, etc.
+#### Option C: Railway, etc.
 
-Any PostgreSQL provider works! Get connection string in this format:
+Any MongoDB provider works! Get connection string in this format:
 ```
-postgresql://username:password@host:port/database
+mongodb+srv://username:password@cluster.mongodb.net/database
 ```
 
 ---
@@ -187,7 +171,7 @@ postgresql://username:password@host:port/database
    - Installing dependencies ✅
    - Generating Prisma Client ✅
    - Building TypeScript ✅
-   - Running migrations ✅
+   - Syncing Prisma schema ✅
    - Starting server ✅
    - Health check passed ✅
 

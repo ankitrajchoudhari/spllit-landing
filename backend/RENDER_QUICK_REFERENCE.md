@@ -18,7 +18,7 @@ Add these variables (from `.env.render` file):
 
 - [x] `NODE_ENV` = `production`
 - [x] `PORT` = `10000`
-- [ ] `DATABASE_URL` = `<your-postgresql-connection-string>`
+- [ ] `DATABASE_URL` = `<your-mongodb-connection-string>`
 - [x] `JWT_SECRET` = (generated in .env.render file)
 - [x] `JWT_REFRESH_SECRET` = (generated in .env.render file)
 - [x] `JWT_EXPIRES_IN` = `1h`
@@ -44,7 +44,7 @@ npm install && npx prisma generate && npm run build
 
 **Start Command:**
 ```
-npx prisma migrate deploy && npm start
+chmod +x start.sh && ./start.sh
 ```
 
 **Health Check Path:**
@@ -100,7 +100,7 @@ VITE_SOCKET_URL=https://srv-d6o6nji4d50c73fdl27g.onrender.com
 ### Issue: Database connection failed
 **Solution:** 
 - Verify DATABASE_URL is correct
-- If using Render Postgres, use "Internal Database URL"
+- Ensure URL starts with `mongodb://` or `mongodb+srv://`
 - Ensure database is running
 
 ### Issue: CORS errors in frontend
@@ -110,22 +110,18 @@ VITE_SOCKET_URL=https://srv-d6o6nji4d50c73fdl27g.onrender.com
 
 ## 📊 Database Setup
 
-### Option 1: Render PostgreSQL (Recommended)
+### Option 1: MongoDB Atlas (Recommended)
 
 1. Go to Render Dashboard
-2. Click "New +" → "PostgreSQL"
-3. Name: `spllit-database`
-4. Region: Same as your backend service
-5. Plan: Free (or Starter for production)
-6. Create Database
-7. Copy **Internal Database URL**
-8. Paste into backend Environment Variables as `DATABASE_URL`
-9. Connect backend to database (automatic if in same region)
+2. Create a cluster and database user
+3. Add network access for Render
+4. Copy **MongoDB SRV URL**
+5. Paste into backend Environment Variables as `DATABASE_URL`
 
-### Option 2: External Database (Supabase, etc.)
+### Option 2: Any MongoDB-compatible host
 
-1. Get your PostgreSQL connection string
-2. Format: `postgresql://user:password@host:5432/database`
+1. Get your MongoDB connection string
+2. Format: `mongodb+srv://user:password@cluster.mongodb.net/dbname`
 3. Add to Environment Variables as `DATABASE_URL`
 4. Ensure IP whitelisting allows Render's IPs
 

@@ -241,7 +241,7 @@ npm run prisma:studio
 1. Install Railway CLI: \`npm i -g @railway/cli\`
 2. Login: \`railway login\`
 3. Initialize: \`railway init\`
-4. Add PostgreSQL: \`railway add --plugin postgresql\`
+4. Add MongoDB service (or use MongoDB Atlas URI)
 5. Set environment variables in Railway dashboard
 6. Deploy: \`railway up\`
 
@@ -252,7 +252,7 @@ npm run prisma:studio
 3. Connect GitHub repository
 4. Set build command: \`cd backend && npm install && npm run build\`
 5. Set start command: \`cd backend && npm start\`
-6. Add PostgreSQL database from dashboard
+6. Add MongoDB `DATABASE_URL` in environment variables
 7. Set environment variables
 
 ## Environment Variables
@@ -260,7 +260,7 @@ npm run prisma:studio
 \`\`\`env
 PORT=3001
 NODE_ENV=production
-DATABASE_URL=postgresql://...
+DATABASE_URL=mongodb+srv://...
 JWT_SECRET=your_secret_here
 JWT_REFRESH_SECRET=your_refresh_secret_here
 JWT_EXPIRES_IN=1h
@@ -291,7 +291,7 @@ FRONTEND_URL=https://yourdomain.com
 
 **Prisma errors:**
 - Run \`npm run prisma:generate\` after schema changes
-- Run \`npm run prisma:migrate\` to apply migrations
+- Run \`npm run prisma:push\` to sync schema with MongoDB
 
 ## Support
 

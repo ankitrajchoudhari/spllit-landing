@@ -3,19 +3,18 @@
 ## Prerequisites
 
 1. A Render account (https://render.com)
-2. A PostgreSQL database (can be created on Render or use external like Supabase)
+2. A MongoDB database (MongoDB Atlas recommended)
 3. Your repository pushed to GitHub/GitLab
 
 ## Quick Setup Steps
 
-### 1. Create PostgreSQL Database (if not already created)
+### 1. Create MongoDB Database (if not already created)
 
 1. Go to Render Dashboard: https://dashboard.render.com
-2. Click "New +" → "PostgreSQL"
-3. Name: `spllit-database`
-4. Choose your plan (Free tier available)
-5. Click "Create Database"
-6. **Copy the Internal Database URL** (PostgreSQL Connection String)
+2. Open MongoDB Atlas and create a cluster
+3. Create a database user and password
+4. Add network access for your Render region/IP
+5. Copy the **MongoDB SRV connection string**
 
 ### 2. Configure Your Web Service
 
@@ -30,7 +29,7 @@ Go to "Environment" tab and add these variables:
 ```
 NODE_ENV=production
 PORT=10000
-DATABASE_URL=<your-postgresql-connection-string>
+DATABASE_URL=<your-mongodb-connection-string>
 JWT_SECRET=<generate-a-random-secret-key>
 JWT_REFRESH_SECRET=<generate-another-random-secret-key>
 JWT_EXPIRES_IN=1h
@@ -66,7 +65,7 @@ Go to "Settings" tab:
 
 2. **Start Command:**
    ```
-   npx prisma migrate deploy && npm start
+   chmod +x start.sh && ./start.sh
    ```
 
 3. **Root Directory:** `backend` (if deploying from monorepo root)
@@ -114,7 +113,7 @@ Update CORS origins in backend if needed (already configured for spllit.app doma
 - Verify DATABASE_URL is correct
 - Ensure database is running
 - Check if IP is whitelisted (for external DBs)
-- For Render Postgres, use **Internal Database URL**
+- Ensure URL starts with `mongodb://` or `mongodb+srv://`
 
 ### 502 Bad Gateway
 
@@ -123,11 +122,11 @@ Update CORS origins in backend if needed (already configured for spllit.app doma
 - Check start command is correct
 - Review application logs
 
-### Migrations Failing
+### Prisma Sync Failing
 
-- Run migrations manually:
+- Sync schema manually:
   ```bash
-  npx prisma migrate deploy
+   npx prisma db push
   ```
 - Or use Render Shell to debug:
   1. Go to service page

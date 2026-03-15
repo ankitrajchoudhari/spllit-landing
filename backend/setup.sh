@@ -48,24 +48,25 @@ else
     echo ""
 fi
 
-# Check if DATABASE_URL is set
-if grep -q "postgresql://user:password@host:5432/database" .env; then
+# Check if DATABASE_URL still contains a placeholder
+if grep -q "<db_password>\|<username>\|<cluster>\|<dbname>" .env; then
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${YELLOW}⚠️  DATABASE SETUP REQUIRED${NC}"
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo "Choose your database option:"
     echo ""
-    echo "Option A: Supabase (Recommended - Free with GitHub Student Pack)"
-    echo "  1. Go to: https://supabase.com/github-students"
-    echo "  2. Create new project"
-    echo "  3. Get connection string from Settings → Database"
-    echo "  4. Update DATABASE_URL in .env file"
+    echo "Option A: MongoDB Atlas (Recommended)"
+    echo "  1. Go to: https://www.mongodb.com/atlas"
+    echo "  2. Create a free shared cluster"
+    echo "  3. Create DB user + allow network access"
+    echo "  4. Copy the SRV connection string"
+    echo "  5. Update DATABASE_URL in .env file"
     echo ""
-    echo "Option B: Local PostgreSQL"
-    echo "  Run: sudo apt install postgresql"
-    echo "  Then: sudo -u postgres createdb spllit_db"
-    echo "  Update: DATABASE_URL=\"postgresql://postgres:password@localhost:5432/spllit_db\""
+    echo "Option B: Local MongoDB"
+    echo "  Run: sudo apt install mongodb"
+    echo "  Start service and create database 'spllit'"
+    echo "  Update: DATABASE_URL=\"mongodb://localhost:27017/spllit\""
     echo ""
     echo -e "${BLUE}After setting DATABASE_URL, run:${NC}"
     echo "  npm run prisma:generate"
