@@ -44,20 +44,13 @@ fi
 
 echo "✅ JWT_SECRET is set"
 
-echo "📦 Syncing Prisma schema with MongoDB..."
-npx prisma db push 2>&1 || {
-  echo "❌ Prisma db push failed!"
-  echo "This could mean:"
-  echo "  1. Database is not accessible"
-  echo "  2. DATABASE_URL is incorrect"
-  echo "  3. MongoDB cluster is not reachable"
-  echo ""
-  echo "DATABASE_URL format should be:"
-  echo "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<dbname>"
-  exit 1
+echo "📦 Syncing Prisma schema with MongoDB (non-fatal)..."
+npx prisma db push 2>&1 && echo "✅ Database schema synced successfully" || {
+  echo "⚠️  Prisma db push failed - server will start anyway."
+  echo "   MongoDB creates collections automatically on first write."
+  echo "   Common cause: IP not whitelisted in MongoDB Atlas Network Access."
+  echo "   Fix: Atlas Dashboard → Network Access → Add 0.0.0.0/0"
 }
-
-echo "✅ Database schema synced successfully"
 
 echo "🚀 Starting server..."
 node dist/server.js
