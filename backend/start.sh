@@ -45,11 +45,18 @@ fi
 echo "✅ JWT_SECRET is set"
 
 echo "📦 Syncing Prisma schema with MongoDB (non-fatal)..."
-npx prisma db push 2>&1 && echo "✅ Database schema synced successfully" || {
+# Add short timeout so we don't block the deploy for 30 s if Atlas is unreachable
+PRISMA_DB_URL="$DATABASE_URL"
+if [[ "$DATABASE_URL" != *"serverSelectionTimeoutMS"* ]]; then
+  PRISMA_DB_URL="${DATABASE_URL}&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
+fi
+DATABASE_URL="$PRISMA_DB_URL" npx prisma db push 2>&1 && echo "✅ Database schema synced successfully" || {
   echo "⚠️  Prisma db push failed - server will start anyway."
   echo "   MongoDB creates collections automatically on first write."
-  echo "   Common cause: IP not whitelisted in MongoDB Atlas Network Access."
-  echo "   Fix: Atlas Dashboard → Network Access → Add 0.0.0.0/0"
+  echo "   Common cause: Atlas IP not whitelisted OR cluster is paused."
+  echo "   Fix 1: Atlas Dashboard → Network Access → Add IP 0.0.0.0/0"
+  echo "   Fix 2: Atlas Dashboard → Resume cluster if it is paused"
+  true
 }
 
 echo "🚀 Starting server..."
