@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FaRocket, FaUser, FaEnvelope, FaPhone, FaCheckCircle, FaMicrophone, FaStopCircle, FaLock } from 'react-icons/fa';
+import { FaRocket, FaUser, FaEnvelope, FaPhone, FaCheckCircle, FaMicrophone, FaStopCircle, FaLock, FaTimes, FaWhatsapp } from 'react-icons/fa';
 import { earlyAccessAPI } from '../services/api';
 import useAuthStore from '../store/authStore';
 
@@ -20,6 +20,7 @@ const SpllitSocial = () => {
   const [error, setError] = useState('');
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
+  const whatsappCommunityUrl = import.meta.env.VITE_WHATSAPP_COMMUNITY_URL || '';
 
   const identifiedEmail = useMemo(() => {
     if (formData.email) return formData.email.trim().toLowerCase();
@@ -113,15 +114,6 @@ const SpllitSocial = () => {
       setSuccess(result.message || 'Registered successfully');
       setIsSubmitted(true);
       setFormData((prev) => ({ ...prev, message: '' }));
-
-      // Auto-close behavior: hide form state and navigate back after success animation.
-      setTimeout(() => {
-        if (isAuthenticated) {
-          navigate('/dashboard');
-        } else {
-          navigate('/');
-        }
-      }, 2400);
     } catch (err) {
       if (err.response?.data?.code === 'ALREADY_REGISTERED') {
         setIsSubmitted(true);
@@ -131,6 +123,14 @@ const SpllitSocial = () => {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseForm = () => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    } else {
+      navigate('/');
     }
   };
 
@@ -161,6 +161,15 @@ const SpllitSocial = () => {
           transition={{ delay: 0.1 }}
           className="max-w-xl mx-auto bg-bg-secondary/90 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative"
         >
+          <button
+            type="button"
+            onClick={handleCloseForm}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white flex items-center justify-center"
+            title="Close"
+          >
+            <FaTimes />
+          </button>
+
           <h2 className="text-2xl font-bold mb-2">Join Early Access</h2>
           <p className="text-sm text-gray-400 mb-5">One-time signup per email. We will notify you when Spllit Social launches.</p>
 
@@ -193,9 +202,28 @@ const SpllitSocial = () => {
               <div className="flex items-start gap-3">
                 <FaLock className="text-accent-green mt-1" />
                 <div>
-                  <p className="text-white font-semibold">You are already on the waitlist</p>
+                  <p className="text-white font-semibold">You have submitted</p>
                   <p className="text-gray-300 text-sm mt-1">Coming soon. Stay tuned for updates and Pro early benefits.</p>
                 </div>
+              </div>
+
+              <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                <a
+                  href={whatsappCommunityUrl || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold ${whatsappCommunityUrl ? 'bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30' : 'bg-white/5 text-gray-400 border border-white/10 cursor-not-allowed pointer-events-none'}`}
+                >
+                  <FaWhatsapp />
+                  Join WhatsApp Community
+                </a>
+                <button
+                  type="button"
+                  onClick={handleCloseForm}
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10"
+                >
+                  Close
+                </button>
               </div>
             </motion.div>
           ) : (
