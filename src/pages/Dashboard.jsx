@@ -1099,18 +1099,18 @@ const Dashboard = () => {
                 </svg>
             </div>
 
-            <div className="container mx-auto px-6 pt-20 pb-20 relative z-10">
+            <div className="container mx-auto px-4 sm:px-6 pt-20 pb-16 sm:pb-20 relative z-10">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="max-w-4xl mx-auto"
                 >
                     {/* Header */}
-                    <div className="mb-12">
-                        <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight">
+                    <div className="mb-8 sm:mb-12">
+                        <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-white mb-4 tracking-tight leading-tight">
                             Welcome to <span className="text-accent-green">Spllit Lift</span>
                         </h1>
-                        <p className="text-gray-400 text-lg">
+                        <p className="text-gray-400 text-base sm:text-lg">
                             Your smart ride-matching dashboard is ready!
                         </p>
                     </div>
@@ -1119,19 +1119,19 @@ const Dashboard = () => {
                     <motion.div
                         initial={{ scale: 0.95 }}
                         animate={{ scale: 1 }}
-                        className="bg-bg-secondary border border-white/10 rounded-3xl p-8 mb-6 shadow-xl"
+                        className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 mb-6 shadow-xl"
                     >
-                        <div className="flex items-start justify-between mb-6">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                             <div className="flex items-center gap-4">
-                                <div className="w-20 h-20 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center">
-                                    <FaUser className="text-accent-green text-3xl" />
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center">
+                                    <FaUser className="text-accent-green text-2xl sm:text-3xl" />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-bold text-white">{user.name}</h2>
+                                    <h2 className="text-xl sm:text-2xl font-bold text-white break-words">{user.name}</h2>
                                     <p className="text-gray-500 text-sm">{user.college || 'IIT Madras BS Degree'}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 self-start sm:self-auto">
                                 {/* Notification Bell */}
                                 <div className="relative" ref={notificationBellRef}>
                                     <button
@@ -1153,7 +1153,7 @@ const Dashboard = () => {
                                                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                className="absolute right-0 mt-3 w-[22rem] md:w-[28rem] bg-[#0f0f0f] border border-white/10 rounded-3xl shadow-2xl overflow-hidden z-[10001] pointer-events-auto"
+                                                className="absolute right-0 mt-3 w-[min(92vw,28rem)] sm:w-[22rem] md:w-[28rem] bg-[#0f0f0f] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden z-[10001] pointer-events-auto"
                                             >
                                                 <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                                                     <div>
@@ -1267,8 +1267,9 @@ const Dashboard = () => {
                                     </AnimatePresence>
                                 </div>
                                 <button
+                                    type="button"
                                     onClick={handleMessageCenterClick}
-                                    className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-medium"
+                                    className="px-4 sm:px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-medium"
                                 >
                                     <FaComments /> Messages
                                 </button>
@@ -1300,7 +1301,7 @@ const Dashboard = () => {
                         <motion.div
                             whileHover={{ scale: 1.02 }}
                             onClick={() => setShowCreateRide(true)}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
+                            className="bg-bg-secondary border border-white/10 rounded-3xl p-6 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
                             <div className="w-16 h-16 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                 <FaCar className="text-accent-green text-2xl" />
@@ -1318,7 +1319,7 @@ const Dashboard = () => {
                         <motion.div
                             whileHover={{ scale: 1.02 }}
                             onClick={() => { setShowFindMatches(true); handleSearchRides(); }}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
+                            className="bg-bg-secondary border border-white/10 rounded-3xl p-6 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
                             <div className="w-16 h-16 bg-purple-500/20 border-2 border-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                 <FaMapMarkerAlt className="text-purple-500 text-2xl" />
@@ -1336,7 +1337,7 @@ const Dashboard = () => {
                         <motion.div
                             whileHover={{ scale: 1.02 }}
                             onClick={handleGetMyRides}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
+                            className="bg-bg-secondary border border-white/10 rounded-3xl p-6 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
                             <div className="w-16 h-16 bg-blue-500/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                 <FaUser className="text-blue-500 text-2xl" />
@@ -1411,7 +1412,7 @@ const Dashboard = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6"
                         onClick={() => setShowCreateRide(false)}
                     >
                         <motion.div
@@ -1419,10 +1420,10 @@ const Dashboard = () => {
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                            className="bg-bg-secondary border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-2xl w-full max-h-[92vh] sm:max-h-[90vh] overflow-y-auto"
                         >
                             <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-3xl font-bold text-white">Create Ride</h2>
+                                <h2 className="text-2xl sm:text-3xl font-bold text-white">Create Ride</h2>
                                 <button
                                     onClick={() => setShowCreateRide(false)}
                                     className="text-gray-400 hover:text-white transition-colors"
@@ -1572,7 +1573,7 @@ const Dashboard = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6"
                         onClick={() => setShowFindMatches(false)}
                     >
                         <motion.div
@@ -1580,10 +1581,10 @@ const Dashboard = () => {
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                            className="bg-bg-secondary border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-4xl w-full max-h-[92vh] sm:max-h-[90vh] overflow-y-auto"
                         >
                             <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-3xl font-bold text-white">Available Rides</h2>
+                                <h2 className="text-2xl sm:text-3xl font-bold text-white">Available Rides</h2>
                                 <button
                                     onClick={() => setShowFindMatches(false)}
                                     className="text-gray-400 hover:text-white transition-colors"
@@ -1608,11 +1609,11 @@ const Dashboard = () => {
                                     {rides.map((ride) => (
                                         <div
                                             key={ride.id}
-                                            className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-accent-green/30 transition-all"
+                                            className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-6 hover:border-accent-green/30 transition-all"
                                         >
-                                            <div className="flex justify-between items-start mb-4">
+                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
                                                 <div>
-                                                    <h3 className="text-xl font-bold text-white mb-2">
+                                                    <h3 className="text-lg sm:text-xl font-bold text-white mb-2 break-words">
                                                         {ride.origin} → {ride.destination}
                                                     </h3>
                                                     <p className="text-gray-400 text-sm">
@@ -1620,14 +1621,14 @@ const Dashboard = () => {
                                                         {new Date(ride.departureTime).toLocaleString()}
                                                     </p>
                                                 </div>
-                                                <div className="text-right">
+                                                <div className="text-left sm:text-right">
                                                     <p className="text-accent-green font-bold text-lg">
                                                         {ride.seatsAvailable} seats
                                                     </p>
                                                     <p className="text-gray-500 text-sm">available</p>
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                                 <div className="bg-white/5 rounded-xl p-3">
                                                     <p className="text-gray-500 text-xs">Vehicle</p>
                                                     <p className="text-white font-semibold">{ride.vehicleType}</p>
@@ -1676,7 +1677,7 @@ const Dashboard = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6"
                         onClick={() => setShowMyRides(false)}
                     >
                         <motion.div
@@ -1684,10 +1685,10 @@ const Dashboard = () => {
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto"
+                            className="bg-bg-secondary border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-5xl w-full max-h-[92vh] sm:max-h-[90vh] overflow-y-auto"
                         >
                             <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-3xl font-bold text-white">My Rides</h2>
+                                <h2 className="text-2xl sm:text-3xl font-bold text-white">My Rides</h2>
                                 <button
                                     onClick={() => setShowMyRides(false)}
                                     className="text-gray-400 hover:text-white transition-colors"
@@ -1716,8 +1717,8 @@ const Dashboard = () => {
                                                         key={match.id}
                                                         className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4"
                                                     >
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-3 flex-1">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                                            <div className="flex items-center gap-3 flex-1 min-w-0">
                                                                 <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
                                                                     <FaUser className="text-yellow-400 text-lg" />
                                                                 </div>
@@ -1733,11 +1734,11 @@ const Dashboard = () => {
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex gap-2">
+                                                            <div className="flex w-full sm:w-auto gap-2">
                                                                 <button
                                                                     onClick={() => handleAcceptMatch(match.id)}
                                                                     disabled={loading}
-                                                                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all flex items-center gap-2 disabled:opacity-50"
+                                                                    className="flex-1 sm:flex-none px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                                                 >
                                                                     <FaCheck />
                                                                     Accept
@@ -1745,7 +1746,7 @@ const Dashboard = () => {
                                                                 <button
                                                                     onClick={() => handleRejectMatch(match.id)}
                                                                     disabled={loading}
-                                                                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all flex items-center gap-2 disabled:opacity-50"
+                                                                    className="flex-1 sm:flex-none px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                                                 >
                                                                     <FaTimesCircle />
                                                                     Reject
@@ -1773,8 +1774,8 @@ const Dashboard = () => {
                                                             key={match.id}
                                                             className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4"
                                                         >
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="flex items-center gap-3 flex-1">
+                                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                                                <div className="flex items-center gap-3 flex-1 min-w-0">
                                                                     <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
                                                                         <FaUser className="text-green-400 text-lg" />
                                                                     </div>
@@ -1792,7 +1793,7 @@ const Dashboard = () => {
                                                                 </div>
                                                                 <button
                                                                     onClick={() => handleOpenChat(match)}
-                                                                    className="px-6 py-3 bg-accent-green text-black font-bold rounded-lg hover:bg-accent-green/90 transition-all flex items-center gap-2"
+                                                                    className="w-full sm:w-auto px-6 py-3 bg-accent-green text-black font-bold rounded-lg hover:bg-accent-green/90 transition-all flex items-center justify-center gap-2"
                                                                 >
                                                                     <FaComments />
                                                                     Chat Now
@@ -1827,12 +1828,12 @@ const Dashboard = () => {
                                     {myRides.map((ride) => (
                                         <div
                                             key={ride.id}
-                                            className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-accent-green/30 transition-all"
+                                            className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-6 hover:border-accent-green/30 transition-all"
                                         >
                                             <div className="flex justify-between items-start mb-4">
                                                 <div className="flex-1">
-                                                    <div className="flex items-center gap-3 mb-2">
-                                                        <h3 className="text-xl font-bold text-white">
+                                                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                                                        <h3 className="text-lg sm:text-xl font-bold text-white break-words">
                                                             {ride.origin} → {ride.destination}
                                                         </h3>
                                                         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusBadge(ride.status)}`}>
@@ -1907,18 +1908,18 @@ const Dashboard = () => {
                                             )}
 
                                             {/* Action Buttons */}
-                                            <div className="flex gap-3 mt-4">
+                                            <div className="flex flex-wrap gap-3 mt-4">
                                                 {ride.status === 'active' && (
                                                     <>
-                                                        <button className="flex-1 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all">
+                                                        <button className="flex-1 min-w-[9rem] py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all">
                                                             View Matches
                                                         </button>
-                                                        <button className="flex-1 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all">
+                                                        <button className="flex-1 min-w-[9rem] py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all">
                                                             Edit Ride
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteRide(ride.id)}
-                                                            className="px-6 py-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-500/20 transition-all"
+                                                            className="w-full sm:w-auto px-6 py-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-500/20 transition-all"
                                                         >
                                                             Delete
                                                         </button>
@@ -1963,7 +1964,7 @@ const Dashboard = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[120] flex items-center justify-center p-6"
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[120] flex items-center justify-center p-3 sm:p-6"
                         onClick={() => setShowMessageCenter(false)}
                     >
                         <motion.div
@@ -1971,11 +1972,11 @@ const Dashboard = () => {
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.95, y: 16 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-8 max-w-3xl w-full max-h-[85vh] overflow-y-auto"
+                            className="bg-bg-secondary border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-3xl w-full max-h-[92vh] sm:max-h-[85vh] overflow-y-auto"
                         >
                             <div className="flex justify-between items-start mb-6">
                                 <div>
-                                    <h2 className="text-3xl font-bold text-white">Messages</h2>
+                                    <h2 className="text-2xl sm:text-3xl font-bold text-white">Messages</h2>
                                     <p className="text-gray-400 text-sm mt-2">Open a chat only after your ride gets accepted.</p>
                                 </div>
                                 <button
@@ -2000,7 +2001,7 @@ const Dashboard = () => {
                                         const otherUser = match.user1.id === user.id ? match.user2 : match.user1;
                                         return (
                                             <div key={match.id} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                                                <div className="flex items-center justify-between gap-4">
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div className="w-12 h-12 rounded-full bg-accent-green/20 flex items-center justify-center flex-shrink-0">
                                                             <FaUser className="text-accent-green" />
@@ -2018,7 +2019,7 @@ const Dashboard = () => {
                                                             setActiveChat(match);
                                                             setShowMessageCenter(false);
                                                         }}
-                                                        className="px-5 py-3 bg-accent-green text-black font-bold rounded-xl hover:bg-accent-green/90 transition-all"
+                                                        className="w-full sm:w-auto px-5 py-3 bg-accent-green text-black font-bold rounded-xl hover:bg-accent-green/90 transition-all"
                                                     >
                                                         Open Chat
                                                     </button>

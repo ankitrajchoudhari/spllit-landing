@@ -95,7 +95,7 @@ const Navbar = () => {
                     : 'bg-transparent py-6'
                     }`}
             >
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-4 sm:px-6">
                     <div className="flex items-center justify-between">
                         {/* Logo & Back Button */}
                         <div className="flex items-center gap-2 md:gap-4">
@@ -109,8 +109,8 @@ const Navbar = () => {
                                 </button>
                             )}
 
-                            <Link to="/" className="flex items-center gap-3 group">
-                                <span className="text-2xl font-bold text-white tracking-tight">
+                            <Link to="/" className="flex items-center gap-2 sm:gap-3 group">
+                                <span className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                                     spllit<span className="text-accent-green">.</span>
                                 </span>
                             </Link>
@@ -170,7 +170,7 @@ const Navbar = () => {
 
                         {/* Mobile Menu Button */}
                         <button
-                            className="md:hidden text-white p-2 text-2xl"
+                            className="md:hidden text-white p-2 text-xl"
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                         >
                             {mobileMenuOpen ? <FaTimes /> : <FaBars />}
@@ -188,7 +188,7 @@ const Navbar = () => {
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
                             className="md:hidden bg-bg-secondary/95 backdrop-blur-xl border-b border-accent-green/20 overflow-hidden"
                         >
-                            <div className="container mx-auto px-6 py-6 flex flex-col gap-2">
+                            <div className="container mx-auto px-4 sm:px-6 py-5 sm:py-6 flex flex-col gap-2">
                                 {!isAuthenticated && (
                                     <>
                                         <MobileNavLink to="/" onClick={() => setMobileMenuOpen(false)}>Home</MobileNavLink>
