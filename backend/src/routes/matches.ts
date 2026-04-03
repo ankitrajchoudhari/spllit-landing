@@ -332,7 +332,7 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
           { user2Id: req.user.userId }
         ],
         status: {
-          in: ['pending', 'accepted']
+          in: ['pending', 'accepted', 'rejected']
         }
       },
       include: {

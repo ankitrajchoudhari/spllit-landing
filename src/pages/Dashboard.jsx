@@ -71,10 +71,14 @@ const Dashboard = () => {
     const [rideAnnouncements, setRideAnnouncements] = useState([]);
     const [showRideAnnouncements, setShowRideAnnouncements] = useState(false);
     const [showMessageCenter, setShowMessageCenter] = useState(false);
+    const [showMatchedCenter, setShowMatchedCenter] = useState(false);
     const [socket, setSocket] = useState(null);
     const [pendingRequests, setPendingRequests] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
     const [matches, setMatches] = useState([]);
+    const [rejectedMatches, setRejectedMatches] = useState([]);
+    const [allMatches, setAllMatches] = useState([]);
+    const [matchStatusFilter, setMatchStatusFilter] = useState('pending');
     const [nowMs, setNowMs] = useState(Date.now());
     
     // Form data with location coordinates
@@ -338,17 +342,11 @@ const Dashboard = () => {
         });
         setSocket(newSocket);
 
-        newSocket.on('connect', () => {
-            console.log('Socket.IO connected successfully');
-        });
-
-        newSocket.on('connect_error', (error) => {
-            console.log('Socket.IO connection error:', error);
-        });
+        newSocket.on('connect', () => {});
+        newSocket.on('connect_error', () => {});
 
         // Listen for new rides (for all users)
         newSocket.on('new-ride-created', (data) => {
-            console.log('New ride created event received:', data);
             // Only show notification if it's not the current user's ride
             if (data.creator && data.creator.id !== user.id) {
                 const rideAnnouncement = normalizeRideAnnouncement({
@@ -390,7 +388,6 @@ const Dashboard = () => {
 
         // Listen for match created for this user
         newSocket.on(`match_created_${user.id}`, (data) => {
-            console.log('Match created event received:', data);
             if (data.notification) {
                 addNotificationFeedItem({
                     id: `match-created-${data.match?.id || Date.now()}`,
@@ -417,8 +414,6 @@ const Dashboard = () => {
 
         // Listen for match requests (ride creator receives when user 2 requests)
         newSocket.on(`match_request_${user.id}`, (data) => {
-            console.log('Match request received:', data);
-            
             // Show prominent notification popup to ride creator
             addNotificationFeedItem({
                 id: `match-request-${data.match?.id || Date.now()}`,
@@ -449,14 +444,13 @@ const Dashboard = () => {
                 addNotification({
                     type: 'success',
                     title: '👀 Action Required',
-                    message: 'Check "My Rides" to accept or reject the request'
+                    message: 'Go to Matched to accept or reject requests.'
                 });
             }, 2000);
         });
 
         // Listen for match request sent (requester)
         newSocket.on(`match_request_sent_${user.id}`, (data) => {
-            console.log('Match request sent event:', data);
             if (data.notification) {
                 addNotificationFeedItem({
                     id: `match-request-sent-${data.match?.id || Date.now()}`,
@@ -477,8 +471,6 @@ const Dashboard = () => {
 
         // Listen for match accepted (both users receive this)
         newSocket.on(`match_accepted_${user.id}`, (data) => {
-            console.log('Match accepted event:', data);
-            
             // Show prominent acceptance notification popup
             addNotificationFeedItem({
                 id: `match-accepted-${data.match?.id || Date.now()}`,
@@ -501,7 +493,7 @@ const Dashboard = () => {
                 addNotification({
                     type: 'match',
                     title: '💬 Chat Now Available!',
-                    message: 'Go to "My Rides" → "Active Matches" to start chatting'
+                    message: 'Go to Matched to view accepted rides and chat.'
                 });
             }, 3000);
             
@@ -517,7 +509,6 @@ const Dashboard = () => {
 
         // Listen for match rejected
         newSocket.on(`match_rejected_${user.id}`, (data) => {
-            console.log('Match rejected event:', data);
             if (data.notification) {
                 addNotificationFeedItem({
                     id: `match-rejected-${data.notification.matchId || Date.now()}`,
@@ -537,7 +528,6 @@ const Dashboard = () => {
 
         // Listen for new messages
         newSocket.on(`message_notification_${user.id}`, (data) => {
-            console.log('Message notification:', data);
             if (data.notification) {
                 const uniqueMessageNotificationId = data.notification.id || `message-${data.notification.matchId || 'general'}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
                 addNotificationFeedItem({
@@ -644,11 +634,9 @@ const Dashboard = () => {
     const playNotificationSound = () => {
         try {
             const audio = new Audio('/notification.mp3');
-            audio.play().catch((error) => {
-                console.warn('Notification sound unavailable:', error?.message || error);
-            });
-        } catch (error) {
-            console.warn('Audio play failed:', error?.message || error);
+            audio.play().catch(() => {});
+        } catch {
+            // Ignore optional notification sound failures.
         }
     };
 
@@ -789,6 +777,7 @@ const Dashboard = () => {
 
     const handleRideBellClick = async () => {
         setShowMessageCenter(false);
+        setShowMatchedCenter(false);
         const willOpen = !showRideAnnouncements;
         setShowRideAnnouncements(willOpen);
 
@@ -807,8 +796,23 @@ const Dashboard = () => {
 
     const handleMessageCenterClick = async () => {
         setShowRideAnnouncements(false);
+        setShowMatchedCenter(false);
         await loadMatches();
         setShowMessageCenter(true);
+    };
+
+    const handleMatchedCenterClick = async (filter = 'pending') => {
+        setShowRideAnnouncements(false);
+        setShowMessageCenter(false);
+        await loadMatches();
+        setMatchStatusFilter(filter);
+        setShowMatchedCenter(true);
+    };
+
+    const isMatchChatActive = (match) => {
+        if (!match?.acceptedAt) return false;
+        const acceptedTime = new Date(match.acceptedAt).getTime();
+        return Number.isFinite(acceptedTime) && Date.now() - acceptedTime <= 30 * 60 * 1000;
     };
 
     const handleNotificationItemClick = async (item) => {
@@ -818,16 +822,17 @@ const Dashboard = () => {
 
         try {
             // Prefer already loaded matches for instant open, then refresh from API if needed.
-            let allMatches = Array.isArray(matches) ? matches : [];
-            let targetMatch = allMatches.find((match) =>
+            let allMatchesLocal = Array.isArray(allMatches) ? allMatches : [];
+            let targetMatch = allMatchesLocal.find((match) =>
                 (item.matchId && match.id === item.matchId) ||
                 (item.chatRoomId && match.chatRoomId === item.chatRoomId)
             );
 
             if (!targetMatch) {
                 const response = await matchesAPI.getMyMatches();
-                allMatches = Array.isArray(response?.matches) ? response.matches : [];
-                targetMatch = allMatches.find((match) =>
+                allMatchesLocal = Array.isArray(response?.matches) ? response.matches : [];
+                setAllMatches(allMatchesLocal);
+                targetMatch = allMatchesLocal.find((match) =>
                     (item.matchId && match.id === item.matchId) ||
                     (item.chatRoomId && match.chatRoomId === item.chatRoomId)
                 );
@@ -836,28 +841,31 @@ const Dashboard = () => {
             if (!targetMatch) {
                 addNotification({
                     type: 'error',
-                    title: 'Chat not found',
-                    message: 'This conversation is not available right now.'
-                });
-                return;
-            }
-
-            if (targetMatch.status !== 'accepted') {
-                addNotification({
-                    type: 'error',
-                    title: 'Chat unavailable',
-                    message: 'This ride is not accepted yet, so chat is not active.'
+                    title: 'Match not found',
+                    message: 'This ride match is not available right now.'
                 });
                 return;
             }
 
             setShowRideAnnouncements(false);
             setShowMessageCenter(false);
-            setActiveChat(targetMatch);
+            setShowMatchedCenter(true);
+
+            if (targetMatch.status !== 'accepted') {
+                setMatchStatusFilter(targetMatch.status === 'rejected' ? 'rejected' : 'pending');
+                return;
+            }
+
+            setMatchStatusFilter('accepted');
+
+            if (isMatchChatActive(targetMatch)) {
+                setActiveChat(targetMatch);
+                setShowMatchedCenter(false);
+            }
         } catch (error) {
             addNotification({
                 type: 'error',
-                title: 'Unable to open chat',
+                title: 'Unable to open match',
                 message: 'Please try again in a moment.'
             });
         }
@@ -1001,7 +1009,7 @@ const Dashboard = () => {
             
             // Only show rides created by current user (not rides they requested to join)
             const myCreatedRides = allRides.filter(ride => 
-                ride.creator?.id === user.id || ride.userId === user.id
+                (ride.creator?.id === user.id || ride.userId === user.id) && ['pending', 'matched'].includes(ride.status)
             );
             setMyRides(myCreatedRides);
             
@@ -1021,14 +1029,17 @@ const Dashboard = () => {
     const loadMatches = async () => {
         try {
             const response = await matchesAPI.getMyMatches();
-            const allMatches = response.matches || [];
+            const allMatchesResponse = response.matches || [];
             
             // Separate pending requests (where I'm the creator) from accepted matches
-            const pending = allMatches.filter(m => m.status === 'pending' && m.user1.id === user.id);
-            const accepted = allMatches.filter(m => m.status === 'accepted');
+            const pending = allMatchesResponse.filter(m => m.status === 'pending' && m.user1.id === user.id);
+            const accepted = allMatchesResponse.filter(m => m.status === 'accepted');
+            const rejected = allMatchesResponse.filter(m => m.status === 'rejected');
             
+            setAllMatches(allMatchesResponse);
             setPendingRequests(pending);
             setMatches(accepted);
+            setRejectedMatches(rejected);
         } catch (error) {
             console.error('Failed to load matches:', error);
         }
@@ -1122,7 +1133,7 @@ const Dashboard = () => {
     return (
         <div className="min-h-screen bg-[#050505] overflow-hidden relative font-poppins">
             {/* Background */}
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-accent-green/[0.04] pointer-events-none" />
             <div className="absolute inset-0 z-0 opacity-30">
                 <svg className="w-full h-full" width="100%" height="100%">
                     <defs>
@@ -1310,6 +1321,13 @@ const Dashboard = () => {
                                     className="px-4 sm:px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-medium"
                                 >
                                     <FaComments /> Messages
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleMatchedCenterClick('pending')}
+                                    className="px-4 sm:px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-medium"
+                                >
+                                    <FaCheck /> Matched
                                 </button>
                             </div>
                         </div>
@@ -1731,107 +1749,11 @@ const Dashboard = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-6">
-                                    {/* Pending Match Requests */}
-                                    {pendingRequests.length > 0 && (
-                                        <div className="mb-6">
-                                            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                                <FaBell className="text-yellow-400" />
-                                                Pending Match Requests ({pendingRequests.length})
-                                            </h3>
-                                            <div className="space-y-3">
-                                                {pendingRequests.map((match) => (
-                                                    <div
-                                                        key={match.id}
-                                                        className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4"
-                                                    >
-                                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                                <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
-                                                                    <FaUser className="text-yellow-400 text-lg" />
-                                                                </div>
-                                                                <div className="flex-1">
-                                                                    <p className="text-white font-semibold">
-                                                                        {match.user2.name}
-                                                                    </p>
-                                                                    <p className="text-gray-400 text-sm">
-                                                                        {match.user2.college}
-                                                                    </p>
-                                                                    <p className="text-gray-500 text-xs mt-1">
-                                                                        Wants to join: {match.ride.startLocation} → {match.ride.endLocation}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex w-full sm:w-auto gap-2">
-                                                                <button
-                                                                    onClick={() => handleAcceptMatch(match.id)}
-                                                                    disabled={loading}
-                                                                    className="flex-1 sm:flex-none px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                                                >
-                                                                    <FaCheck />
-                                                                    Accept
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleRejectMatch(match.id)}
-                                                                    disabled={loading}
-                                                                    className="flex-1 sm:flex-none px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                                                >
-                                                                    <FaTimesCircle />
-                                                                    Reject
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Accepted Matches - Chat Available */}
-                                    {matches.length > 0 && (
-                                        <div className="mb-6">
-                                            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                                <FaComments className="text-green-400" />
-                                                Active Matches ({matches.length})
-                                            </h3>
-                                            <div className="space-y-3">
-                                                {matches.map((match) => {
-                                                    const otherUser = match.user1.id === user.id ? match.user2 : match.user1;
-                                                    return (
-                                                        <div
-                                                            key={match.id}
-                                                            className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4"
-                                                        >
-                                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                                    <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
-                                                                        <FaUser className="text-green-400 text-lg" />
-                                                                    </div>
-                                                                    <div className="flex-1">
-                                                                        <p className="text-white font-semibold">
-                                                                            {otherUser.name}
-                                                                        </p>
-                                                                        <p className="text-gray-400 text-sm">
-                                                                            {otherUser.college}
-                                                                        </p>
-                                                                        <p className="text-gray-500 text-xs mt-1">
-                                                                            {match.ride.startLocation} → {match.ride.endLocation}
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => handleOpenChat(match)}
-                                                                    className="w-full sm:w-auto px-6 py-3 bg-accent-green text-black font-bold rounded-lg hover:bg-accent-green/90 transition-all flex items-center justify-center gap-2"
-                                                                >
-                                                                    <FaComments />
-                                                                    Chat Now
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
+                                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                                        <p className="text-sm text-gray-300">
+                                            Match request actions are now in the Matched section near Messages.
+                                        </p>
+                                    </div>
 
                                     {/* My Rides List */}
                                     <h3 className="text-xl font-bold text-white mb-4">My Created Rides</h3>
@@ -2051,11 +1973,127 @@ const Dashboard = () => {
                                                             setActiveChat(match);
                                                             setShowMessageCenter(false);
                                                         }}
-                                                        className="w-full sm:w-auto px-5 py-3 bg-accent-green text-black font-bold rounded-xl hover:bg-accent-green/90 transition-all"
+                                                        disabled={!isMatchChatActive(match)}
+                                                        className="w-full sm:w-auto px-5 py-3 bg-accent-green text-black font-bold rounded-xl hover:bg-accent-green/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
-                                                        Open Chat
+                                                        {isMatchChatActive(match) ? 'Open Chat' : 'Chat Expired'}
                                                     </button>
                                                 </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Matched Center */}
+            <AnimatePresence>
+                {showMatchedCenter && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[125] flex items-center justify-center p-3 sm:p-6"
+                        onClick={() => setShowMatchedCenter(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 16 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 16 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-bg-secondary border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-4xl w-full max-h-[92vh] overflow-y-auto"
+                        >
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h2 className="text-2xl sm:text-3xl font-bold text-white">Matched</h2>
+                                    <p className="text-gray-400 text-sm mt-2">Manage pending requests and review accepted/declined rides.</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowMatchedCenter(false)}
+                                    className="text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <FaTimes size={24} />
+                                </button>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 mb-6">
+                                <button onClick={() => setMatchStatusFilter('pending')} className={`px-4 py-2 rounded-xl border ${matchStatusFilter === 'pending' ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+                                    Pending ({pendingRequests.length})
+                                </button>
+                                <button onClick={() => setMatchStatusFilter('accepted')} className={`px-4 py-2 rounded-xl border ${matchStatusFilter === 'accepted' ? 'bg-green-500/20 border-green-500/40 text-green-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+                                    Accepted ({matches.length})
+                                </button>
+                                <button onClick={() => setMatchStatusFilter('rejected')} className={`px-4 py-2 rounded-xl border ${matchStatusFilter === 'rejected' ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+                                    Denied ({rejectedMatches.length})
+                                </button>
+                            </div>
+
+                            {matchStatusFilter === 'pending' && (
+                                <div className="space-y-3">
+                                    {pendingRequests.length === 0 ? (
+                                        <p className="text-gray-400">No pending requests.</p>
+                                    ) : pendingRequests.map((match) => (
+                                        <div key={match.id} className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                                <div className="min-w-0">
+                                                    <p className="text-white font-semibold">{match.user2?.name}</p>
+                                                    <p className="text-gray-400 text-sm">{match.ride?.origin} → {match.ride?.destination}</p>
+                                                </div>
+                                                <div className="flex w-full sm:w-auto gap-2">
+                                                    <button onClick={() => handleAcceptMatch(match.id)} disabled={loading} className="flex-1 sm:flex-none px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all disabled:opacity-50">Accept</button>
+                                                    <button onClick={() => handleRejectMatch(match.id)} disabled={loading} className="flex-1 sm:flex-none px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all disabled:opacity-50">Decline</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {matchStatusFilter === 'accepted' && (
+                                <div className="space-y-3">
+                                    {matches.length === 0 ? (
+                                        <p className="text-gray-400">No accepted rides.</p>
+                                    ) : matches.map((match) => {
+                                        const otherUser = match.user1?.id === user.id ? match.user2 : match.user1;
+                                        const canChat = isMatchChatActive(match);
+                                        return (
+                                            <div key={match.id} className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4">
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                                    <div className="min-w-0">
+                                                        <p className="text-white font-semibold">{otherUser?.name}</p>
+                                                        <p className="text-gray-400 text-sm">{match.ride?.origin} → {match.ride?.destination}</p>
+                                                    </div>
+                                                    <button
+                                                        disabled={!canChat}
+                                                        onClick={() => {
+                                                            setActiveChat(match);
+                                                            setShowMatchedCenter(false);
+                                                        }}
+                                                        className="w-full sm:w-auto px-5 py-2.5 bg-accent-green text-black font-bold rounded-xl hover:bg-accent-green/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {canChat ? 'Open Chat' : 'Chat Expired'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {matchStatusFilter === 'rejected' && (
+                                <div className="space-y-3">
+                                    {rejectedMatches.length === 0 ? (
+                                        <p className="text-gray-400">No denied requests.</p>
+                                    ) : rejectedMatches.map((match) => {
+                                        const otherUser = match.user1?.id === user.id ? match.user2 : match.user1;
+                                        return (
+                                            <div key={match.id} className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
+                                                <p className="text-white font-semibold">{otherUser?.name}</p>
+                                                <p className="text-gray-400 text-sm">{match.ride?.origin} → {match.ride?.destination}</p>
+                                                <p className="text-red-300 text-xs mt-2">Request declined</p>
                                             </div>
                                         );
                                     })}

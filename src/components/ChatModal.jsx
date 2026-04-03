@@ -10,6 +10,7 @@ const ChatModal = ({ match, onClose, currentUserId, socketClient }) => {
   const [sending, setSending] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingContent, setEditingContent] = useState('');
+  const [chatLoadError, setChatLoadError] = useState('');
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const activeSocket = socketClient || socketService.socket;
@@ -32,9 +33,15 @@ const ChatModal = ({ match, onClose, currentUserId, socketClient }) => {
       try {
         const response = await matchesAPI.getMessages(match.id);
         setMessages(response.messages || []);
+        setChatLoadError('');
         setTimeout(scrollToBottom, 100);
       } catch (error) {
-        console.error('Failed to load messages:', error);
+        if (error?.response?.status === 403) {
+          setChatLoadError(error?.response?.data?.error || 'Chat is not active right now.');
+          setMessages([]);
+        } else {
+          setChatLoadError('Unable to load chat messages right now.');
+        }
       } finally {
         setLoading(false);
       }
@@ -208,6 +215,10 @@ const ChatModal = ({ match, onClose, currentUserId, socketClient }) => {
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : chatLoadError ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <p className="text-sm">{chatLoadError}</p>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">

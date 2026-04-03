@@ -103,7 +103,7 @@ const QuizPage = () => {
         <div className="min-h-screen bg-[#050505] text-white pt-32 pb-20 px-6 relative overflow-hidden selection:bg-accent-green selection:text-black">
             <SEO title="Quiz 1 - 15 March 2026 | Spllit" description="Connect with batchmates for Quiz 1 at IIT Madras BS Degree centers." />
 
-            <div className="absolute top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/[0.04] via-transparent to-accent-green/[0.04] pointer-events-none" />
             <div className="absolute -top-24 -left-24 w-96 h-96 bg-accent-green/10 rounded-full blur-[120px]" />
             <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]" />
 

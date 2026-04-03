@@ -297,7 +297,7 @@ const Login = () => {
         <div className="min-h-screen bg-[#050505] overflow-hidden relative font-poppins selection:bg-accent-green selection:text-black">
 
             {/* Animated Grid Background */}
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-accent-green/[0.04] pointer-events-none" />
             <div className="absolute inset-0 z-0 opacity-30">
                 <svg className="w-full h-full" width="100%" height="100%">
                     <defs>
