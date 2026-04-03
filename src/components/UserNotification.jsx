@@ -71,7 +71,9 @@ const UserNotification = ({ notification, onClose }) => {
   );
 };
 
-export const NotificationContainer = ({ notifications, onClose }) => {
+export const NotificationContainer = ({ notifications, onClose, onRemove }) => {
+  const handleClose = onClose || onRemove;
+
   return (
     <div className="fixed top-4 right-4 z-[9999] space-y-2 max-w-sm">
       <AnimatePresence>
@@ -79,7 +81,7 @@ export const NotificationContainer = ({ notifications, onClose }) => {
           <UserNotification
             key={notification.id}
             notification={notification}
-            onClose={onClose}
+            onClose={handleClose}
           />
         ))}
       </AnimatePresence>

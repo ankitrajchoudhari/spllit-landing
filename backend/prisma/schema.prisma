@@ -80,6 +80,26 @@ model Ride {
   @@index([createdAt])
 }
 
+// Persistent ride announcements for the dashboard bell feed
+model RideAnnouncement {
+  id              String    @id @default(cuid()) @map("_id")
+  rideId          String    @unique
+  title           String
+  message         String
+  origin          String
+  destination     String
+  creatorName     String
+  creatorCollege  String?
+  departureTime   DateTime
+  fare            Float?
+  vehicleType     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([createdAt])
+  @@index([departureTime])
+}
+
 // Match model for connecting users
 model Match {
   id              String    @id @default(cuid()) @map("_id")
@@ -111,6 +131,9 @@ model Message {
   type            String    @default("text") // text/location/image
   metadata        Json?     // For location coords, image URLs, etc.
   read            Boolean   @default(false)
+  isDeleted       Boolean   @default(false)
+  deletedAt       DateTime?
+  editedAt        DateTime?
   createdAt       DateTime  @default(now())
   
   // Relations

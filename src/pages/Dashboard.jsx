@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaUser, FaEnvelope, FaPhone, FaSignOutAlt, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
 import socketService from '../services/socket';
 import { ridesAPI, matchesAPI } from '../services/api';
@@ -67,6 +67,10 @@ const Dashboard = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [notifications, setNotifications] = useState([]);
+    const [notificationFeed, setNotificationFeed] = useState([]);
+    const [rideAnnouncements, setRideAnnouncements] = useState([]);
+    const [showRideAnnouncements, setShowRideAnnouncements] = useState(false);
+    const [showMessageCenter, setShowMessageCenter] = useState(false);
     const [socket, setSocket] = useState(null);
     const [pendingRequests, setPendingRequests] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
@@ -93,6 +97,188 @@ const Dashboard = () => {
     const originAutocompleteRef = useRef(null);
     const destAutocompleteRef = useRef(null);
     const originAutoDetectedRef = useRef(false);
+
+    const rideAnnouncementSeenKey = `ride-announcements-seen-${user?.id || 'guest'}`;
+    const notificationFeedKey = `notification-feed-${user?.id || 'guest'}`;
+    const dismissedFeedKey = `notification-feed-dismissed-${user?.id || 'guest'}`;
+    const notificationFeedExpiryMs = 2 * 60 * 60 * 1000;
+
+    const getNowIso = () => new Date().toISOString();
+
+    const pruneExpiredFeed = (items) => {
+        const now = Date.now();
+        return items.filter((item) => {
+            const expiresAt = new Date(item.expiresAt || 0).getTime();
+            return Number.isFinite(expiresAt) && expiresAt > now;
+        });
+    };
+
+    const normalizeFeedItem = (item) => {
+        const timestamp = item.timestamp || item.createdAt || getNowIso();
+        return {
+            id: item.id || `${item.type || 'info'}-${Date.now()}`,
+            type: item.type || 'info',
+            title: item.title || 'Notification',
+            message: item.message || '',
+            timestamp,
+            expiresAt: item.expiresAt || new Date(new Date(timestamp).getTime() + notificationFeedExpiryMs).toISOString(),
+            rideId: item.rideId,
+            matchId: item.matchId,
+            chatRoomId: item.chatRoomId,
+            meta: item.meta || {}
+        };
+    };
+
+    const persistNotificationFeed = (items) => {
+        localStorage.setItem(notificationFeedKey, JSON.stringify(items));
+    };
+
+    const getDismissedFeedIds = () => {
+        try {
+            return JSON.parse(localStorage.getItem(dismissedFeedKey) || '[]');
+        } catch {
+            return [];
+        }
+    };
+
+    const persistDismissedFeedIds = (ids) => {
+        localStorage.setItem(dismissedFeedKey, JSON.stringify(ids));
+    };
+
+    const removeNotificationFeedItem = (id) => {
+        const dismissedIds = new Set(getDismissedFeedIds());
+        dismissedIds.add(id);
+        persistDismissedFeedIds(Array.from(dismissedIds));
+
+        setNotificationFeed((prev) => {
+            const next = prev.filter((item) => item.id !== id);
+            persistNotificationFeed(next);
+            return next;
+        });
+    };
+
+    const addNotificationFeedItem = (item) => {
+        const nextItem = normalizeFeedItem(item);
+        setNotificationFeed((prev) => {
+            const next = pruneExpiredFeed([
+                nextItem,
+                ...prev.filter((existing) => existing.id !== nextItem.id)
+            ]);
+            persistNotificationFeed(next);
+            return next;
+        });
+    };
+
+    const loadNotificationFeed = async () => {
+        try {
+            const dismissedIds = new Set(getDismissedFeedIds());
+            const storedFeed = JSON.parse(localStorage.getItem(notificationFeedKey) || '[]');
+            const rideResponse = await ridesAPI.getAnnouncements();
+            const rideItems = (rideResponse.announcements || []).map((announcement) => normalizeFeedItem({
+                id: `ride-${announcement.id}`,
+                type: 'ride',
+                title: announcement.title || 'New Ride Available!',
+                message: announcement.message,
+                timestamp: announcement.createdAt,
+                expiresAt: new Date(new Date(announcement.createdAt).getTime() + notificationFeedExpiryMs).toISOString(),
+                rideId: announcement.rideId,
+                meta: {
+                    origin: announcement.origin,
+                    destination: announcement.destination,
+                    creatorName: announcement.creatorName,
+                    creatorCollege: announcement.creatorCollege,
+                    departureTime: announcement.departureTime,
+                    fare: announcement.fare,
+                    vehicleType: announcement.vehicleType
+                }
+            }));
+
+            const storedItems = storedFeed.map(normalizeFeedItem);
+            const merged = pruneExpiredFeed([
+                ...rideItems,
+                ...storedItems
+            ]).filter((item) => !dismissedIds.has(item.id)).reduce((accumulator, item) => {
+                if (!accumulator.some((existing) => existing.id === item.id)) {
+                    accumulator.push(item);
+                }
+                return accumulator;
+            }, []);
+
+            setNotificationFeed(merged);
+            persistNotificationFeed(merged);
+            return merged;
+        } catch (error) {
+            console.error('Failed to load notification feed:', error);
+            return [];
+        }
+    };
+
+    const formatAnnouncementTime = (value) => {
+        if (!value) return 'Just now';
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'Just now';
+
+        return date.toLocaleString([], {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+    };
+
+    const normalizeRideAnnouncement = (announcement) => ({
+        id: announcement.id,
+        title: announcement.title || 'New Ride Available!',
+        message: announcement.message || `${announcement.creatorName || 'A student'} is going from ${announcement.origin} to ${announcement.destination}`,
+        origin: announcement.origin,
+        destination: announcement.destination,
+        creatorName: announcement.creatorName || 'Student',
+        creatorCollege: announcement.creatorCollege || '',
+        departureTime: announcement.departureTime,
+        fare: announcement.fare,
+        vehicleType: announcement.vehicleType,
+        createdAt: announcement.createdAt,
+        timestamp: announcement.createdAt
+    });
+
+    const seenRideAnnouncementsAt = () => {
+        const storedValue = localStorage.getItem(rideAnnouncementSeenKey);
+        const parsed = storedValue ? new Date(storedValue) : null;
+        return parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date(0);
+    };
+
+    const unreadRideAnnouncementCount = rideAnnouncements.filter((announcement) => {
+        const createdAt = new Date(announcement.createdAt || announcement.timestamp || 0);
+        return createdAt > seenRideAnnouncementsAt();
+    }).length;
+
+    const notificationFeedCount = notificationFeed.length;
+
+    const markRideAnnouncementsSeen = (announcements = rideAnnouncements) => {
+        if (!announcements.length) return;
+
+        const latestTimestamp = announcements.reduce((latest, announcement) => {
+            const createdAt = new Date(announcement.createdAt || announcement.timestamp || 0).getTime();
+            return createdAt > latest ? createdAt : latest;
+        }, 0);
+
+        if (latestTimestamp > 0) {
+            localStorage.setItem(rideAnnouncementSeenKey, new Date(latestTimestamp).toISOString());
+        }
+    };
+
+    const loadRideAnnouncements = async () => {
+        try {
+            const response = await ridesAPI.getAnnouncements();
+            const nextAnnouncements = (response.announcements || []).map(normalizeRideAnnouncement);
+            setRideAnnouncements(nextAnnouncements);
+            return nextAnnouncements;
+        } catch (error) {
+            console.error('Failed to load ride announcements:', error);
+            return [];
+        }
+    };
 
     useEffect(() => {
         // Redirect to login if not authenticated
@@ -126,11 +312,36 @@ const Dashboard = () => {
             console.log('New ride created event received:', data);
             // Only show notification if it's not the current user's ride
             if (data.creator && data.creator.id !== user.id) {
+                const rideAnnouncement = normalizeRideAnnouncement({
+                    ...data,
+                    creatorName: data.creator.name,
+                    creatorCollege: data.creator.college
+                });
+
+                setRideAnnouncements(prev => [rideAnnouncement, ...prev.filter(item => item.id !== rideAnnouncement.id)]);
+                addNotificationFeedItem({
+                    id: `ride-${data.id}`,
+                    type: 'ride',
+                    title: 'New Ride Available!',
+                    message: `${data.creator.name} is going from ${data.origin} to ${data.destination} at ${formatAnnouncementTime(data.departureTime)}`,
+                    timestamp: data.timestamp || getNowIso(),
+                    rideId: data.id,
+                    meta: {
+                        origin: data.origin,
+                        destination: data.destination,
+                        creatorName: data.creator.name,
+                        creatorCollege: data.creator.college,
+                        departureTime: data.departureTime,
+                        fare: data.fare,
+                        vehicleType: data.vehicleType
+                    }
+                });
                 addNotification({
                     type: 'ride',
                     title: 'New Ride Available!',
-                    message: `${data.origin} → ${data.destination} (₹${data.fare})`
+                    message: `${data.creator.name} is going from ${data.origin} to ${data.destination} at ${formatAnnouncementTime(data.departureTime)}`
                 });
+                localStorage.removeItem(rideAnnouncementSeenKey);
                 // Add ride to available list if viewing matches
                 if (showFindMatches) {
                     setRides(prev => [data, ...prev]);
@@ -142,6 +353,15 @@ const Dashboard = () => {
         newSocket.on(`match_created_${user.id}`, (data) => {
             console.log('Match created event received:', data);
             if (data.notification) {
+                addNotificationFeedItem({
+                    id: `match-created-${data.match?.id || Date.now()}`,
+                    type: data.notification.type,
+                    title: data.notification.title,
+                    message: data.notification.message,
+                    timestamp: getNowIso(),
+                    matchId: data.match?.id,
+                    chatRoomId: data.notification.chatRoomId
+                });
                 addNotification({
                     type: data.notification.type,
                     title: data.notification.title,
@@ -161,6 +381,15 @@ const Dashboard = () => {
             console.log('Match request received:', data);
             
             // Show prominent notification popup to ride creator
+            addNotificationFeedItem({
+                id: `match-request-${data.match?.id || Date.now()}`,
+                type: 'match',
+                title: '📨 New Match Request!',
+                message: data.notification?.message || 'Someone wants to join your ride!',
+                timestamp: getNowIso(),
+                matchId: data.match?.id,
+                chatRoomId: data.match?.chatRoomId
+            });
             addNotification({
                 type: 'ride',
                 title: '📨 New Match Request!',
@@ -190,6 +419,15 @@ const Dashboard = () => {
         newSocket.on(`match_request_sent_${user.id}`, (data) => {
             console.log('Match request sent event:', data);
             if (data.notification) {
+                addNotificationFeedItem({
+                    id: `match-request-sent-${data.match?.id || Date.now()}`,
+                    type: data.notification.type || 'info',
+                    title: data.notification.title,
+                    message: data.notification.message,
+                    timestamp: getNowIso(),
+                    matchId: data.match?.id,
+                    chatRoomId: data.match?.chatRoomId
+                });
                 addNotification({
                     type: 'success',
                     title: data.notification.title,
@@ -203,6 +441,15 @@ const Dashboard = () => {
             console.log('Match accepted event:', data);
             
             // Show prominent acceptance notification popup
+            addNotificationFeedItem({
+                id: `match-accepted-${data.match?.id || Date.now()}`,
+                type: 'success',
+                title: data.notification?.title || '✅ Match Accepted!',
+                message: data.notification?.message || 'Your ride match is confirmed!',
+                timestamp: getNowIso(),
+                matchId: data.match?.id,
+                chatRoomId: data.notification?.chatRoomId
+            });
             addNotification({
                 type: 'success',
                 title: data.notification?.title || '✅ Match Accepted!',
@@ -233,6 +480,14 @@ const Dashboard = () => {
         newSocket.on(`match_rejected_${user.id}`, (data) => {
             console.log('Match rejected event:', data);
             if (data.notification) {
+                addNotificationFeedItem({
+                    id: `match-rejected-${data.notification.matchId || Date.now()}`,
+                    type: 'error',
+                    title: data.notification.title,
+                    message: data.notification.message,
+                    timestamp: getNowIso(),
+                    matchId: data.notification.matchId
+                });
                 addNotification({
                     type: 'error',
                     title: data.notification.title,
@@ -245,6 +500,15 @@ const Dashboard = () => {
         newSocket.on(`message_notification_${user.id}`, (data) => {
             console.log('Message notification:', data);
             if (data.notification) {
+                addNotificationFeedItem({
+                    id: `message-${data.notification.matchId || Date.now()}`,
+                    type: 'match',
+                    title: data.notification.title,
+                    message: data.notification.message,
+                    timestamp: getNowIso(),
+                    matchId: data.notification.matchId,
+                    chatRoomId: data.notification.chatRoomId
+                });
                 addNotification({
                     type: 'match',
                     title: data.notification.title,
@@ -269,6 +533,10 @@ const Dashboard = () => {
         // Load Google Maps early so the ride modal is ready quickly
         loadGoogleMaps();
 
+        loadRideAnnouncements();
+        loadNotificationFeed();
+        loadMatches();
+
         // Cleanup on unmount
         return () => {
             if (newSocket) {
@@ -276,6 +544,20 @@ const Dashboard = () => {
             }
         };
     }, [isAuthenticated, user, navigate]);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setNotificationFeed((prev) => {
+                const next = pruneExpiredFeed(prev);
+                if (next.length !== prev.length) {
+                    persistNotificationFeed(next);
+                }
+                return next;
+            });
+        }, 60 * 1000);
+
+        return () => clearInterval(timer);
+    }, []);
 
     const addNotification = (notification) => {
         const id = Date.now();
@@ -289,9 +571,11 @@ const Dashboard = () => {
     const playNotificationSound = () => {
         try {
             const audio = new Audio('/notification.mp3');
-            audio.play().catch(console.error);
+            audio.play().catch((error) => {
+                console.warn('Notification sound unavailable:', error?.message || error);
+            });
         } catch (error) {
-            console.error('Audio play failed:', error);
+            console.warn('Audio play failed:', error?.message || error);
         }
     };
 
@@ -428,6 +712,26 @@ const Dashboard = () => {
         socketService.disconnect();
         logout();
         navigate('/login');
+    };
+
+    const handleRideBellClick = async () => {
+        setShowMessageCenter(false);
+        setShowRideAnnouncements(prev => !prev);
+
+        if (!showRideAnnouncements) {
+            Promise.allSettled([
+                loadRideAnnouncements(),
+                loadNotificationFeed()
+            ]).then(() => {
+                markRideAnnouncementsSeen(rideAnnouncements);
+            });
+        }
+    };
+
+    const handleMessageCenterClick = async () => {
+        setShowRideAnnouncements(false);
+        await loadMatches();
+        setShowMessageCenter(true);
     };
 
     const handleCreateRide = async (e) => {
@@ -687,12 +991,6 @@ const Dashboard = () => {
 
     return (
         <div className="min-h-screen bg-[#050505] overflow-hidden relative font-poppins">
-            {/* User Notifications */}
-            <NotificationContainer 
-                notifications={notifications} 
-                onClose={removeNotification} 
-            />
-
             {/* Background */}
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none" />
             <div className="absolute inset-0 z-0 opacity-30">
@@ -741,20 +1039,118 @@ const Dashboard = () => {
                             <div className="flex items-center gap-3">
                                 {/* Notification Bell */}
                                 <div className="relative">
-                                    <button className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative">
+                                    <button
+                                        onClick={handleRideBellClick}
+                                        className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative"
+                                    >
                                         <FaBell className="text-accent-green text-xl" />
-                                        {notifications.length > 0 && (
+                                        {(notifications.length > 0 || notificationFeedCount > 0 || unreadRideAnnouncementCount > 0) && (
                                             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                                                {notifications.length}
+                                                {Math.max(notifications.length, notificationFeedCount, unreadRideAnnouncementCount)}
                                             </span>
                                         )}
                                     </button>
+                                    <AnimatePresence>
+                                        {showRideAnnouncements && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                                                className="absolute right-0 mt-3 w-[22rem] md:w-[28rem] bg-[#0f0f0f] border border-white/10 rounded-3xl shadow-2xl overflow-hidden z-[10001] pointer-events-auto"
+                                            >
+                                                <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                                                    <div>
+                                                        <h3 className="text-white font-bold text-lg">Notifications</h3>
+                                                        <p className="text-gray-500 text-xs mt-1">
+                                                            Ride updates, matches, and chat activity
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setShowRideAnnouncements(false)}
+                                                        className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                                                    >
+                                                        <FaTimes className="mx-auto" />
+                                                    </button>
+                                                </div>
+                                                <div className="max-h-[24rem] overflow-y-auto">
+                                                    {notificationFeed.length === 0 ? (
+                                                        <div className="px-5 py-8 text-center text-gray-500">
+                                                            No notifications yet.
+                                                        </div>
+                                                    ) : (
+                                                        notificationFeed.map((item) => (
+                                                            <div
+                                                                key={item.id}
+                                                                className="px-5 py-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors"
+                                                            >
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className="w-11 h-11 rounded-2xl bg-accent-green/15 border border-accent-green/20 flex items-center justify-center flex-shrink-0">
+                                                                        {item.type === 'ride' ? (
+                                                                            <FaCar className="text-accent-green" />
+                                                                        ) : item.type === 'match' ? (
+                                                                            <FaComments className="text-purple-400" />
+                                                                        ) : (
+                                                                            <FaBell className="text-accent-green" />
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-start justify-between gap-3 mb-1">
+                                                                            <div>
+                                                                                <p className="text-white font-semibold leading-tight">
+                                                                                    {item.title}
+                                                                                </p>
+                                                                                <p className="text-gray-500 text-xs mt-1">
+                                                                                    {item.type === 'ride' ? 'Ride announcement' : item.type === 'match' ? 'Match update' : 'Notification'}
+                                                                                </p>
+                                                                            </div>
+                                                                            <span className="text-[11px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10 whitespace-nowrap">
+                                                                                {formatAnnouncementTime(item.timestamp)}
+                                                                            </span>
+                                                                        </div>
+                                                                        <p className="text-gray-300 text-sm leading-relaxed">
+                                                                            {item.message}
+                                                                        </p>
+                                                                        <div className="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs">
+                                                                            <div className="flex flex-wrap gap-2">
+                                                                                {item.type === 'ride' && item.meta?.origin && (
+                                                                                    <span className="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10">
+                                                                                        {item.meta.origin}
+                                                                                    </span>
+                                                                                )}
+                                                                                {item.type === 'ride' && item.meta?.vehicleType && (
+                                                                                    <span className="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 capitalize">
+                                                                                        {item.meta.vehicleType}
+                                                                                    </span>
+                                                                                )}
+                                                                                {item.type === 'ride' && item.meta?.fare ? (
+                                                                                    <span className="px-2.5 py-1 rounded-full bg-accent-green/10 text-accent-green border border-accent-green/20">
+                                                                                        ₹{item.meta.fare}
+                                                                                    </span>
+                                                                                ) : null}
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => removeNotificationFeedItem(item.id)}
+                                                                                className="text-gray-500 hover:text-white transition-colors"
+                                                                            >
+                                                                                <FaTimes />
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                                 <button
-                                    onClick={handleLogout}
-                                    className="px-6 py-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-500/20 transition-all flex items-center gap-2 font-medium"
+                                    onClick={handleMessageCenterClick}
+                                    className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-medium"
                                 >
-                                    <FaSignOutAlt /> Logout
+                                    <FaComments /> Messages
                                 </button>
                             </div>
                         </div>
@@ -1436,11 +1832,87 @@ const Dashboard = () => {
                     match={activeChat}
                     onClose={() => setActiveChat(null)}
                     currentUserId={user.id}
+                    socketClient={socket}
                 />
             )}
 
-            {/* Notification Container */}
-            <NotificationContainer notifications={notifications} onRemove={removeNotification} />
+            {/* Message Center */}
+            <AnimatePresence>
+                {showMessageCenter && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[120] flex items-center justify-center p-6"
+                        onClick={() => setShowMessageCenter(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 16 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 16 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-bg-secondary border border-white/10 rounded-3xl p-8 max-w-3xl w-full max-h-[85vh] overflow-y-auto"
+                        >
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h2 className="text-3xl font-bold text-white">Messages</h2>
+                                    <p className="text-gray-400 text-sm mt-2">Open a chat only after your ride gets accepted.</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowMessageCenter(false)}
+                                    className="text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <FaTimes size={24} />
+                                </button>
+                            </div>
+
+                            {matches.length === 0 ? (
+                                <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/10">
+                                    <FaComments className="text-6xl mx-auto text-gray-600 mb-4" />
+                                    <p className="text-white text-lg font-semibold">No one has accepted your ride yet</p>
+                                    <p className="text-gray-400 text-sm mt-2">
+                                        Once a rider accepts, the chat will appear here in real time.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {matches.map((match) => {
+                                        const otherUser = match.user1.id === user.id ? match.user2 : match.user1;
+                                        return (
+                                            <div key={match.id} className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="w-12 h-12 rounded-full bg-accent-green/20 flex items-center justify-center flex-shrink-0">
+                                                            <FaUser className="text-accent-green" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-white font-semibold truncate">{otherUser.name}</p>
+                                                            <p className="text-gray-400 text-sm truncate">{otherUser.college}</p>
+                                                            <p className="text-gray-500 text-xs mt-1 truncate">
+                                                                {match.ride.origin} → {match.ride.destination}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            setActiveChat(match);
+                                                            setShowMessageCenter(false);
+                                                        }}
+                                                        className="px-5 py-3 bg-accent-green text-black font-bold rounded-xl hover:bg-accent-green/90 transition-all"
+                                                    >
+                                                        Open Chat
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
         </div>
     );
 };

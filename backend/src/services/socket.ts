@@ -2,6 +2,15 @@ import { Server, Socket } from 'socket.io';
 import prisma from '../utils/prisma.js';
 import { verifyAccessToken } from '../utils/helpers.js';
 
+const CHAT_WINDOW_MINUTES = 30;
+
+const isChatActive = (acceptedAt?: Date | null) => {
+  if (!acceptedAt) return false;
+
+  const acceptedTime = new Date(acceptedAt).getTime();
+  return Date.now() - acceptedTime <= CHAT_WINDOW_MINUTES * 60 * 1000;
+};
+
 interface AuthSocket extends Socket {
   userId?: string;
   email?: string;
@@ -90,6 +99,11 @@ export function setupSocketHandlers(io: Server) {
 
         if (!match) {
           socket.emit('error', { message: 'Match not found or unauthorized' });
+          return;
+        }
+
+        if (match.status !== 'accepted' || !isChatActive(match.acceptedAt)) {
+          socket.emit('error', { message: 'Chat has expired after 30 minutes' });
           return;
         }
 

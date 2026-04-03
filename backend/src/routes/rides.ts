@@ -33,6 +33,20 @@ const searchRidesSchema = z.object({
   genderPref: z.enum(['male', 'female', 'any']).optional()
 });
 
+const formatRideAnnouncementMessage = (ride: {
+  origin: string;
+  destination: string;
+  departureTime: Date;
+  creator?: { name: string } | null;
+}) => {
+  const timeLabel = ride.departureTime.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+
+  return `${ride.creator?.name || 'A student'} is going from ${ride.origin} to ${ride.destination} at ${timeLabel}`;
+};
+
 /**
  * POST /api/rides
  * Create a new ride
@@ -73,9 +87,39 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       }
     });
 
+    await prisma.rideAnnouncement.upsert({
+      where: {
+        rideId: ride.id
+      },
+      create: {
+        rideId: ride.id,
+        title: 'New Ride Available!',
+        message: formatRideAnnouncementMessage(ride),
+        origin: ride.origin,
+        destination: ride.destination,
+        creatorName: ride.creator.name,
+        creatorCollege: ride.creator.college,
+        departureTime: ride.departureTime,
+        fare: ride.fare,
+        vehicleType: ride.vehicleType
+      },
+      update: {
+        title: 'New Ride Available!',
+        message: formatRideAnnouncementMessage(ride),
+        origin: ride.origin,
+        destination: ride.destination,
+        creatorName: ride.creator.name,
+        creatorCollege: ride.creator.college,
+        departureTime: ride.departureTime,
+        fare: ride.fare,
+        vehicleType: ride.vehicleType
+      }
+    });
+
     // Emit Socket.IO event for new ride creation (broadcast to all users)
     io.emit('new-ride-created', {
       id: ride.id,
+      title: 'New Ride Available!',
       origin: ride.origin,
       destination: ride.destination,
       fare: ride.fare,
@@ -106,8 +150,34 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 /**
+ * GET /api/rides/announcements
+ * Get recent ride announcements for the dashboard bell feed
+ */
+router.get('/announcements', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const announcements = await prisma.rideAnnouncement.findMany({
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 20
+    });
+
+    res.json({
+      announcements
+    });
+  } catch (error) {
+    console.error('Get ride announcements error:', error);
+    res.status(500).json({ error: 'Failed to fetch ride announcements' });
+  }
+});
+
+/**
  * GET /api/rides/available
- * Get all available rides (simpler endpoint for browse all)
+ * Get all rides created by other users that can still be requested
  */
 router.get('/available', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -120,9 +190,6 @@ router.get('/available', authenticate, async (req: AuthRequest, res: Response) =
         status: 'pending',
         userId: {
           not: req.user.userId // Exclude own rides
-        },
-        departureTime: {
-          gte: new Date() // Only future rides
         }
       },
       include: {

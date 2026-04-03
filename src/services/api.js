@@ -145,6 +145,12 @@ export const ridesAPI = {
         return response.data;
     },
 
+    // Get recent ride announcements for the dashboard bell
+    getAnnouncements: async () => {
+        const response = await api.get('/rides/announcements');
+        return response.data;
+    },
+
     // Update ride
     updateRide: async (rideId, data) => {
         const response = await api.put(`/rides/${rideId}`, data);
@@ -194,6 +200,18 @@ export const matchesAPI = {
     // Send a message
     sendMessage: async (matchId, content) => {
         const response = await api.post(`/matches/${matchId}/messages`, { content });
+        return response.data;
+    },
+
+    // Edit a message
+    editMessage: async (matchId, messageId, content) => {
+        const response = await api.put(`/matches/${matchId}/messages/${messageId}`, { content });
+        return response.data;
+    },
+
+    // Delete a message
+    deleteMessage: async (matchId, messageId) => {
+        const response = await api.delete(`/matches/${matchId}/messages/${messageId}`);
         return response.data;
     },
 

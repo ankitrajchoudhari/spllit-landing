@@ -11,6 +11,15 @@ const createMatchSchema = z.object({
   rideId: z.string()
 });
 
+const CHAT_WINDOW_MINUTES = 30;
+
+const isChatActive = (acceptedAt?: Date | null) => {
+  if (!acceptedAt) return false;
+
+  const acceptedTime = new Date(acceptedAt).getTime();
+  return Date.now() - acceptedTime <= CHAT_WINDOW_MINUTES * 60 * 1000;
+};
+
 /**
  * POST /api/matches
  * Create a match between current user and a ride
@@ -382,6 +391,10 @@ router.get('/:id/messages', authenticate, async (req: AuthRequest, res: Response
       return res.status(404).json({ error: 'Match not found or unauthorized' });
     }
 
+    if (!isChatActive(match.acceptedAt)) {
+      return res.status(403).json({ error: 'Chat has expired after 30 minutes' });
+    }
+
     // Get messages
     const messages = await prisma.message.findMany({
       where: {
@@ -528,6 +541,10 @@ router.post('/:id/messages', authenticate, async (req: AuthRequest, res: Respons
       return res.status(404).json({ error: 'Match not found or not accepted' });
     }
 
+    if (!isChatActive(match.acceptedAt)) {
+      return res.status(403).json({ error: 'Chat has expired after 30 minutes' });
+    }
+
     // Create message
     const message = await prisma.message.create({
       data: {
@@ -573,6 +590,160 @@ router.post('/:id/messages', authenticate, async (req: AuthRequest, res: Respons
   } catch (error) {
     console.error('Send message error:', error);
     res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+/**
+ * PUT /api/matches/:id/messages/:messageId
+ * Edit a message sent by the current user
+ */
+router.put('/:id/messages/:messageId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { id, messageId } = req.params;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Message content is required' });
+    }
+
+    const match = await prisma.match.findFirst({
+      where: {
+        id,
+        OR: [
+          { user1Id: req.user.userId },
+          { user2Id: req.user.userId }
+        ],
+        status: 'accepted'
+      }
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found or not accepted' });
+    }
+
+    if (!isChatActive(match.acceptedAt)) {
+      return res.status(403).json({ error: 'Chat has expired after 30 minutes' });
+    }
+
+    const message = await prisma.message.findFirst({
+      where: {
+        id: messageId,
+        matchId: id,
+        senderId: req.user.userId,
+        isDeleted: false
+      }
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found or unauthorized' });
+    }
+
+    const updatedMessage = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        content: content.trim(),
+        editedAt: new Date()
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    io.to(match.chatRoomId).emit(`message_updated_${match.chatRoomId}`, {
+      message: updatedMessage,
+      chatRoomId: match.chatRoomId
+    });
+
+    res.json({
+      message: updatedMessage
+    });
+  } catch (error) {
+    console.error('Edit message error:', error);
+    res.status(500).json({ error: 'Failed to edit message' });
+  }
+});
+
+/**
+ * DELETE /api/matches/:id/messages/:messageId
+ * Soft delete a message sent by the current user
+ */
+router.delete('/:id/messages/:messageId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { id, messageId } = req.params;
+
+    const match = await prisma.match.findFirst({
+      where: {
+        id,
+        OR: [
+          { user1Id: req.user.userId },
+          { user2Id: req.user.userId }
+        ],
+        status: 'accepted'
+      }
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found or not accepted' });
+    }
+
+    if (!isChatActive(match.acceptedAt)) {
+      return res.status(403).json({ error: 'Chat has expired after 30 minutes' });
+    }
+
+    const message = await prisma.message.findFirst({
+      where: {
+        id: messageId,
+        matchId: id,
+        senderId: req.user.userId,
+        isDeleted: false
+      }
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found or unauthorized' });
+    }
+
+    const deletedMessage = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        content: message.content
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    io.to(match.chatRoomId).emit(`message_deleted_${match.chatRoomId}`, {
+      message: deletedMessage,
+      chatRoomId: match.chatRoomId
+    });
+
+    res.json({
+      message: deletedMessage
+    });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    res.status(500).json({ error: 'Failed to delete message' });
   }
 });
 
