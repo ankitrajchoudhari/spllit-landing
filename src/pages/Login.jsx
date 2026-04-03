@@ -298,15 +298,9 @@ const Login = () => {
         <div className="min-h-screen bg-[#050505] overflow-x-hidden relative font-poppins selection:bg-accent-green selection:text-black">
 
             {/* Announcements - Hidden or simplified on small mobile to avoid overlap */}
-            <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-40 w-[min(92vw,360px)] md:w-[380px]">
-                <div className="mb-2 text-right">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-accent-green/25 bg-accent-green/10 px-3 py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] sm:tracking-[0.28em] text-accent-green backdrop-blur-md">
-                        <FaBell /> Live Drops
-                    </span>
-                </div>
-                <div className="scale-[0.9] sm:scale-100 origin-top-right">
-                    <AnnouncementDrops />
-                </div>
+            {/* Announcements - Floating Action Button & Popup Trigger */}
+            <div className="fixed top-20 sm:top-24 right-4 sm:right-6 z-40">
+                <AnnouncementDrops />
             </div>
 
             {/* Animated Grid Background */}

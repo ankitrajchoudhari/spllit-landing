@@ -21,6 +21,8 @@ const AnnouncementDrops = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [showPopup, setShowPopup] = useState(false);
+    const [latestId, setLatestId] = useState(null);
 
     const loadAnnouncements = async () => {
         try {
@@ -28,6 +30,16 @@ const AnnouncementDrops = () => {
             const response = await announcementsAPI.getPublicAnnouncements();
             const items = Array.isArray(response?.announcements) ? response.announcements : [];
             setAnnouncements(items);
+
+            // If there's a new announcement, show a 4-second popup
+            if (items.length > 0) {
+                const newest = items[0].id;
+                if (newest !== latestId) {
+                    setLatestId(newest);
+                    setShowPopup(true);
+                    setTimeout(() => setShowPopup(false), 8000); // 8 seconds to be safe for reading
+                }
+            }
         } catch (error) {
             console.error('Failed to load public announcements:', error);
             setAnnouncements([]);
@@ -53,61 +65,164 @@ const AnnouncementDrops = () => {
         return () => document.removeEventListener('keydown', handleEscape);
     }, [open]);
 
-    const previewItems = useMemo(() => announcements.slice(0, 3), [announcements]);
+    const latest = announcements[0];
 
     return (
-        <div className="w-full max-w-5xl mx-auto mt-6 sm:mt-12 px-0">
+        <div className="relative">
+            {/* 1. Floating Action Button (The "Announcement Button") */}
             <motion.button
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setOpen(true)}
-                className="w-full group relative overflow-hidden rounded-[1.5rem] sm:rounded-[1.75rem] border border-accent-green/25 bg-gradient-to-r from-[#08110d] via-[#0f1c17] to-[#08110d] px-4 sm:px-6 py-4 sm:py-6 shadow-[0_0_40px_rgba(16,185,129,0.12)]"
+                className="group relative flex items-center gap-3 rounded-2xl border border-accent-green/30 bg-[#07110d]/90 p-3 sm:p-4 text-white shadow-[0_8px_32px_rgba(16,185,129,0.25)] backdrop-blur-xl transition-all hover:bg-accent-green/10"
             >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.20),transparent_35%)] opacity-90" />
-                <div className="relative flex flex-row items-center gap-3 sm:gap-5">
-                    <div className="relative w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-accent-green/15 border border-accent-green/30 flex items-center justify-center flex-shrink-0">
-                        <FaBullhorn className="text-accent-green text-sm sm:text-xl" />
-                        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-accent-green animate-pulse" />
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            <span className="text-[8px] sm:text-[10px] font-black tracking-[0.2em] sm:tracking-[0.35em] uppercase text-accent-green">Live</span>
-                            <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-black/30 border border-white/10 text-[8px] sm:text-[10px] text-white/80 uppercase tracking-widest sm:tracking-[0.18em]">
-                                Campus Drops
-                            </span>
-                        </div>
-                        <h3 className="mt-1 sm:mt-2 font-display text-sm sm:text-xl md:text-3xl font-black text-white leading-tight">
-                            Latest Campus Drops
-                        </h3>
-                    </div>
-                    <div className="flex items-center flex-shrink-0">
-                        <div className="px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-xl bg-gradient-to-r from-accent-green to-accent-emerald text-black text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-lg">
-                            Open
-                        </div>
-                    </div>
+                <div className="relative flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-accent-green/20 border border-accent-green/30 text-accent-green">
+                    <FaBullhorn className="text-xl sm:text-2xl" />
+                    {announcements.length > 0 && (
+                        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-accent-green animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                    )}
                 </div>
+                <div className="text-left hidden sm:block pr-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-accent-green opacity-80">Campus Drops</p>
+                    <p className="font-display font-bold text-sm tracking-tight">Stay Updated</p>
+                </div>
+                {/* Mobile text is hidden to avoid overlap, only icon shows */}
             </motion.button>
 
-            <div className="mt-4 flex gap-2.5 sm:gap-3 overflow-x-auto pb-4 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 scrollbar-hide snap-x snap-mandatory">
-                {previewItems.length === 0 ? (
-                    <div className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-[11px] sm:text-sm text-gray-400 text-left">
-                        No active drops. Admin updates will appear here.
-                    </div>
-                ) : (
-                    previewItems.map((announcement, index) => (
-                        <div key={announcement.id} className="min-w-[200px] sm:min-w-0 snap-start rounded-xl sm:rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-3.5 backdrop-blur-sm text-left">
-                            <div className="flex items-center justify-between gap-2 text-[9px] uppercase tracking-widest text-accent-green font-bold">
-                                <span>#{index + 1} Update</span>
-                                <span className="inline-flex items-center gap-1 text-[8px] text-white/60">
-                                    <FaClock size={8} /> {formatAnnouncementTime(announcement.createdAt)}
-                                </span>
+            {/* 2. Auto-Popup (4-8 seconds) */}
+            <AnimatePresence>
+                {showPopup && latest && !open && (
+                    <motion.div
+                        initial={{ opacity: 0, x: 20, y: 10, scale: 0.9 }}
+                        animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        className="absolute right-0 top-20 sm:top-24 z-[100] w-[280px] sm:w-[320px] rounded-3xl border border-accent-green/30 bg-[#0a0a0a]/95 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-accent-green animate-pulse" />
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-accent-green">New Drop Alert</span>
                             </div>
-                            <p className="mt-1.5 text-xs sm:text-sm font-bold text-white line-clamp-1">{announcement.title}</p>
-                            <p className="mt-0.5 text-[10px] sm:text-xs text-gray-500 line-clamp-1">{announcement.location}</p>
+                            <button
+                                onClick={() => setShowPopup(false)}
+                                className="rounded-full bg-white/5 p-1 text-gray-500 hover:bg-white/10 hover:text-white"
+                            >
+                                <FaTimes size={10} />
+                            </button>
                         </div>
-                    ))
+                        <div className="mt-3 flex gap-3 cursor-pointer" onClick={() => { setOpen(true); setShowPopup(false); }}>
+                            {latest.imageUrl && (
+                                <img src={latest.imageUrl} className="h-12 w-12 rounded-lg object-cover flex-shrink-0 border border-white/10" alt="drop" />
+                            )}
+                            <div className="min-w-0">
+                                <p className="text-xs font-bold text-white line-clamp-1">{latest.title}</p>
+                                <p className="mt-1 text-[10px] text-gray-400 line-clamp-2 leading-relaxed">{latest.message}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => { setOpen(true); setShowPopup(false); }}
+                            className="mt-4 w-full rounded-xl bg-accent-green/10 py-2 text-[10px] font-bold uppercase tracking-widest text-accent-green hover:bg-accent-green/20 transition-colors"
+                        >
+                            Open Feed
+                        </button>
+                    </motion.div>
                 )}
-            </div>
+            </AnimatePresence>
+
+            {/* 3. Full Screen Modal (The Feed) */}
+            <AnimatePresence>
+                {open && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4"
+                        onClick={() => setOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.96, y: 100 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.96, y: 100 }}
+                            onClick={(event) => event.stopPropagation()}
+                            className="w-full max-w-5xl h-[92vh] sm:h-auto sm:max-h-[92vh] overflow-y-auto rounded-t-[2.5rem] sm:rounded-3xl border border-white/10 bg-bg-secondary shadow-2xl"
+                        >
+                            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/10 bg-bg-secondary/95 backdrop-blur-xl px-5 sm:px-8 py-5">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2 text-accent-green text-[10px] sm:text-xs font-black uppercase tracking-[0.35em]">
+                                        <FaBullhorn /> Campus News
+                                    </div>
+                                    <h3 className="mt-2 font-display text-2xl sm:text-4xl font-black text-white leading-tight">Live Dispatch</h3>
+                                    <p className="mt-1 text-xs sm:text-sm text-gray-400">Fresh updates from the Spllit Admin team.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setOpen(false)}
+                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center flex-shrink-0"
+                                >
+                                    <FaTimes />
+                                </button>
+                            </div>
+
+                            <div className="p-5 sm:p-8 pb-10">
+                                {announcements.length === 0 ? (
+                                    <div className="rounded-3xl border border-white/10 bg-white/5 px-6 py-16 text-center">
+                                        <FaBullhorn className="mx-auto text-5xl text-gray-700" />
+                                        <p className="mt-4 text-lg font-bold text-white">Radio Silence</p>
+                                        <p className="mt-1 text-sm text-gray-500">Wait for the next broadcast. Admin updates will land here.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-8">
+                                        {announcements.map((announcement) => (
+                                            <motion.article
+                                                key={announcement.id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.06] to-transparent shadow-xl"
+                                            >
+                                                {announcement.imageUrl ? (
+                                                    <div className="relative aspect-video sm:aspect-[16/9]">
+                                                        <img
+                                                            src={announcement.imageUrl}
+                                                            alt={announcement.title}
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                        <div className="absolute left-4 top-4 rounded-full bg-accent-green px-3 py-1 text-[9px] font-black uppercase tracking-widest text-black">
+                                                            Verified Drop
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex aspect-video items-center justify-center bg-white/5">
+                                                        <FaImage className="text-4xl text-white/10" />
+                                                    </div>
+                                                )}
+
+                                                <div className="p-5 sm:p-6">
+                                                    <div className="mb-4 flex flex-wrap items-center gap-3 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+                                                        <span className="flex items-center gap-1.5"><FaMapMarkerAlt className="text-accent-green" /> {announcement.location}</span>
+                                                        <span className="flex items-center gap-1.5"><FaClock className="text-accent-green" /> {formatAnnouncementTime(announcement.createdAt)}</span>
+                                                    </div>
+                                                    <h4 className="text-xl sm:text-2xl font-black text-white mb-3">{announcement.title}</h4>
+                                                    <p className="text-sm sm:text-base leading-relaxed text-gray-400 line-clamp-4">{announcement.message}</p>
+                                                    <div className="mt-6 flex items-center gap-3 border-t border-white/10 pt-4">
+                                                        <div className="h-8 w-8 rounded-full bg-accent-green/20 border border-accent-green/30 flex items-center justify-center text-accent-green text-[10px] font-black">SP</div>
+                                                        <div className="text-[10px] font-bold tracking-widest uppercase">
+                                                            <p className="text-white">{announcement.createdByName || 'Spllit Admin'}</p>
+                                                            <p className="text-accent-green/60">Official Official</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.article>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
 
             <AnimatePresence>
                 {open && (
