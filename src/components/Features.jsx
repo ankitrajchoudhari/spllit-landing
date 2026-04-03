@@ -1,204 +1,109 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { FaReceipt, FaWallet, FaLock, FaChartLine, FaCoins, FaBriefcase } from 'react-icons/fa';
 
-const FeatureCard = ({ feature, index }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    const iconMap = {
-        'bill': FaReceipt,
-        'card': FaWallet,
-        'lock': FaLock,
-        'chart': FaChartLine,
-        'coin': FaCoins,
-        'cart': FaBriefcase
-    };
-
-    const Icon = iconMap[feature.type];
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: index * 0.1 }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className="group relative"
-        >
-            <div className="relative h-[450px] bg-gradient-to-br from-bg-card to-bg-secondary rounded-3xl border border-accent-green/10 overflow-hidden transition-all duration-500 hover:border-accent-green/30 hover:shadow-[0_0_40px_rgba(16,185,129,0.15)]">
-                {/* Animated Background Gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-accent-green/5 via-transparent to-accent-emerald/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                {/* Glow Effect */}
-                <div className="absolute -inset-1 bg-gradient-to-r from-accent-green/20 to-accent-emerald/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
-
-                {/* Icon Container */}
-                <div className="relative flex items-center justify-center h-64 pt-12">
-                    <motion.div
-                        animate={{
-                            y: isHovered ? -10 : 0,
-                            scale: isHovered ? 1.1 : 1,
-                        }}
-                        transition={{ duration: 0.3 }}
-                        className="relative"
-                    >
-                        {/* Icon Glow */}
-                        <div className="absolute inset-0 bg-accent-green/30 blur-3xl rounded-full scale-150" />
-
-                        {/* Icon */}
-                        <div className="relative w-32 h-32 flex items-center justify-center rounded-2xl bg-gradient-to-br from-accent-green/20 to-accent-emerald/20 border border-accent-green/30 backdrop-blur-sm">
-                            <Icon className="text-6xl text-accent-green group-hover:text-accent-emerald transition-colors duration-300" />
-                        </div>
-
-                        {/* Floating Particles */}
-                        {isHovered && (
-                            <>
-                                <motion.div
-                                    initial={{ opacity: 0, y: 0 }}
-                                    animate={{ opacity: [0, 1, 0], y: -50 }}
-                                    transition={{ duration: 2, repeat: Infinity, delay: 0 }}
-                                    className="absolute -top-4 -left-4 w-2 h-2 bg-accent-green rounded-full"
-                                />
-                                <motion.div
-                                    initial={{ opacity: 0, y: 0 }}
-                                    animate={{ opacity: [0, 1, 0], y: -50 }}
-                                    transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                                    className="absolute -top-4 -right-4 w-2 h-2 bg-accent-emerald rounded-full"
-                                />
-                                <motion.div
-                                    initial={{ opacity: 0, y: 0 }}
-                                    animate={{ opacity: [0, 1, 0], y: -50 }}
-                                    transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-                                    className="absolute -bottom-4 left-1/2 w-2 h-2 bg-accent-lime rounded-full"
-                                />
-                            </>
-                        )}
-                    </motion.div>
-                </div>
-
-                {/* Content */}
-                <div className="relative px-8 pb-8 text-center">
-                    {/* Tag */}
-                    <motion.div
-                        animate={{
-                            scale: isHovered ? 1.05 : 1,
-                        }}
-                        className="inline-block mb-4"
-                    >
-                        <span className="text-sm font-black tracking-[0.2em] text-accent-green uppercase">
-                            {feature.tag}
-                        </span>
-                    </motion.div>
-
-                    {/* Title & Description */}
-                    <motion.div
-                        animate={{
-                            y: isHovered ? -5 : 0,
-                        }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        <h3 className="text-xl font-bold text-white mb-3 font-poppins">
-                            {feature.title}
-                        </h3>
-                        <p className="text-text-secondary text-sm leading-relaxed font-poppins">
-                            {feature.description}
-                        </p>
-                    </motion.div>
-
-                    {/* Learn More Button - Hidden on Mobile */}
-                    <motion.button
-                        animate={{
-                            opacity: isHovered ? 1 : 0,
-                            y: isHovered ? 0 : 10,
-                        }}
-                        transition={{ duration: 0.3 }}
-                        className="hidden md:block mt-6 px-6 py-2 rounded-full border border-accent-green/30 text-accent-green text-sm font-bold hover:bg-accent-green hover:text-black transition-all"
-                    >
-                        Learn More →
-                    </motion.button>
-                </div>
-
-                {/* Corner Accent */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-accent-green/10 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </div>
-        </motion.div>
-    );
-};
-
 const features = [
     {
-        type: 'bill',
-        tag: 'SPLITTING',
+        key: 'bill',
+        icon: FaReceipt,
+        tag: 'Split Engine',
         title: 'Automated Fare Splitting',
-        description: 'Real-time calculation of each rider\'s share based on distance traveled. Zero manual calculation needed.'
+        description: 'Each rider share is calculated by route and distance so no one needs to do mental math after the ride.'
     },
     {
-        type: 'card',
-        tag: 'WALLET',
-        title: 'Digital Wallet',
-        description: 'Store ride credits, manage refunds, and redeem rewards. Faster settlements without repeated bank calls.'
+        key: 'wallet',
+        icon: FaWallet,
+        tag: 'Wallet',
+        title: 'Digital Wallet Flow',
+        description: 'Store ride credits, settle faster, and redeem rewards without jumping across multiple payment apps.'
     },
     {
-        type: 'lock',
-        tag: 'SECURITY',
-        title: 'Micropayments',
-        description: 'Small confirmation payments (₹1) ensure commitment and reduce no-shows. Designed for high-frequency transactions.'
+        key: 'lock',
+        icon: FaLock,
+        tag: 'Safety',
+        title: 'Commitment Micropayments',
+        description: 'Small confirmation payments reduce no-shows and keep ride planning reliable for everyone involved.'
     },
     {
-        type: 'chart',
-        tag: 'TRANSPARENCY',
-        title: 'Transaction Transparency',
-        description: 'Digital receipts with clear breakdowns: total fare, your share, and savings vs solo travel.'
+        key: 'chart',
+        icon: FaChartLine,
+        tag: 'Clarity',
+        title: 'Transparent Transactions',
+        description: 'Every payment shows a full breakdown: total fare, your share, and how much you saved vs solo travel.'
     },
     {
-        type: 'coin',
-        tag: 'REWARDS',
-        title: 'Rewards & Credits',
-        description: 'Earn cashback and ride credits for referrals, frequency, and early adoption. Financial incentives that build loyalty.'
+        key: 'coins',
+        icon: FaCoins,
+        tag: 'Rewards',
+        title: 'Credits and Cashback',
+        description: 'Frequent users and referrals unlock benefits that make regular commuting lighter on your wallet.'
     },
     {
-        type: 'cart',
-        tag: 'CORPORATE',
-        title: 'Corporate Solutions',
-        description: 'Centralized billing, monthly reports, and ESG metrics for companies. Reduce reimbursement overhead.'
+        key: 'biz',
+        icon: FaBriefcase,
+        tag: 'Scale',
+        title: 'Campus and Corporate Ready',
+        description: 'Support pooled billing, reports, and reimbursement logic for colleges, clubs, and companies.'
     }
 ];
 
 const Features = () => {
     return (
-        <section id="features" className="py-24 bg-bg-primary relative overflow-hidden">
-            {/* Background Decoration */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 -left-48 w-96 h-96 bg-accent-green/5 rounded-full blur-3xl" />
-                <div className="absolute bottom-1/4 -right-48 w-96 h-96 bg-accent-emerald/5 rounded-full blur-3xl" />
+        <section id="features" className="py-20 sm:py-24 bg-bg-primary relative overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-1/4 -left-36 w-80 h-80 bg-accent-green/10 rounded-full blur-3xl" />
+                <div className="absolute bottom-0 -right-24 w-72 h-72 bg-accent-emerald/10 rounded-full blur-3xl" />
             </div>
 
-            <div className="container mx-auto px-6 relative z-10">
-                <div className="text-center max-w-3xl mx-auto mb-20">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10">
+                <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-14">
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent-green/25 bg-accent-green/10 mb-6"
+                    >
+                        <span className="h-2 w-2 rounded-full bg-accent-green animate-pulse" />
+                        <span className="text-[11px] font-bold tracking-[0.28em] text-accent-green uppercase">Feature Stack</span>
+                    </motion.div>
                     <motion.h2
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="text-3xl md:text-5xl font-bold mb-6 text-white"
+                        className="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold mb-4 text-white"
                     >
-                        Embedded Fintech for Everyone
+                        Built for smooth group commuting.
                     </motion.h2>
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.2 }}
-                        className="text-text-secondary text-lg"
-                    >
-                        Payments, settlement, and cost-sharing are the core enablers of the experience
-                    </motion.p>
+                    <p className="text-text-secondary text-base sm:text-lg">
+                        One cohesive platform for matching, payments, safety, and savings.
+                    </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {features.map((feature, index) => (
-                        <FeatureCard key={index} feature={feature} index={index} />
-                    ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                    {features.map((feature, index) => {
+                        const Icon = feature.icon;
+
+                        return (
+                            <motion.article
+                                key={feature.key}
+                                initial={{ opacity: 0, y: 18 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: index * 0.06 }}
+                                className="group rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.03] backdrop-blur-xl p-5 sm:p-6 hover:border-accent-green/35 hover:shadow-[0_18px_35px_rgba(16,185,129,0.14)] transition-all"
+                            >
+                                <div className="flex items-center justify-between gap-3 mb-5">
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-accent-green">{feature.tag}</span>
+                                    <div className="w-11 h-11 rounded-xl border border-accent-green/25 bg-accent-green/12 flex items-center justify-center text-accent-green group-hover:scale-105 transition-transform">
+                                        <Icon className="text-base" />
+                                    </div>
+                                </div>
+
+                                <h3 className="text-xl font-bold text-white leading-snug">{feature.title}</h3>
+                                <p className="mt-3 text-sm sm:text-[15px] text-text-secondary leading-relaxed">{feature.description}</p>
+                            </motion.article>
+                        );
+                    })}
                 </div>
             </div>
         </section>

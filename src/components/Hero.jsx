@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaRobot, FaTimes, FaChevronRight, FaFingerprint, FaWhatsapp } from 'react-icons/fa';
-import AnnouncementDrops from './AnnouncementDrops';
+import { FaRobot, FaTimes, FaChevronRight, FaFingerprint, FaWhatsapp, FaBolt, FaShieldAlt, FaWallet } from 'react-icons/fa';
 
 const TypewriterText = ({ text, onComplete }) => {
     const [displayedText, setDisplayedText] = useState('');
@@ -23,14 +22,25 @@ const TypewriterText = ({ text, onComplete }) => {
 }
 
 const CinematicTitle = () => (
-    <div className="mb-12 relative z-20">
+    <div className="mb-8 sm:mb-10 relative z-20">
+        <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 rounded-full border border-accent-green/30 bg-accent-green/10 px-4 py-1.5 mb-6"
+        >
+            <span className="h-2 w-2 rounded-full bg-accent-green animate-pulse" />
+            <span className="text-[11px] sm:text-xs font-bold tracking-[0.24em] uppercase text-accent-green">Campus Commute OS</span>
+        </motion.div>
         <motion.h1
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6 }}
-            className="text-4xl sm:text-5xl md:text-7xl font-bold leading-tight tracking-tight text-white mb-2"
+            className="font-display text-4xl sm:text-5xl md:text-7xl font-bold leading-[1.05] tracking-tight text-white mb-2"
         >
-            The Future of
+            Split Rides.
+            <br />
+            Keep the Vibe.
         </motion.h1>
         <motion.div
             initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
@@ -39,8 +49,8 @@ const CinematicTitle = () => (
             className="relative inline-block"
         >
             <span className="absolute -inset-4 bg-gradient-to-r from-accent-green/20 via-accent-emerald/20 to-accent-lime/20 blur-3xl opacity-50 animate-pulse" />
-            <span className="relative bg-gradient-to-r from-accent-green via-accent-emerald to-accent-lime bg-clip-text text-transparent font-extrabold tracking-tighter filter drop-shadow-[0_0_25px_rgba(16,185,129,0.3)]">
-                Shared Transit
+            <span className="relative font-display bg-gradient-to-r from-accent-green via-accent-emerald to-accent-lime bg-clip-text text-transparent text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight filter drop-shadow-[0_0_25px_rgba(16,185,129,0.3)]">
+                Shared Transit, Rewired
             </span>
         </motion.div>
     </div>
@@ -107,7 +117,7 @@ const ActivationInterface = ({ onActivate, isIgniting }) => {
             </div>
 
             <motion.div
-                className="mt-6 text-[10px] font-mono text-text-muted tracking-[0.2em] uppercase opacity-70 group-hover:opacity-100 transition-opacity"
+                className="mt-6 text-[10px] font-mono text-text-muted tracking-[0.22em] uppercase opacity-70 group-hover:opacity-100 transition-opacity"
                 animate={{ opacity: isIgniting ? 0 : 0.7 }}
             >
                 Tap to Initialize
@@ -115,6 +125,27 @@ const ActivationInterface = ({ onActivate, isIgniting }) => {
         </div>
     );
 };
+
+const statCards = [
+    {
+        icon: FaBolt,
+        title: 'Fast Match',
+        value: '< 60 sec',
+        description: 'Find nearby riders in moments'
+    },
+    {
+        icon: FaWallet,
+        title: 'Average Savings',
+        value: 'Up to 60%',
+        description: 'Auto split fares without confusion'
+    },
+    {
+        icon: FaShieldAlt,
+        title: 'Verified Circle',
+        value: '100%',
+        description: 'Safer rides with trusted profiles'
+    }
+];
 
 const Hero = () => {
     const [chatOpen, setChatOpen] = useState(false);
@@ -164,15 +195,15 @@ const Hero = () => {
     ];
 
     return (
-        <section className="relative h-screen w-full overflow-hidden bg-bg-primary flex items-center justify-center">
+        <section className="relative min-h-[100dvh] w-full overflow-hidden bg-bg-primary flex items-center justify-center pt-28 sm:pt-32 pb-16">
             {/* Gradient Background */}
             <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-accent-green/5 via-transparent to-accent-emerald/5" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.1),transparent_50%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(16,185,129,0.16),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(132,204,22,0.10),transparent_24%),radial-gradient(circle_at_50%_85%,rgba(52,211,153,0.12),transparent_35%)]" />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/40" />
             </div>
 
             {/* Content */}
-            <div className="container mx-auto px-6 relative z-10 text-center flex flex-col items-center justify-center h-full pt-20">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10 text-center flex flex-col items-center justify-center min-h-[70vh]">
                 <AnimatePresence mode="wait">
                     {!chatOpen ? (
                         <motion.div
@@ -181,7 +212,7 @@ const Hero = () => {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 1.5, filter: "blur(20px)" }} // Zoom into the matrix effect
                             transition={{ duration: 0.5 }}
-                            className="max-w-5xl flex flex-col items-center"
+                            className="w-full max-w-6xl flex flex-col items-center"
                         >
                             <CinematicTitle />
 
@@ -189,13 +220,56 @@ const Hero = () => {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.6 }}
-                                className="text-text-secondary text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed"
+                                className="text-text-secondary text-base sm:text-lg md:text-xl max-w-3xl mx-auto mb-10 sm:mb-12 leading-relaxed px-2 sm:px-0"
                             >
-                                Experience seamless, verified ride-sharing with automated fare splitting and instant settlements.
+                                Experience verified ride-sharing with automated fare splitting, instant settlements, and zero awkward money talks.
                             </motion.p>
 
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.75 }}
+                                className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-12 w-full px-4"
+                            >
+                                <a
+                                    href="/login?signin=1"
+                                    className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-gradient-to-r from-accent-green to-accent-emerald text-black font-bold shadow-[0_12px_35px_rgba(16,185,129,0.3)] hover:-translate-y-0.5 active:scale-95 transition-all text-base sm:text-lg"
+                                >
+                                    Start Saving Today
+                                </a>
+                                <button
+                                    onClick={handleStartEngine}
+                                    className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 rounded-2xl border border-white/20 bg-white/5 text-white font-semibold hover:bg-white/10 active:scale-95 transition-all text-base sm:text-lg backdrop-blur-md"
+                                >
+                                    See How Spllit Works
+                                </button>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.9 }}
+                                className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full mb-8"
+                            >
+                                {statCards.map((item) => {
+                                    const Icon = item.icon;
+                                    return (
+                                        <article
+                                            key={item.title}
+                                            className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl px-4 py-4 text-left"
+                                        >
+                                            <div className="flex items-center gap-2 text-accent-green mb-2">
+                                                <Icon className="text-sm" />
+                                                <span className="text-[10px] uppercase tracking-[0.22em] font-bold">{item.title}</span>
+                                            </div>
+                                            <p className="text-white font-black text-xl sm:text-2xl leading-none">{item.value}</p>
+                                            <p className="mt-2 text-xs text-text-secondary">{item.description}</p>
+                                        </article>
+                                    );
+                                })}
+                            </motion.div>
+
                             <ActivationInterface onActivate={handleStartEngine} isIgniting={isIgniting} />
-                            <AnnouncementDrops />
                         </motion.div>
                     ) : (
                         <motion.div

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -49,10 +49,19 @@ html {
 body {
   background-color: #050505;
   color: #ffffff;
+  font-family: 'Space Grotesk', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overscroll-behavior-x: none;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: 'Sora', sans-serif;
+  letter-spacing: -0.02em;
 }
 
 @supports (height: 100dvh) {

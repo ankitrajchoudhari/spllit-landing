@@ -16,6 +16,70 @@ import NotificationContainer from '../components/NotificationToast';
 import io from 'socket.io-client';
 import { SOCKET_BASE_URL } from '../config/backendUrl';
 
+const ANNOUNCEMENT_IMAGE_MAX_DIMENSION = 1400;
+const ANNOUNCEMENT_IMAGE_QUALITY = 0.8;
+
+const getErrorMessage = (error, fallback) => {
+  const responseError = error?.response?.data?.error;
+  if (typeof responseError === 'string') return responseError;
+  if (responseError && typeof responseError === 'object') {
+    return responseError.message || JSON.stringify(responseError);
+  }
+
+  const details = error?.response?.data?.details;
+  if (Array.isArray(details) && details.length > 0) {
+    return details
+      .map((detail) => (typeof detail === 'string' ? detail : detail?.message || JSON.stringify(detail)))
+      .join(', ');
+  }
+
+  if (typeof error?.message === 'string' && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(new Error('Failed to read image file'));
+  reader.readAsDataURL(file);
+});
+
+const compressImageDataUrl = (dataUrl) => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.onload = () => {
+    const scale = Math.min(1, ANNOUNCEMENT_IMAGE_MAX_DIMENSION / Math.max(image.width || 1, image.height || 1));
+    const width = Math.max(1, Math.round((image.width || 1) * scale));
+    const height = Math.max(1, Math.round((image.height || 1) * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      resolve(dataUrl);
+      return;
+    }
+
+    context.drawImage(image, 0, 0, width, height);
+    try {
+      resolve(canvas.toDataURL('image/jpeg', ANNOUNCEMENT_IMAGE_QUALITY));
+    } catch (error) {
+      resolve(dataUrl);
+    }
+  };
+  image.onerror = () => reject(new Error('Failed to process pasted image'));
+  image.src = dataUrl;
+});
+
+const compressAnnouncementImage = async (file) => {
+  const dataUrl = await readFileAsDataUrl(file);
+  return compressImageDataUrl(dataUrl);
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const adminStore = useAdminStore();
@@ -298,8 +362,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleAnnouncementImageChange = async (event) => {
-    const file = event.target.files?.[0];
+  const setAnnouncementImage = async (file) => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -307,20 +370,38 @@ const AdminDashboard = () => {
       return;
     }
 
-    if (file.size > 3 * 1024 * 1024) {
-      alert('Image should be under 3MB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
+    try {
+      const compressedDataUrl = await compressAnnouncementImage(file);
       setAnnouncementForm((prev) => ({
         ...prev,
-        imageUrl: String(reader.result || ''),
+        imageUrl: compressedDataUrl,
+        imageLink: '',
         imageAlt: prev.imageAlt || file.name
       }));
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      alert('Could not process the image. Please try a smaller image or use an image URL.');
+    }
+  };
+
+  const handleAnnouncementImageChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    await setAnnouncementImage(file);
+    event.target.value = '';
+  };
+
+  const handleAnnouncementImagePaste = async (event) => {
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItem = items.find((item) => item.type.startsWith('image/'));
+
+    if (!imageItem) return;
+
+    const file = imageItem.getAsFile();
+    if (!file) return;
+
+    event.preventDefault();
+    await setAnnouncementImage(file);
   };
 
   const handleCreateAnnouncement = async (event) => {
@@ -328,13 +409,19 @@ const AdminDashboard = () => {
 
     try {
       setAnnouncementSubmitting(true);
+      const selectedImage = announcementForm.imageUrl || announcementForm.imageLink || undefined;
       const payload = {
         title: announcementForm.title,
         message: announcementForm.message,
         location: announcementForm.location,
-        imageUrl: announcementForm.imageUrl || announcementForm.imageLink || undefined,
+        imageUrl: selectedImage,
         imageAlt: announcementForm.imageAlt || announcementForm.title
       };
+
+      if (selectedImage?.startsWith('data:image') && selectedImage.length > 900000) {
+        alert('The pasted image is still too large. Please use a smaller image or an image URL.');
+        return;
+      }
 
       const response = await announcementsAPI.createAnnouncement(payload);
       const createdAnnouncement = response?.announcement;
@@ -348,7 +435,7 @@ const AdminDashboard = () => {
       setAnnouncementForm({ title: '', message: '', location: '', imageLink: '', imageUrl: '', imageAlt: '' });
       alert('Announcement posted successfully');
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to post announcement');
+      alert(getErrorMessage(error, 'Failed to post announcement'));
     } finally {
       setAnnouncementSubmitting(false);
     }
@@ -363,7 +450,7 @@ const AdminDashboard = () => {
       setAdminAnnouncements((prev) => prev.filter((item) => item.id !== announcementId));
       alert('Announcement deleted successfully');
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to delete announcement');
+      alert(getErrorMessage(error, 'Failed to delete announcement'));
     }
   };
 
@@ -815,6 +902,9 @@ const AdminDashboard = () => {
                             onChange={handleAnnouncementImageChange}
                             className="w-full text-sm text-gray-300 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-accent-green file:text-black file:font-bold hover:file:bg-accent-green/90"
                           />
+                          <p className="mt-2 text-[11px] text-gray-500">
+                            Upload or paste an image. Large images are compressed automatically.
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-semibold text-white mb-2">Image Link</label>
@@ -822,6 +912,7 @@ const AdminDashboard = () => {
                             type="text"
                             value={announcementForm.imageLink}
                             onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, imageLink: e.target.value }))}
+                            onPaste={handleAnnouncementImagePaste}
                             placeholder="Paste an image URL if you don't want to upload"
                             className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green/50"
                           />

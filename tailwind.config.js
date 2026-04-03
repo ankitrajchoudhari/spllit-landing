@@ -18,7 +18,7 @@ export default {
                 'text-muted': '#6b7280',
             },
             fontFamily: {
-                sans: ['Inter', 'sans-serif'],
+                sans: ['Space Grotesk', 'sans-serif'],
             },
         },
     },

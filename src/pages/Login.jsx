@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaTimes, FaLock, FaGoogle } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
+import AnnouncementDrops from '../components/AnnouncementDrops';
 
 
 // --- Premium Phone Mockup with "Live Match" Simulation ---
@@ -294,11 +295,23 @@ const Login = () => {
 
 
     return (
-        <div className="min-h-screen bg-[#050505] overflow-hidden relative font-poppins selection:bg-accent-green selection:text-black">
+        <div className="min-h-screen bg-[#050505] overflow-x-hidden relative font-poppins selection:bg-accent-green selection:text-black">
+
+            {/* Announcements - Hidden or simplified on small mobile to avoid overlap */}
+            <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-40 w-[min(92vw,360px)] md:w-[380px]">
+                <div className="mb-2 text-right">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-accent-green/25 bg-accent-green/10 px-3 py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] sm:tracking-[0.28em] text-accent-green backdrop-blur-md">
+                        <FaBell /> Live Drops
+                    </span>
+                </div>
+                <div className="scale-[0.9] sm:scale-100 origin-top-right">
+                    <AnnouncementDrops />
+                </div>
+            </div>
 
             {/* Animated Grid Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-accent-green/[0.04] pointer-events-none" />
-            <div className="absolute inset-0 z-0 opacity-30">
+            <div className="absolute inset-0 z-0 opacity-20">
                 <svg className="w-full h-full" width="100%" height="100%">
                     <defs>
                         <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -309,13 +322,11 @@ const Login = () => {
                 </svg>
             </div>
 
-
-
-            <div className="container mx-auto px-6 pt-32 pb-20 relative z-10">
-                <div className="flex flex-col lg:flex-row items-center gap-20">
+            <div className="container mx-auto px-4 sm:px-6 pt-36 sm:pt-44 md:pt-32 pb-20 relative z-10">
+                <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
 
                     {/* Left: Content */}
-                    <div className="flex-1 text-center lg:text-left w-full max-w-full overflow-hidden">
+                    <div className="flex-1 text-center lg:text-left w-full max-w-4xl mx-auto lg:mx-0">
                         <motion.div
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -323,19 +334,19 @@ const Login = () => {
                             className="w-full flex flex-col items-center lg:items-start"
                         >
                             {/* TARGET AUDIENCE BADGE - EMPHASIZED */}
-                            <div className="inline-block mb-6">
+                            <div className="inline-block mb-6 sm:mb-8">
                                 <motion.div
                                     whileHover={{ scale: 1.05 }}
-                                    className="px-3 md:px-6 py-1.5 md:py-2 bg-gradient-to-r from-red-600 to-red-900 rounded-full border border-red-500/30 shadow-[0_0_20px_rgba(220,38,38,0.4)] flex items-center gap-2 md:gap-3"
+                                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-red-600/90 to-red-900/90 rounded-full border border-red-500/30 shadow-[0_0_25px_rgba(220,38,38,0.3)] flex items-center gap-2 sm:gap-3 backdrop-blur-sm"
                                 >
-                                    <FaGraduationCap className="text-white text-base md:text-xl" />
-                                    <span className="text-white font-bold tracking-wide uppercase text-[10px] md:text-sm">
-                                        Exclusively for IIT Madras BS Students
+                                    <FaGraduationCap className="text-white text-base sm:text-lg md:text-xl" />
+                                    <span className="text-white font-bold tracking-wide uppercase text-[10px] sm:text-xs md:text-sm">
+                                        Exclusively for IIT Madras Students
                                     </span>
                                 </motion.div>
                             </div>
 
-                            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-white mb-4 sm:mb-6 leading-[1.1] tracking-tight">
+                            <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white mb-6 sm:mb-8 leading-[1.05] tracking-tight">
                                 Don't Travel to <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green via-emerald-400 to-teal-500">
                                     Exam Centers
