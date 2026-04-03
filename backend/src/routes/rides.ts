@@ -7,6 +7,49 @@ import { calculateDistance, isTimeWithinWindow } from '../utils/helpers.js';
 import { io } from '../server.js';
 
 const router = Router();
+const RIDE_ACTIVE_WINDOW_MS = 8 * 60 * 60 * 1000;
+
+const getRideExpiryDate = (createdAt: Date) => new Date(createdAt.getTime() + RIDE_ACTIVE_WINDOW_MS);
+
+const deactivateExpiredPendingRides = async () => {
+  const cutoff = new Date(Date.now() - RIDE_ACTIVE_WINDOW_MS);
+
+  const expiredPendingRides = await prisma.ride.findMany({
+    where: {
+      status: 'pending',
+      createdAt: {
+        lt: cutoff
+      }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (expiredPendingRides.length > 0) {
+    const expiredRideIds = expiredPendingRides.map((ride) => ride.id);
+
+    await prisma.ride.updateMany({
+      where: {
+        id: {
+          in: expiredRideIds
+        },
+        status: 'pending'
+      },
+      data: {
+        status: 'cancelled'
+      }
+    });
+
+    await prisma.rideAnnouncement.deleteMany({
+      where: {
+        rideId: {
+          in: expiredRideIds
+        }
+      }
+    });
+  }
+};
 
 // Validation schemas
 const createRideSchema = z.object({
@@ -159,7 +202,31 @@ router.get('/announcements', authenticate, async (req: AuthRequest, res: Respons
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    await deactivateExpiredPendingRides();
+
+    const activeCutoff = new Date(Date.now() - RIDE_ACTIVE_WINDOW_MS);
+    const activeRides = await prisma.ride.findMany({
+      where: {
+        status: 'pending',
+        createdAt: {
+          gte: activeCutoff
+        }
+      },
+      select: {
+        id: true,
+        createdAt: true
+      }
+    });
+
+    const activeRideIdSet = new Set(activeRides.map((ride) => ride.id));
+    const activeCreatedAtMap = new Map(activeRides.map((ride) => [ride.id, ride.createdAt]));
+
     const announcements = await prisma.rideAnnouncement.findMany({
+      where: {
+        rideId: {
+          in: Array.from(activeRideIdSet)
+        }
+      },
       orderBy: {
         createdAt: 'desc'
       },
@@ -167,7 +234,10 @@ router.get('/announcements', authenticate, async (req: AuthRequest, res: Respons
     });
 
     res.json({
-      announcements
+      announcements: announcements.map((announcement) => ({
+        ...announcement,
+        expiresAt: getRideExpiryDate(activeCreatedAtMap.get(announcement.rideId) || announcement.createdAt)
+      }))
     });
   } catch (error) {
     console.error('Get ride announcements error:', error);
@@ -185,9 +255,16 @@ router.get('/available', authenticate, async (req: AuthRequest, res: Response) =
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    await deactivateExpiredPendingRides();
+
+    const activeCutoff = new Date(Date.now() - RIDE_ACTIVE_WINDOW_MS);
+
     const rides = await prisma.ride.findMany({
       where: {
         status: 'pending',
+        createdAt: {
+          gte: activeCutoff
+        },
         userId: {
           not: req.user.userId // Exclude own rides
         },
@@ -204,10 +281,7 @@ router.get('/available', authenticate, async (req: AuthRequest, res: Response) =
             // Hide rides this user has already requested/joined.
             matches: {
               none: {
-                user2Id: req.user.userId,
-                status: {
-                  in: ['pending', 'accepted']
-                }
+                user2Id: req.user.userId
               }
             }
           }
@@ -235,7 +309,8 @@ router.get('/available', authenticate, async (req: AuthRequest, res: Response) =
       count: rides.length,
       rides: rides.map(ride => ({
         ...ride,
-        seatsAvailable: ride.seats
+        seatsAvailable: ride.seats,
+        expiresAt: getRideExpiryDate(ride.createdAt)
       }))
     });
   } catch (error) {
@@ -253,6 +328,8 @@ router.get('/search', authenticate, async (req: AuthRequest, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    await deactivateExpiredPendingRides();
 
     const query = {
       destination: req.query.destination as string,
@@ -283,6 +360,9 @@ router.get('/search', authenticate, async (req: AuthRequest, res: Response) => {
     const rides = await prisma.ride.findMany({
       where: {
         status: 'pending',
+        createdAt: {
+          gte: new Date(Date.now() - RIDE_ACTIVE_WINDOW_MS)
+        },
         departureTime: {
           gte: timeWindowStart,
           lte: timeWindowEnd
@@ -337,7 +417,8 @@ router.get('/search', authenticate, async (req: AuthRequest, res: Response) => {
       .map((ride: any) => ({
         ...ride,
         distance: calculateDistance(data.destLat, data.destLng, ride.destLat, ride.destLng),
-        timeDiff: Math.abs(ride.departureTime.getTime() - searchTime.getTime()) / 60000 // minutes
+        timeDiff: Math.abs(ride.departureTime.getTime() - searchTime.getTime()) / 60000, // minutes
+        expiresAt: getRideExpiryDate(ride.createdAt)
       }))
       .sort((a: any, b: any) => {
         // Sort by time difference first, then distance
@@ -370,6 +451,8 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    await deactivateExpiredPendingRides();
+
     const rides = await prisma.ride.findMany({
       where: {
         userId: req.user.userId
@@ -393,7 +476,12 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
       }
     });
 
-    res.json({ rides });
+    res.json({
+      rides: rides.map((ride) => ({
+        ...ride,
+        expiresAt: getRideExpiryDate(ride.createdAt)
+      }))
+    });
   } catch (error) {
     console.error('Get my rides error:', error);
     res.status(500).json({ error: 'Failed to get rides' });

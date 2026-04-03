@@ -6,6 +6,7 @@ import { AuthRequest } from '../types/express.js';
 import { io } from '../server.js';
 
 const router = Router();
+const RIDE_ACTIVE_WINDOW_MS = 8 * 60 * 60 * 1000;
 
 const createMatchSchema = z.object({
   rideId: z.string()
@@ -40,6 +41,17 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     if (!ride) {
       return res.status(404).json({ error: 'Ride not found' });
+    }
+
+    const rideExpiresAt = new Date(ride.createdAt.getTime() + RIDE_ACTIVE_WINDOW_MS);
+    if (Date.now() > rideExpiresAt.getTime()) {
+      if (ride.status === 'pending') {
+        await prisma.ride.update({
+          where: { id: ride.id },
+          data: { status: 'cancelled' }
+        });
+      }
+      return res.status(400).json({ error: 'Ride is no longer active' });
     }
 
     if (ride.status !== 'pending') {

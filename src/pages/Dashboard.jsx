@@ -75,6 +75,7 @@ const Dashboard = () => {
     const [pendingRequests, setPendingRequests] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
     const [matches, setMatches] = useState([]);
+    const [nowMs, setNowMs] = useState(Date.now());
     
     // Form data with location coordinates
     const [rideData, setRideData] = useState({
@@ -103,6 +104,7 @@ const Dashboard = () => {
     const rideAnnouncementSeenKey = `ride-announcements-seen-${user?.id || 'guest'}`;
     const notificationFeedKey = `notification-feed-${user?.id || 'guest'}`;
     const dismissedFeedKey = `notification-feed-dismissed-${user?.id || 'guest'}`;
+    const rideActiveWindowMs = 8 * 60 * 60 * 1000;
     const notificationFeedExpiryMs = 2 * 60 * 60 * 1000;
 
     const getNowIso = () => new Date().toISOString();
@@ -117,13 +119,14 @@ const Dashboard = () => {
 
     const normalizeFeedItem = (item) => {
         const timestamp = item.timestamp || item.createdAt || getNowIso();
+        const defaultExpiryMs = item.type === 'ride' ? rideActiveWindowMs : notificationFeedExpiryMs;
         return {
             id: item.id || `${item.type || 'info'}-${Date.now()}`,
             type: item.type || 'info',
             title: item.title || 'Notification',
             message: item.message || '',
             timestamp,
-            expiresAt: item.expiresAt || new Date(new Date(timestamp).getTime() + notificationFeedExpiryMs).toISOString(),
+            expiresAt: item.expiresAt || new Date(new Date(timestamp).getTime() + defaultExpiryMs).toISOString(),
             rideId: item.rideId,
             matchId: item.matchId,
             chatRoomId: item.chatRoomId,
@@ -185,7 +188,7 @@ const Dashboard = () => {
                 title: announcement.title || 'New Ride Available!',
                 message: announcement.message,
                 timestamp: announcement.createdAt,
-                expiresAt: new Date(new Date(announcement.createdAt).getTime() + notificationFeedExpiryMs).toISOString(),
+                expiresAt: announcement.expiresAt || new Date(new Date(announcement.createdAt).getTime() + rideActiveWindowMs).toISOString(),
                 rideId: announcement.rideId,
                 meta: {
                     origin: announcement.origin,
@@ -216,6 +219,37 @@ const Dashboard = () => {
             console.error('Failed to load notification feed:', error);
             return [];
         }
+    };
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setNowMs(Date.now());
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, []);
+
+    const getRideExpiryMs = (ride) => {
+        if (ride?.expiresAt) {
+            const value = new Date(ride.expiresAt).getTime();
+            if (Number.isFinite(value)) return value;
+        }
+
+        const createdAtMs = new Date(ride?.createdAt || ride?.timestamp || 0).getTime();
+        return Number.isFinite(createdAtMs) ? createdAtMs + rideActiveWindowMs : 0;
+    };
+
+    const getRideRemainingMs = (ride) => {
+        const remaining = getRideExpiryMs(ride) - nowMs;
+        return remaining > 0 ? remaining : 0;
+    };
+
+    const formatRideCountdown = (remainingMs) => {
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     };
 
     const formatAnnouncementTime = (value) => {
@@ -921,7 +955,8 @@ const Dashboard = () => {
     const fetchAllAvailableRides = async () => {
         try {
             const response = await ridesAPI.getAvailableRides();
-            setRides(response.rides || []);
+            const available = Array.isArray(response?.rides) ? response.rides : [];
+            setRides(available.filter((ride) => getRideRemainingMs(ride) > 0));
         } catch (err) {
             console.error('Failed to fetch rides:', err);
             setRides([]);
@@ -1587,7 +1622,7 @@ const Dashboard = () => {
                                     <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-accent-green mx-auto"></div>
                                     <p className="text-gray-400 mt-4">Loading available rides...</p>
                                 </div>
-                            ) : rides.length === 0 ? (
+                            ) : rides.filter((ride) => getRideRemainingMs(ride) > 0).length === 0 ? (
                                 <div className="text-center py-12">
                                     <FaCar className="text-gray-600 text-6xl mx-auto mb-4" />
                                     <p className="text-gray-400 text-lg">No rides available at the moment</p>
@@ -1595,7 +1630,7 @@ const Dashboard = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {rides.map((ride) => (
+                                    {rides.filter((ride) => getRideRemainingMs(ride) > 0).map((ride) => (
                                         <div
                                             key={ride.id}
                                             className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-6 hover:border-accent-green/30 transition-all"
@@ -1608,6 +1643,9 @@ const Dashboard = () => {
                                                     <p className="text-gray-400 text-sm">
                                                         <FaClock className="inline mr-2" />
                                                         {new Date(ride.departureTime).toLocaleString()}
+                                                    </p>
+                                                    <p className="text-xs text-accent-green mt-2 font-semibold">
+                                                        Active for: {formatRideCountdown(getRideRemainingMs(ride))}
                                                     </p>
                                                 </div>
                                                 <div className="text-left sm:text-right">
@@ -1863,6 +1901,11 @@ const Dashboard = () => {
                                                             </p>
                                                         </div>
                                                     </div>
+                                                    {ride.status === 'pending' && getRideRemainingMs(ride) > 0 && (
+                                                        <p className="text-xs text-accent-green mt-3 font-semibold">
+                                                            Ride auto-inactivates in: {formatRideCountdown(getRideRemainingMs(ride))}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
 
