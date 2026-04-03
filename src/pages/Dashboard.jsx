@@ -1460,15 +1460,17 @@ const Dashboard = () => {
                             onClick={() => setShowCreateRide(true)}
                             className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
-                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <FaCar className="text-accent-green text-xl sm:text-2xl" />
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <FaCar className="text-accent-green text-lg sm:text-2xl" />
                             </div>
-                            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Create Ride</h3>
+                            <h3 className="text-lg sm:text-2xl font-bold text-white mb-2">Create Ride</h3>
                             <p className="text-gray-400 text-sm leading-relaxed">
                                 Post your ride request and find students going to the same exam center within 30 minutes.
                             </p>
-                            <div className="mt-5 text-accent-green font-bold text-sm uppercase tracking-wider">
-                                Create Now →
+                            <div className="mt-5 text-accent-green font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+                                <span>Create Now</span>
+                                <span aria-hidden="true">•</span>
+                                <span>Share Ride</span>
                             </div>
                         </motion.div>
 
@@ -1478,15 +1480,17 @@ const Dashboard = () => {
                             onClick={() => { setShowFindMatches(true); handleSearchRides(); }}
                             className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
-                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-purple-500/20 border-2 border-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <FaMapMarkerAlt className="text-purple-500 text-xl sm:text-2xl" />
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-purple-500/20 border-2 border-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <FaMapMarkerAlt className="text-purple-500 text-lg sm:text-2xl" />
                             </div>
-                            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Find Matches</h3>
+                            <h3 className="text-lg sm:text-2xl font-bold text-white mb-2">Find Matches</h3>
                             <p className="text-gray-400 text-sm leading-relaxed">
                                 Browse available rides and connect with verified students for safe group travel.
                             </p>
-                            <div className="mt-5 text-accent-green font-bold text-sm uppercase tracking-wider">
-                                Find Rides →
+                            <div className="mt-5 text-accent-green font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+                                <span>Find Rides</span>
+                                <span aria-hidden="true">•</span>
+                                <span>Browse Fast</span>
                             </div>
                         </motion.div>
 
@@ -1496,15 +1500,17 @@ const Dashboard = () => {
                             onClick={handleGetMyRides}
                             className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
-                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <FaUser className="text-blue-500 text-xl sm:text-2xl" />
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-500/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <FaUser className="text-blue-500 text-lg sm:text-2xl" />
                             </div>
-                            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">My Rides</h3>
+                            <h3 className="text-lg sm:text-2xl font-bold text-white mb-2">My Rides</h3>
                             <p className="text-gray-400 text-sm leading-relaxed">
                                 View and manage your active rides, check matches, and track your ride history.
                             </p>
-                            <div className="mt-5 text-accent-green font-bold text-sm uppercase tracking-wider">
-                                View Rides →
+                            <div className="mt-5 text-accent-green font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+                                <span>View Rides</span>
+                                <span aria-hidden="true">•</span>
+                                <span>Manage</span>
                             </div>
                         </motion.div>
                     </div>

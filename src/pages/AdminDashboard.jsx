@@ -1094,24 +1094,24 @@ const AdminDashboard = () => {
 
                 {/* Emergency Quick Actions */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                  <button className="flex flex-col items-center gap-3 p-4 sm:p-6 bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20 rounded-xl hover:border-red-500/40 transition-all group">
-                    <FaPhone className="text-3xl text-red-400 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-semibold">Call Emergency</span>
+                  <button className="flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-6 bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20 rounded-xl hover:border-red-500/40 transition-all group">
+                    <FaPhone className="text-2xl sm:text-3xl text-red-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs sm:text-sm font-semibold text-center">Call Emergency</span>
                     <span className="text-xs text-gray-400">Direct Line</span>
                   </button>
-                  <button className="flex flex-col items-center gap-3 p-4 sm:p-6 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20 rounded-xl hover:border-orange-500/40 transition-all group">
-                    <FaAmbulance className="text-3xl text-orange-400 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-semibold">Call Ambulance</span>
+                  <button className="flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-6 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20 rounded-xl hover:border-orange-500/40 transition-all group">
+                    <FaAmbulance className="text-2xl sm:text-3xl text-orange-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs sm:text-sm font-semibold text-center">Call Ambulance</span>
                     <span className="text-xs text-gray-400">102 / 108</span>
                   </button>
-                  <button className="flex flex-col items-center gap-3 p-4 sm:p-6 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl hover:border-blue-500/40 transition-all group">
-                    <FaShieldAlt className="text-3xl text-blue-400 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-semibold">Call Police</span>
+                  <button className="flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-6 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl hover:border-blue-500/40 transition-all group">
+                    <FaShieldAlt className="text-2xl sm:text-3xl text-blue-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs sm:text-sm font-semibold text-center">Call Police</span>
                     <span className="text-xs text-gray-400">100</span>
                   </button>
-                  <button className="flex flex-col items-center gap-3 p-4 sm:p-6 bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-xl hover:border-purple-500/40 transition-all group">
-                    <FaLifeRing className="text-3xl text-purple-400 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-semibold">Support Team</span>
+                  <button className="flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-6 bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-xl hover:border-purple-500/40 transition-all group">
+                    <FaLifeRing className="text-2xl sm:text-3xl text-purple-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs sm:text-sm font-semibold text-center">Support Team</span>
                     <span className="text-xs text-gray-400">24/7 Help</span>
                   </button>
                 </div>
@@ -1127,13 +1127,13 @@ const AdminDashboard = () => {
                         className="bg-gradient-to-r from-red-500/10 to-red-600/5 border border-red-500/30 rounded-xl p-4 sm:p-6"
                       >
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                          <div className="flex items-start gap-4 flex-1">
-                            <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <FaExclamationTriangle className="text-red-400 text-xl animate-pulse" />
+                          <div className="flex items-start gap-3 sm:gap-4 flex-1">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <FaExclamationTriangle className="text-red-400 text-lg sm:text-xl animate-pulse" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">
-                                <h3 className="text-lg font-bold text-white">SOS Alert</h3>
+                                <h3 className="text-base sm:text-lg font-bold text-white">SOS Alert</h3>
                                 <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
                                   emergency.status === 'acknowledged'
                                     ? 'bg-yellow-500 text-black'
@@ -1167,11 +1167,11 @@ const AdminDashboard = () => {
                               </div>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full sm:w-auto">
                             {emergency.phone && emergency.phone !== 'N/A' ? (
                               <a
                                 href={`tel:${emergency.phone}`}
-                                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl transition-all font-semibold text-sm text-center bg-red-500 text-white hover:bg-red-600"
+                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 rounded-xl transition-all font-semibold text-xs sm:text-sm text-center bg-red-500 text-white hover:bg-red-600"
                               >
                                 Call User
                               </a>
@@ -1179,7 +1179,7 @@ const AdminDashboard = () => {
                               <button
                                 type="button"
                                 disabled
-                                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl transition-all font-semibold text-sm text-center bg-red-500/30 text-red-200 cursor-not-allowed"
+                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 rounded-xl transition-all font-semibold text-xs sm:text-sm text-center bg-red-500/30 text-red-200 cursor-not-allowed"
                               >
                                 Call User
                               </button>
@@ -1189,12 +1189,12 @@ const AdminDashboard = () => {
                                 href={`https://maps.google.com/?q=${emergency.locationLat},${emergency.locationLng}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex-1 sm:flex-initial px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all font-semibold text-sm text-center"
+                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all font-semibold text-xs sm:text-sm text-center"
                               >
                                 View Map
                               </a>
                             ) : (
-                              <button type="button" disabled className="flex-1 sm:flex-initial px-4 py-2 bg-white/10 text-gray-400 rounded-xl cursor-not-allowed font-semibold text-sm">
+                              <button type="button" disabled className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-white/10 text-gray-400 rounded-xl cursor-not-allowed font-semibold text-xs sm:text-sm">
                                 View Map
                               </button>
                             )}
@@ -1202,7 +1202,7 @@ const AdminDashboard = () => {
                               type="button"
                               disabled={updatingEmergencyId === emergency.id || emergency.status === 'acknowledged'}
                               onClick={() => handleEmergencyStatusUpdate(emergency.id, 'acknowledged')}
-                              className="flex-1 sm:flex-initial px-4 py-2 bg-yellow-500/20 text-yellow-300 rounded-xl hover:bg-yellow-500/30 transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-yellow-500/20 text-yellow-300 rounded-xl hover:bg-yellow-500/30 transition-all font-semibold text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Acknowledge
                             </button>
@@ -1210,7 +1210,7 @@ const AdminDashboard = () => {
                               type="button"
                               disabled={updatingEmergencyId === emergency.id}
                               onClick={() => handleEmergencyStatusUpdate(emergency.id, 'resolved')}
-                              className="flex-1 sm:flex-initial px-4 py-2 bg-green-500/20 text-green-300 rounded-xl hover:bg-green-500/30 transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-green-500/20 text-green-300 rounded-xl hover:bg-green-500/30 transition-all font-semibold text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Resolve
                             </button>
@@ -1218,7 +1218,7 @@ const AdminDashboard = () => {
                               type="button"
                               disabled={updatingEmergencyId === emergency.id}
                               onClick={() => handleEmergencyStatusUpdate(emergency.id, 'false-alarm')}
-                              className="flex-1 sm:flex-initial px-4 py-2 bg-gray-500/20 text-gray-300 rounded-xl hover:bg-gray-500/30 transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-gray-500/20 text-gray-300 rounded-xl hover:bg-gray-500/30 transition-all font-semibold text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               False Alarm
                             </button>
@@ -1228,9 +1228,9 @@ const AdminDashboard = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-20 bg-bg-secondary border border-white/10 rounded-2xl">
-                    <FaCheckCircle className="mx-auto text-6xl text-green-400 mb-4" />
-                    <h3 className="text-xl font-bold mb-2">All Clear!</h3>
+                  <div className="text-center py-16 sm:py-20 bg-bg-secondary border border-white/10 rounded-2xl">
+                    <FaCheckCircle className="mx-auto text-5xl sm:text-6xl text-green-400 mb-4" />
+                    <h3 className="text-lg sm:text-xl font-bold mb-2">All Clear!</h3>
                     <p className="text-gray-400">No active emergencies at the moment</p>
                   </div>
                 )}
