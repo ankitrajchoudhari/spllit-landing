@@ -1153,7 +1153,7 @@ const Dashboard = () => {
                                                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                className="absolute right-0 mt-3 w-[min(92vw,28rem)] sm:w-[22rem] md:w-[28rem] bg-[#0f0f0f] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden z-[10001] pointer-events-auto"
+                                                className="fixed left-1/2 -translate-x-1/2 top-24 w-[calc(100vw-1rem)] max-w-[28rem] bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[10001] pointer-events-auto sm:absolute sm:left-auto sm:top-auto sm:translate-x-0 sm:right-0 sm:mt-3 sm:w-[22rem] md:w-[28rem] sm:rounded-3xl"
                                             >
                                                 <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                                                     <div>
