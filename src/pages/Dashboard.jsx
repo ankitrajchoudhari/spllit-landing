@@ -549,7 +549,7 @@ const Dashboard = () => {
                 newSocket.disconnect();
             }
         };
-    }, [isAuthenticated, user, navigate]);
+    }, [isAuthenticated, user?.id, navigate]);
 
     useEffect(() => {
         const timer = setInterval(() => {

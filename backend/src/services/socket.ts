@@ -13,6 +13,7 @@ const isChatActive = (acceptedAt?: Date | null) => {
 
 interface AuthSocket extends Socket {
   userId?: string;
+  adminId?: string;
   email?: string;
 }
 
@@ -29,9 +30,14 @@ export function setupSocketHandlers(io: Server) {
         return next(new Error('Authentication required'));
       }
 
-      const decoded = verifyAccessToken(token);
+      const decoded = verifyAccessToken(token) as { userId?: string; adminId?: string; email?: string };
       socket.userId = decoded.userId;
+      socket.adminId = decoded.adminId;
       socket.email = decoded.email;
+
+      if (!socket.userId && !socket.adminId) {
+        return next(new Error('Invalid token payload'));
+      }
       
       next();
     } catch (error) {
@@ -40,7 +46,9 @@ export function setupSocketHandlers(io: Server) {
   });
 
   io.on('connection', (socket: AuthSocket) => {
-    console.log(`User connected: ${socket.userId}`);
+    const connectedId = socket.userId || socket.adminId || 'unknown';
+    const identityType = socket.userId ? 'User' : socket.adminId ? 'Admin' : 'Unknown';
+    console.log(`${identityType} connected: ${connectedId}`);
 
     if (socket.userId) {
       // Store user's socket
