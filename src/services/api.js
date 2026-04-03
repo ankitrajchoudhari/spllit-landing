@@ -211,6 +211,11 @@ export const earlyAccessAPI = {
         const response = await api.post('/early-access', data);
         return response.data;
     },
+    checkStatus: async (email) => {
+        const encodedEmail = encodeURIComponent(email);
+        const response = await api.get(`/early-access/status/${encodedEmail}`);
+        return response.data;
+    },
 };
 
 export default api;

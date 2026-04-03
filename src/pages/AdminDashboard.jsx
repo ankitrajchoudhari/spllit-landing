@@ -536,6 +536,22 @@ const AdminDashboard = () => {
                     <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1">₹{calculateTotalSplitAmount()}</h3>
                     <p className="text-xs sm:text-sm text-gray-400">Split Amount</p>
                   </motion.div>
+
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="bg-gradient-to-br from-blue-500/10 to-indigo-600/5 border border-blue-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                  >
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <FaUserClock className="text-2xl sm:text-4xl text-blue-300" />
+                      <span className="text-[10px] sm:text-xs bg-blue-500/20 text-blue-300 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full">
+                        Social
+                      </span>
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1">{stats.stats.earlyAccessCount || 0}</h3>
+                    <p className="text-xs sm:text-sm text-gray-400">Early Access Leads</p>
+                  </motion.div>
                 </div>
 
                 {/* Quick Actions */}
@@ -544,7 +560,7 @@ const AdminDashboard = () => {
                     <FaBell className="text-accent-green" />
                     Quick Actions
                   </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4">
                     <button
                       onClick={() => setActiveTab('users')}
                       className="flex flex-col items-center gap-2 p-3 sm:p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-all group"
@@ -565,6 +581,13 @@ const AdminDashboard = () => {
                     >
                       <FaHandshake className="text-xl sm:text-2xl text-green-400 group-hover:scale-110 transition-transform" />
                       <span className="text-xs sm:text-sm font-medium">View Matches</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('early-access')}
+                      className="flex flex-col items-center gap-2 p-3 sm:p-4 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-all group"
+                    >
+                      <FaUserClock className="text-xl sm:text-2xl text-blue-300 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs sm:text-sm font-medium text-blue-200">Spllit Social</span>
                     </button>
                     {canManageAdmins && (
                       <button
@@ -674,6 +697,7 @@ const AdminDashboard = () => {
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Name</th>
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Email</th>
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Phone</th>
+                          <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Message</th>
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Registered At</th>
                         </tr>
                       </thead>
@@ -683,6 +707,7 @@ const AdminDashboard = () => {
                             <td className="p-3 sm:p-4 text-white font-medium text-xs sm:text-sm">{lead.name}</td>
                             <td className="p-3 sm:p-4 text-gray-300 text-xs sm:text-sm break-all">{lead.email}</td>
                             <td className="p-3 sm:p-4 text-gray-300 text-xs sm:text-sm">{lead.phone}</td>
+                            <td className="p-3 sm:p-4 text-gray-300 text-xs sm:text-sm max-w-[240px] truncate">{lead.message || 'N/A'}</td>
                             <td className="p-3 sm:p-4 text-gray-400 text-xs sm:text-sm whitespace-nowrap">
                               {new Date(lead.createdAt).toLocaleString('en-GB', {
                                 day: '2-digit',

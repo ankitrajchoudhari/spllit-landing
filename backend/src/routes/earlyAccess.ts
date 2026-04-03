@@ -7,7 +7,33 @@ const router = Router();
 const createEarlyAccessSchema = z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().trim().email(),
-  phone: z.string().trim().min(8).max(20)
+  phone: z.string().trim().min(8).max(20),
+  message: z.string().trim().max(500).optional().default('')
+});
+
+/**
+ * GET /api/early-access/status/:email
+ * Check whether this email already submitted early access form
+ */
+router.get('/status/:email', async (req: Request, res: Response) => {
+  try {
+    const email = decodeURIComponent(req.params.email || '').toLowerCase().trim();
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const existingLead = await prisma.earlyAccess.findUnique({
+      where: { email }
+    });
+
+    res.json({
+      submitted: !!existingLead,
+      registration: existingLead || null
+    });
+  } catch (error) {
+    console.error('Early access status check error:', error);
+    res.status(500).json({ error: 'Failed to check registration status' });
+  }
 });
 
 /**
@@ -25,18 +51,10 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     if (existingLead) {
-      const updated = await prisma.earlyAccess.update({
-        where: { id: existingLead.id },
-        data: {
-          name: data.name,
-          phone: data.phone,
-          updatedAt: new Date()
-        }
-      });
-
-      return res.status(200).json({
-        message: 'Your registration was already present and has been updated.',
-        registration: updated
+      return res.status(409).json({
+        error: 'You have already joined early access with this email.',
+        code: 'ALREADY_REGISTERED',
+        registration: existingLead
       });
     }
 
@@ -44,7 +62,8 @@ router.post('/', async (req: Request, res: Response) => {
       data: {
         name: data.name,
         email: normalizedEmail,
-        phone: data.phone
+        phone: data.phone,
+        message: data.message || null
       }
     });
 

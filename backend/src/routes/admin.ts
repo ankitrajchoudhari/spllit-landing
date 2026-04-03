@@ -242,7 +242,8 @@ router.get('/stats', authenticateAdmin, async (req: any, res: Response) => {
       activeRides,
       pendingMatches,
       todayUsers,
-      todayRides
+      todayRides,
+      earlyAccessCount
     ] = await Promise.all([
       prisma.user.count(),
       prisma.ride.count(),
@@ -262,7 +263,8 @@ router.get('/stats', authenticateAdmin, async (req: any, res: Response) => {
             gte: new Date(new Date().setHours(0, 0, 0, 0))
           }
         }
-      })
+      }),
+      prisma.earlyAccess.count()
     ]);
 
     // Get recent activity
@@ -308,7 +310,8 @@ router.get('/stats', authenticateAdmin, async (req: any, res: Response) => {
         activeRides,
         pendingMatches,
         todayUsers,
-        todayRides
+        todayRides,
+        earlyAccessCount
       },
       recentUsers,
       recentRides,

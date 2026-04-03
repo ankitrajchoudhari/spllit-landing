@@ -1,20 +1,103 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { FaRocket, FaUser, FaEnvelope, FaPhone, FaCheckCircle } from 'react-icons/fa';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { FaRocket, FaUser, FaEnvelope, FaPhone, FaCheckCircle, FaMicrophone, FaStopCircle, FaLock } from 'react-icons/fa';
 import { earlyAccessAPI } from '../services/api';
+import useAuthStore from '../store/authStore';
 
 const SpllitSocial = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuthStore();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: ''
+    phone: '',
+    message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  const identifiedEmail = useMemo(() => {
+    if (formData.email) return formData.email.trim().toLowerCase();
+    return user?.email?.toLowerCase() || '';
+  }, [formData.email, user]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    setFormData((prev) => ({
+      ...prev,
+      name: prev.name || user.name || '',
+      email: prev.email || user.email || '',
+      phone: prev.phone || user.phone || ''
+    }));
+  }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    const checkSubmission = async () => {
+      if (!identifiedEmail) return;
+      try {
+        const status = await earlyAccessAPI.checkStatus(identifiedEmail);
+        if (status.submitted) {
+          setIsSubmitted(true);
+        }
+      } catch (e) {
+        // No-op for status check failures.
+      }
+    };
+    checkSubmission();
+  }, [identifiedEmail]);
+
+  const toggleVoiceInput = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError('Voice input is not supported in this browser. Please type your message.');
+      return;
+    }
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => {
+      setIsListening(false);
+      setError('Could not capture voice right now. Please try again.');
+    };
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript || '')
+        .join(' ')
+        .trim();
+
+      setFormData((prev) => ({
+        ...prev,
+        message: transcript
+      }));
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitted) {
+      setError('You have already joined early access with this email.');
+      return;
+    }
+
     setIsSubmitting(true);
     setSuccess('');
     setError('');
@@ -23,20 +106,37 @@ const SpllitSocial = () => {
       const result = await earlyAccessAPI.register({
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
-        phone: formData.phone.trim()
+        phone: formData.phone.trim(),
+        message: formData.message.trim()
       });
 
       setSuccess(result.message || 'Registered successfully');
-      setFormData({ name: '', email: '', phone: '' });
+      setIsSubmitted(true);
+      setFormData((prev) => ({ ...prev, message: '' }));
+
+      // Auto-close behavior: hide form state and navigate back after success animation.
+      setTimeout(() => {
+        if (isAuthenticated) {
+          navigate('/dashboard');
+        } else {
+          navigate('/');
+        }
+      }, 2400);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to submit registration');
+      if (err.response?.data?.code === 'ALREADY_REGISTERED') {
+        setIsSubmitted(true);
+        setError('You have already joined early access. Coming soon, stay tuned.');
+      } else {
+        setError(err.response?.data?.error || 'Failed to submit registration');
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pt-24 pb-16 px-4 sm:px-6">
+    <div className="min-h-screen bg-[#050505] text-white pt-24 pb-16 px-4 sm:px-6 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.14),transparent_38%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.12),transparent_32%)] pointer-events-none" />
       <div className="max-w-4xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -51,7 +151,7 @@ const SpllitSocial = () => {
             Coming Soon
           </h1>
           <p className="text-lg text-gray-300">
-            Stay tuned and join early access to get Pro.
+            Stay tuned and join early access to get Pro. Social communities are almost ready.
           </p>
         </motion.div>
 
@@ -59,16 +159,24 @@ const SpllitSocial = () => {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="max-w-xl mx-auto bg-bg-secondary border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl"
+          className="max-w-xl mx-auto bg-bg-secondary/90 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative"
         >
-          <h2 className="text-2xl font-bold mb-5">Join Early Access</h2>
+          <h2 className="text-2xl font-bold mb-2">Join Early Access</h2>
+          <p className="text-sm text-gray-400 mb-5">One-time signup per email. We will notify you when Spllit Social launches.</p>
 
-          {success && (
-            <div className="mb-4 p-3 rounded-xl bg-green-500/15 border border-green-500/30 text-green-300 flex items-center gap-2">
-              <FaCheckCircle />
-              {success}
-            </div>
-          )}
+          <AnimatePresence>
+            {success && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="mb-4 p-3 rounded-xl bg-green-500/15 border border-green-500/30 text-green-300 flex items-center gap-2"
+              >
+                <FaCheckCircle />
+                {success}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {error && (
             <div className="mb-4 p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300">
@@ -76,6 +184,21 @@ const SpllitSocial = () => {
             </div>
           )}
 
+          {isSubmitted ? (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-5 rounded-2xl border border-accent-green/30 bg-accent-green/10"
+            >
+              <div className="flex items-start gap-3">
+                <FaLock className="text-accent-green mt-1" />
+                <div>
+                  <p className="text-white font-semibold">You are already on the waitlist</p>
+                  <p className="text-gray-300 text-sm mt-1">Coming soon. Stay tuned for updates and Pro early benefits.</p>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <InputField
               icon={FaUser}
@@ -105,6 +228,28 @@ const SpllitSocial = () => {
               required
             />
 
+            <label className="block">
+              <span className="text-xs font-bold text-accent-green ml-4 tracking-widest uppercase">What should Spllit Social build first?</span>
+              <div className="mt-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus-within:border-accent-green/50">
+                <textarea
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  placeholder="Type your idea, or use mic voice input..."
+                  className="w-full bg-transparent outline-none text-white placeholder-gray-500 min-h-[96px] resize-y"
+                />
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={toggleVoiceInput}
+                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${isListening ? 'border-red-400/40 text-red-300 bg-red-500/10' : 'border-white/20 text-gray-200 bg-white/5 hover:bg-white/10'}`}
+                  >
+                    {isListening ? <FaStopCircle /> : <FaMicrophone />}
+                    {isListening ? 'Stop Recording' : 'Voice Record'}
+                  </button>
+                </div>
+              </div>
+            </label>
+
             <button
               type="submit"
               disabled={isSubmitting}
@@ -113,6 +258,7 @@ const SpllitSocial = () => {
               {isSubmitting ? 'Submitting...' : 'Join Early Access'}
             </button>
           </form>
+          )}
         </motion.div>
       </div>
     </div>
