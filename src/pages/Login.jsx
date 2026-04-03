@@ -158,7 +158,12 @@ const Login = () => {
         }
 
         const existingScript = document.getElementById('google-identity-script');
-        if (existingScript) return;
+        if (existingScript) {
+            if (window.google?.accounts?.id) {
+                setGoogleReady(true);
+            }
+            return;
+        }
 
         const script = document.createElement('script');
         script.src = 'https://accounts.google.com/gsi/client';
@@ -225,6 +230,11 @@ const Login = () => {
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
         if (!clientId) {
             setError('Google sign-in is not configured. Please add VITE_GOOGLE_CLIENT_ID.');
+            return;
+        }
+
+        if (!googleReady || !window.google?.accounts?.id) {
+            setError('Google sign-in is still loading. Please wait a moment and try again.');
             return;
         }
 

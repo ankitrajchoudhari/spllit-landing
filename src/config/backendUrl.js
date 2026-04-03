@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'https://srv-d6o6nji4d50c73fdl27g.onrender.com/api';
+const DEFAULT_API_BASE_URL = 'https://spllit-landing.onrender.com/api';
 
 const normalizeApiUrl = (value) => {
   if (!value || typeof value !== 'string') {
@@ -10,7 +10,7 @@ const normalizeApiUrl = (value) => {
     return DEFAULT_API_BASE_URL;
   }
 
-  if (url.includes('railway.app')) {
+  if (url.includes('railway.app') || url.includes('srv-d6o6nji4d50c73fdl27g.onrender.com')) {
     return DEFAULT_API_BASE_URL;
   }
 
