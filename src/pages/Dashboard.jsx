@@ -11,17 +11,23 @@ import SubadminManagement from '../components/SubadminManagement';
 import { io } from 'socket.io-client';
 import { SOCKET_BASE_URL } from '../config/backendUrl';
 
+const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
 // Load Google Maps script with async
 const loadGoogleMaps = (callback) => {
     const existingScript = document.getElementById('googleMaps');
+    if (window.google?.maps?.places) {
+        if (callback) callback();
+        return true;
+    }
+
     if (!existingScript) {
-        const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-        if (!key) {
+        if (!googleMapsApiKey) {
             return false;
         }
 
-    const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
         script.id = 'googleMaps';
         script.async = true;
         script.defer = true;
@@ -29,8 +35,15 @@ const loadGoogleMaps = (callback) => {
         script.onload = () => {
             if (callback) callback();
         };
+        script.onerror = () => {
+            console.warn('Google Maps failed to load');
+        };
     } else {
-        if (callback) callback();
+        if (window.google?.maps) {
+            if (callback) callback();
+        } else if (callback) {
+            existingScript.addEventListener('load', callback, { once: true });
+        }
     }
 
     return true;
@@ -73,6 +86,7 @@ const Dashboard = () => {
     const destinationRef = useRef(null);
     const originAutocompleteRef = useRef(null);
     const destAutocompleteRef = useRef(null);
+    const originAutoDetectedRef = useRef(false);
 
     useEffect(() => {
         // Redirect to login if not authenticated
@@ -244,7 +258,7 @@ const Dashboard = () => {
             ));
         });
 
-        // Load Google Maps
+        // Load Google Maps early so the ride modal is ready quickly
         loadGoogleMaps();
 
         // Cleanup on unmount
@@ -273,60 +287,114 @@ const Dashboard = () => {
         }
     };
 
-    // Initialize Google Places Autocomplete with new API
     useEffect(() => {
-        if (showCreateRide && window.google && window.google.maps && import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
-            const initAutocomplete = async () => {
-                try {
-                    // Use new Places API
-                    const { Place } = await google.maps.importLibrary("places");
-                    
-                    // Origin autocomplete
-                    if (originRef.current && !originAutocompleteRef.current) {
-                        originAutocompleteRef.current = new google.maps.places.Autocomplete(originRef.current, {
-                            componentRestrictions: { country: 'in' },
-                            fields: ['formatted_address', 'geometry', 'name']
-                        });
-
-                        originAutocompleteRef.current.addListener('place_changed', () => {
-                            const place = originAutocompleteRef.current.getPlace();
-                            if (place.geometry) {
-                                setRideData(prev => ({
-                                    ...prev,
-                                    origin: place.formatted_address || place.name,
-                                    originLat: place.geometry.location.lat(),
-                                    originLng: place.geometry.location.lng()
-                                }));
-                            }
-                        });
-                    }
-
-                    // Destination autocomplete
-                    if (destinationRef.current && !destAutocompleteRef.current) {
-                        destAutocompleteRef.current = new google.maps.places.Autocomplete(destinationRef.current, {
-                            componentRestrictions: { country: 'in' },
-                            fields: ['formatted_address', 'geometry', 'name']
-                        });
-
-                        destAutocompleteRef.current.addListener('place_changed', () => {
-                            const place = destAutocompleteRef.current.getPlace();
-                            if (place.geometry) {
-                                setRideData(prev => ({
-                                    ...prev,
-                                    destination: place.formatted_address || place.name,
-                                    destLat: place.geometry.location.lat(),
-                                    destLng: place.geometry.location.lng()
-                                }));
-                            }
-                        });
-                    }
-                } catch (error) {
-                    console.warn('Google Maps Places library loading:', error);
-                }
-            };
-
-            initAutocomplete();
+        if (!showCreateRide) {
+            originAutoDetectedRef.current = false;
+            return;
         }
+
+        if (!googleMapsApiKey) {
+            setError('Google Maps is not configured. Add VITE_GOOGLE_MAPS_API_KEY to your frontend .env file.');
+            return;
+        }
+
+        const initAutocomplete = () => {
+            if (!window.google?.maps?.places) return;
+
+            if (originRef.current && !originAutocompleteRef.current) {
+                originAutocompleteRef.current = new window.google.maps.places.Autocomplete(originRef.current, {
+                    componentRestrictions: { country: 'in' },
+                    fields: ['formatted_address', 'geometry', 'name']
+                });
+
+                originAutocompleteRef.current.addListener('place_changed', () => {
+                    const place = originAutocompleteRef.current.getPlace();
+                    if (place.geometry) {
+                        originAutoDetectedRef.current = true;
+                        setRideData(prev => ({
+                            ...prev,
+                            origin: place.formatted_address || place.name,
+                            originLat: place.geometry.location.lat(),
+                            originLng: place.geometry.location.lng()
+                        }));
+                    }
+                });
+            }
+
+            if (destinationRef.current && !destAutocompleteRef.current) {
+                destAutocompleteRef.current = new window.google.maps.places.Autocomplete(destinationRef.current, {
+                    componentRestrictions: { country: 'in' },
+                    fields: ['formatted_address', 'geometry', 'name']
+                });
+
+                destAutocompleteRef.current.addListener('place_changed', () => {
+                    const place = destAutocompleteRef.current.getPlace();
+                    if (place.geometry) {
+                        setRideData(prev => ({
+                            ...prev,
+                            destination: place.formatted_address || place.name,
+                            destLat: place.geometry.location.lat(),
+                            destLng: place.geometry.location.lng()
+                        }));
+                    }
+                });
+            }
+        };
+
+        const autoDetectOrigin = () => {
+            if (originAutoDetectedRef.current || !navigator.geolocation) {
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    let originLabel = 'Current location';
+
+                    try {
+                        if (window.google?.maps?.Geocoder) {
+                            const geocoder = new window.google.maps.Geocoder();
+                            const reverseGeocode = await new Promise((resolve, reject) => {
+                                geocoder.geocode(
+                                    { location: { lat: latitude, lng: longitude } },
+                                    (results, status) => {
+                                        if (status === 'OK' && results?.[0]) {
+                                            resolve(results[0]);
+                                        } else {
+                                            reject(new Error(status || 'Geocoder failed'));
+                                        }
+                                    }
+                                );
+                            });
+
+                            originLabel = reverseGeocode.formatted_address || reverseGeocode.name || originLabel;
+                        } else {
+                            originLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+                        }
+                    } catch (error) {
+                        originLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+                    }
+
+                    originAutoDetectedRef.current = true;
+                    setRideData(prev => ({
+                        ...prev,
+                        origin: originLabel,
+                        originLat: latitude,
+                        originLng: longitude
+                    }));
+                },
+                () => {
+                    originAutoDetectedRef.current = true;
+                },
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
+            );
+        };
+
+        loadGoogleMaps(() => {
+            initAutocomplete();
+            autoDetectOrigin();
+        });
     }, [showCreateRide]);
 
     const handleLogout = () => {
