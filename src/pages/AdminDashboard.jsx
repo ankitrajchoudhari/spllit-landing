@@ -10,7 +10,7 @@ import {
 } from 'react-icons/fa';
 import useAdminStore from '../store/adminStore';
 import useAuthStore from '../store/authStore';
-import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, deleteAdmin } from '../services/adminAPI';
+import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, resetAdminPassword, deleteAdmin } from '../services/adminAPI';
 import NotificationContainer from '../components/NotificationToast';
 import io from 'socket.io-client';
 import { SOCKET_BASE_URL } from '../config/backendUrl';
@@ -255,6 +255,30 @@ const AdminDashboard = () => {
       alert('Admin deleted successfully! Email can now be reused.');
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to delete admin');
+    }
+  };
+
+  const handleResetAdminPassword = async (id, name) => {
+    const password = window.prompt(`Enter new password for ${name} (minimum 8 characters, letters + numbers):`);
+    if (!password) return;
+
+    const confirmPassword = window.prompt('Confirm the new password:');
+    if (confirmPassword !== password) {
+      alert('Passwords do not match');
+      return;
+    }
+
+    const strongPasswordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    if (!strongPasswordRegex.test(password)) {
+      alert('Password must be at least 8 characters and include both letters and numbers');
+      return;
+    }
+
+    try {
+      await resetAdminPassword(id, password);
+      alert('Subadmin password reset successfully');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to reset subadmin password');
     }
   };
 
@@ -1070,7 +1094,6 @@ const AdminDashboard = () => {
 
                 <div className="grid gap-3 sm:gap-4">
                   {admins.map((adm) => {
-                    console.log('Admin item:', adm);
                     return (
                     <div key={adm.id} className="bg-bg-secondary border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1126,6 +1149,13 @@ const AdminDashboard = () => {
                                 Enable
                               </button>
                               <button
+                                onClick={() => handleResetAdminPassword(adm.id, adm.name)}
+                                className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-all text-xs sm:text-sm font-medium"
+                                title="Reset password securely"
+                              >
+                                Reset Password
+                              </button>
+                              <button
                                 onClick={() => handleDeleteAdmin(adm.id)}
                                 className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all text-xs sm:text-sm font-medium"
                                 title="Delete permanently - email can be reused"
@@ -1133,6 +1163,15 @@ const AdminDashboard = () => {
                                 Delete
                               </button>
                             </>
+                          )}
+                          {isMasterAdmin && adm.role === 'subadmin' && adm.adminStatus === 'active' && (
+                            <button
+                              onClick={() => handleResetAdminPassword(adm.id, adm.name)}
+                              className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-all text-xs sm:text-sm font-medium"
+                              title="Reset password securely"
+                            >
+                              Reset Password
+                            </button>
                           )}
                         </div>
                       </div>

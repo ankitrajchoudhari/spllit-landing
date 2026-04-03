@@ -142,15 +142,17 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
             where: { email: normalizedEmail }
         });
 
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         if (existingUser) {
-            // If admin is deleted, allow recreation
+            // If previously deleted subadmin record exists, reactivate it.
             if (existingUser.adminStatus === 'deleted') {
-                // Reactivate the deleted admin
                 const reactivatedAdmin = await prisma.user.update({
                     where: { id: existingUser.id },
                     data: {
                         name: normalizedName,
-                        password: await bcrypt.hash(password, 10),
+                        password: hashedPassword,
                         college: college || existingUser.college,
                         gender: gender || existingUser.gender,
                         phone: phone || existingUser.phone,
@@ -176,16 +178,49 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
                     message: 'Subadmin reactivated successfully',
                     subadmin: reactivatedAdmin
                 });
-            } else {
-                return res.status(400).json({ 
-                    error: 'Admin with this email already exists' 
+            }
+
+            // If a regular user exists with same email, promote them to subadmin.
+            if (existingUser.role !== 'subadmin' && !existingUser.isAdmin) {
+                const promotedAdmin = await prisma.user.update({
+                    where: { id: existingUser.id },
+                    data: {
+                        name: normalizedName,
+                        password: hashedPassword,
+                        college: college || existingUser.college,
+                        gender: gender || existingUser.gender,
+                        phone: phone || existingUser.phone,
+                        role: 'subadmin',
+                        isAdmin: true,
+                        adminStatus: 'active',
+                        isActive: true,
+                        emailVerified: true,
+                        phoneVerified: true,
+                        createdBy: req.admin?.id || null,
+                        updatedAt: new Date()
+                    },
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        college: true,
+                        role: true,
+                        adminStatus: true,
+                        createdAt: true
+                    }
+                });
+
+                return res.status(200).json({
+                    message: 'Existing user promoted to subadmin successfully',
+                    subadmin: promotedAdmin
                 });
             }
+
+            return res.status(400).json({
+                error: 'Admin with this email already exists'
+            });
         }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
         // Create phone hash (simple hash for now)
         const phoneHash = phone ? await bcrypt.hash(phone, 10) : await bcrypt.hash(normalizedEmail, 10);
 
@@ -493,6 +528,49 @@ router.put('/:id/update', authenticateAdmin, requireMaster, async (req: AdminReq
     } catch (error) {
         console.error('Update subadmin error:', error);
         res.status(500).json({ error: 'Failed to update subadmin' });
+    }
+});
+
+/**
+ * PUT /api/subadmin/:id/reset-password
+ * Master admin securely resets a subadmin password
+ */
+router.put('/:id/reset-password', authenticateAdmin, requireMaster, async (req: AdminRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { password } = req.body;
+
+        if (!password || typeof password !== 'string') {
+            return res.status(400).json({ error: 'New password is required' });
+        }
+
+        const strongPasswordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+        if (!strongPasswordRegex.test(password)) {
+            return res.status(400).json({
+                error: 'Password must be at least 8 characters and include both letters and numbers'
+            });
+        }
+
+        const subadmin = await prisma.user.findUnique({
+            where: { id }
+        });
+
+        if (!subadmin || subadmin.role !== 'subadmin' || subadmin.adminStatus === 'deleted') {
+            return res.status(404).json({ error: 'Subadmin not found' });
+        }
+
+        await prisma.user.update({
+            where: { id },
+            data: {
+                password: await bcrypt.hash(password, 10),
+                updatedAt: new Date()
+            }
+        });
+
+        res.json({ message: 'Subadmin password reset successfully' });
+    } catch (error) {
+        console.error('Reset subadmin password error:', error);
+        res.status(500).json({ error: 'Failed to reset subadmin password' });
     }
 });
 

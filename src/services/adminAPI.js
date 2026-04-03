@@ -36,6 +36,7 @@ export const fetchAdmins = () => subadminAPI.get('/list');
 export const createAdmin = (data) => subadminAPI.post('/create', data);
 export const deactivateAdmin = (id) => subadminAPI.put(`/${id}/deactivate`);
 export const activateAdmin = (id) => subadminAPI.put(`/${id}/activate`);
+export const resetAdminPassword = (id, password) => subadminAPI.put(`/${id}/reset-password`, { password });
 export const deleteAdmin = (id) => subadminAPI.delete(`/${id}`);
 export const fetchChartData = () => adminAPI.get('/chart-data');
 
