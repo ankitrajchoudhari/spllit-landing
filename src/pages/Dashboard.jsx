@@ -15,10 +15,16 @@ const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 // Load Google Maps script with async
 const loadGoogleMaps = (callback) => {
-    const existingScript = document.getElementById('googleMaps');
+    let existingScript = document.getElementById('googleMaps');
     if (window.google?.maps?.places) {
         if (callback) callback();
         return true;
+    }
+
+    // If a script exists but Places is unavailable, reload script with places library.
+    if (existingScript && !window.google?.maps?.places) {
+        existingScript.remove();
+        existingScript = null;
     }
 
     if (!existingScript) {
@@ -27,7 +33,7 @@ const loadGoogleMaps = (callback) => {
         }
 
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places&v=weekly`;
         script.id = 'googleMaps';
         script.async = true;
         script.defer = true;
@@ -39,7 +45,7 @@ const loadGoogleMaps = (callback) => {
             console.warn('Google Maps failed to load');
         };
     } else {
-        if (window.google?.maps) {
+        if (window.google?.maps?.places) {
             if (callback) callback();
         } else if (callback) {
             existingScript.addEventListener('load', callback, { once: true });
@@ -290,6 +296,8 @@ const Dashboard = () => {
     useEffect(() => {
         if (!showCreateRide) {
             originAutoDetectedRef.current = false;
+            originAutocompleteRef.current = null;
+            destAutocompleteRef.current = null;
             return;
         }
 
@@ -391,9 +399,19 @@ const Dashboard = () => {
             );
         };
 
-        loadGoogleMaps(() => {
+        const setupAutocomplete = (attempt = 0) => {
+            // Wait until modal input refs are attached before init.
+            if ((!originRef.current || !destinationRef.current) && attempt < 5) {
+                setTimeout(() => setupAutocomplete(attempt + 1), 120);
+                return;
+            }
+
             initAutocomplete();
             autoDetectOrigin();
+        };
+
+        loadGoogleMaps(() => {
+            setupAutocomplete();
         });
     }, [showCreateRide]);
 
