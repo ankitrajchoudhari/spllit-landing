@@ -9,6 +9,13 @@ import { io } from '../server.js';
 const router = Router();
 const RIDE_ACTIVE_WINDOW_MS = 8 * 60 * 60 * 1000;
 
+const getMaxSeatsByVehicleType = (vehicleType: string) => {
+  if (vehicleType === 'auto') return 3;
+  if (vehicleType === 'cab-xl') return 7;
+  if (vehicleType === 'bike') return 1;
+  return 4; // cab default
+};
+
 const getRideExpiryDate = (createdAt: Date) => new Date(createdAt.getTime() + RIDE_ACTIVE_WINDOW_MS);
 
 const deactivateExpiredPendingRides = async () => {
@@ -60,10 +67,19 @@ const createRideSchema = z.object({
   destLat: z.number(),
   destLng: z.number(),
   departureTime: z.string().datetime(),
-  vehicleType: z.enum(['cab', 'bike', 'auto']),
-  seats: z.number().int().min(1).max(4).default(1),
+  vehicleType: z.enum(['cab', 'bike', 'auto', 'cab-xl']),
+  seats: z.number().int().min(1).max(7).default(1),
   fare: z.number().positive().optional(),
   genderPref: z.enum(['male', 'female', 'any']).default('any')
+}).superRefine((data, ctx) => {
+  const maxSeats = getMaxSeatsByVehicleType(data.vehicleType);
+  if (data.seats > maxSeats) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['seats'],
+      message: `${data.vehicleType} allows maximum ${maxSeats} seats`
+    });
+  }
 });
 
 const searchRidesSchema = z.object({

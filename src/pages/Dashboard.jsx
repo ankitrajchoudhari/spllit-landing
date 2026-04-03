@@ -733,11 +733,9 @@ const Dashboard = () => {
                             });
 
                             originLabel = reverseGeocode.formatted_address || reverseGeocode.name || originLabel;
-                        } else {
-                            originLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
                         }
                     } catch (error) {
-                        originLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+                        originLabel = 'Current location';
                     }
 
                     originAutoDetectedRef.current = true;
@@ -816,6 +814,13 @@ const Dashboard = () => {
     };
 
     const matchedActionCount = pendingRequests.length + rejectedMatches.length;
+
+    const getSeatLimitByVehicleType = (vehicleType) => {
+        if (vehicleType === 'auto') return 3;
+        if (vehicleType === 'cab-xl') return 7;
+        if (vehicleType === 'bike') return 1;
+        return 4; // cab default
+    };
 
     const triggerSOSFeedback = () => {
         if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
@@ -979,6 +984,13 @@ const Dashboard = () => {
             vehicleType: rideData.vehicleType,
             genderPref: rideData.genderPref
         };
+
+        const seatLimit = getSeatLimitByVehicleType(submitData.vehicleType);
+        if (submitData.seats > seatLimit) {
+            setError(`${submitData.vehicleType} allows maximum ${seatLimit} seats`);
+            setLoading(false);
+            return;
+        }
 
         try {
             const response = await ridesAPI.createRide(submitData);
@@ -1621,11 +1633,16 @@ const Dashboard = () => {
                                         <input
                                             type="number"
                                             value={rideData.seats}
-                                            onChange={(e) => setRideData({...rideData, seats: e.target.value})}
+                                            onChange={(e) => {
+                                                const requestedSeats = parseInt(e.target.value || '1', 10);
+                                                const seatLimit = getSeatLimitByVehicleType(rideData.vehicleType);
+                                                const safeSeats = Math.max(1, Math.min(Number.isNaN(requestedSeats) ? 1 : requestedSeats, seatLimit));
+                                                setRideData({ ...rideData, seats: safeSeats });
+                                            }}
                                             min="1"
-                                            max="4"
+                                            max={getSeatLimitByVehicleType(rideData.vehicleType)}
                                             required
-                                            placeholder="1-4"
+                                            placeholder={`1-${getSeatLimitByVehicleType(rideData.vehicleType)}`}
                                             className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green transition-colors"
                                         />
                                     </div>
@@ -1659,11 +1676,21 @@ const Dashboard = () => {
                                         </label>
                                         <select
                                             value={rideData.vehicleType}
-                                            onChange={(e) => setRideData({...rideData, vehicleType: e.target.value})}
+                                            onChange={(e) => {
+                                                const nextVehicleType = e.target.value;
+                                                const seatLimit = getSeatLimitByVehicleType(nextVehicleType);
+                                                const safeSeats = Math.min(parseInt(rideData.seats || 1, 10), seatLimit);
+                                                setRideData({
+                                                    ...rideData,
+                                                    vehicleType: nextVehicleType,
+                                                    seats: safeSeats
+                                                });
+                                            }}
                                             className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent-green transition-colors"
                                         >
                                             <option value="cab">Cab</option>
                                             <option value="auto">Auto</option>
+                                            <option value="cab-xl">Cab XL</option>
                                             <option value="bike">Bike</option>
                                         </select>
                                     </div>
