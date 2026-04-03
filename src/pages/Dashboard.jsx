@@ -103,7 +103,9 @@ const Dashboard = () => {
 
         // Connect to Socket.IO for real-time features
         const socketUrl = SOCKET_BASE_URL;
+        const socketToken = localStorage.getItem('accessToken');
         const newSocket = io(socketUrl, {
+            auth: socketToken ? { token: socketToken } : undefined,
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionAttempts: 5,
@@ -307,7 +309,10 @@ const Dashboard = () => {
         }
 
         const initAutocomplete = () => {
-            if (!window.google?.maps?.places) return;
+            if (!window.google?.maps?.places?.Autocomplete) {
+                setError('Google Places API unavailable. Enable Places API and Maps JavaScript API, and allow your site domain in API key referrers.');
+                return;
+            }
 
             if (originRef.current && !originAutocompleteRef.current) {
                 originAutocompleteRef.current = new window.google.maps.places.Autocomplete(originRef.current, {
@@ -411,6 +416,10 @@ const Dashboard = () => {
         };
 
         loadGoogleMaps(() => {
+            if (!window.google?.maps?.places?.Autocomplete) {
+                setError('Google Places failed to initialize. Check API key restrictions for this domain and ensure Places API is enabled.');
+                return;
+            }
             setupAutocomplete();
         });
     }, [showCreateRide]);

@@ -97,3 +97,8 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Google Places dropdown must render above modal/backdrop layers */
+.pac-container {
+  z-index: 99999 !important;
+}
