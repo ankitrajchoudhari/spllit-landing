@@ -1135,6 +1135,7 @@ const Dashboard = () => {
                                 {/* Notification Bell */}
                                 <div className="relative" ref={notificationBellRef}>
                                     <button
+                                        type="button"
                                         onClick={handleRideBellClick}
                                         className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative"
                                     >
@@ -1146,10 +1147,7 @@ const Dashboard = () => {
                                         )}
                                     </button>
                                     <AnimatePresence>
-                                                                                onClick={(event) => {
-                                                                                    event.stopPropagation();
-                                                                                    removeNotificationFeedItem(item.id);
-                                                                                }}
+                                        {showRideAnnouncements && (
                                             <motion.div
                                                 ref={notificationPanelRef}
                                                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
@@ -1165,6 +1163,7 @@ const Dashboard = () => {
                                                         </p>
                                                     </div>
                                                     <button
+                                                        type="button"
                                                         onMouseDown={(event) => event.stopPropagation()}
                                                         onClick={(event) => {
                                                             event.stopPropagation();
