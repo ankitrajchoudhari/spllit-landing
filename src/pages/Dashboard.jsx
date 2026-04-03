@@ -97,6 +97,8 @@ const Dashboard = () => {
     const originAutocompleteRef = useRef(null);
     const destAutocompleteRef = useRef(null);
     const originAutoDetectedRef = useRef(false);
+    const notificationBellRef = useRef(null);
+    const notificationPanelRef = useRef(null);
 
     const rideAnnouncementSeenKey = `ride-announcements-seen-${user?.id || 'guest'}`;
     const notificationFeedKey = `notification-feed-${user?.id || 'guest'}`;
@@ -562,6 +564,39 @@ const Dashboard = () => {
 
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        if (!showRideAnnouncements) return;
+
+        const handleOutsideClick = (event) => {
+            const bellEl = notificationBellRef.current;
+            const panelEl = notificationPanelRef.current;
+
+            if (!bellEl || !panelEl) return;
+
+            const target = event.target;
+            const clickedInsideBell = bellEl.contains(target);
+            const clickedInsidePanel = panelEl.contains(target);
+
+            if (!clickedInsideBell && !clickedInsidePanel) {
+                setShowRideAnnouncements(false);
+            }
+        };
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setShowRideAnnouncements(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleOutsideClick);
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [showRideAnnouncements]);
 
     const addNotification = (notification) => {
         const id = Date.now();
@@ -1098,7 +1133,7 @@ const Dashboard = () => {
                             </div>
                             <div className="flex items-center gap-3">
                                 {/* Notification Bell */}
-                                <div className="relative">
+                                <div className="relative" ref={notificationBellRef}>
                                     <button
                                         onClick={handleRideBellClick}
                                         className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative"
@@ -1116,6 +1151,7 @@ const Dashboard = () => {
                                                                                     removeNotificationFeedItem(item.id);
                                                                                 }}
                                             <motion.div
+                                                ref={notificationPanelRef}
                                                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
@@ -1148,8 +1184,7 @@ const Dashboard = () => {
                                                         notificationFeed.map((item) => (
                                                             <div
                                                                 key={item.id}
-                                                                onClick={() => handleNotificationItemClick(item)}
-                                                                className="px-5 py-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors cursor-pointer"
+                                                                className="px-5 py-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors"
                                                             >
                                                                 <div className="flex items-start gap-3">
                                                                     <div className="w-11 h-11 rounded-2xl bg-accent-green/15 border border-accent-green/20 flex items-center justify-center flex-shrink-0">
@@ -1196,17 +1231,31 @@ const Dashboard = () => {
                                                                                     </span>
                                                                                 ) : null}
                                                                             </div>
-                                                                            <button
-                                                                                type="button"
-                                                                                onMouseDown={(event) => event.stopPropagation()}
-                                                                                onClick={(event) => {
-                                                                                    event.stopPropagation();
-                                                                                    removeNotificationFeedItem(item.id);
-                                                                                }}
-                                                                                className="w-8 h-8 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
-                                                                            >
-                                                                                <FaTimes />
-                                                                            </button>
+                                                                            <div className="flex items-center gap-2">
+                                                                                {(item.matchId || item.chatRoomId) && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={(event) => {
+                                                                                            event.stopPropagation();
+                                                                                            handleNotificationItemClick(item);
+                                                                                        }}
+                                                                                        className="px-3 py-1.5 rounded-lg border border-accent-green/30 text-accent-green hover:bg-accent-green/10 transition-colors"
+                                                                                    >
+                                                                                        Open chat
+                                                                                    </button>
+                                                                                )}
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onMouseDown={(event) => event.stopPropagation()}
+                                                                                    onClick={(event) => {
+                                                                                        event.stopPropagation();
+                                                                                        removeNotificationFeedItem(item.id);
+                                                                                    }}
+                                                                                    className="w-8 h-8 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+                                                                                >
+                                                                                    <FaTimes />
+                                                                                </button>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
