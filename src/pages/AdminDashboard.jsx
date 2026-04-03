@@ -73,8 +73,14 @@ const AdminDashboard = () => {
 
   // Socket.IO for real-time notifications
   useEffect(() => {
+    const socketToken = localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
+    if (!socketToken) {
+      return;
+    }
+
     const socketUrl = SOCKET_BASE_URL;
     const newSocket = io(socketUrl, {
+      auth: { token: socketToken },
       transports: ['websocket', 'polling']
     });
 

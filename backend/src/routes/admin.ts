@@ -15,16 +15,50 @@ const authenticateAdmin = async (req: any, res: Response, next: any) => {
     }
 
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-    const admin = await prisma.admin.findUnique({
-      where: { id: decoded.adminId }
-    });
 
-    if (!admin || !admin.isActive) {
-      return res.status(401).json({ error: 'Invalid admin credentials' });
+    // Master admin token path
+    if (decoded.adminId) {
+      const admin = await prisma.admin.findUnique({
+        where: { id: decoded.adminId }
+      });
+
+      if (!admin || !admin.isActive) {
+        return res.status(401).json({ error: 'Invalid admin credentials' });
+      }
+
+      req.admin = {
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+        isActive: admin.isActive
+      };
+      return next();
     }
 
-    req.admin = admin;
-    next();
+    // Subadmin token path
+    if (decoded.userId) {
+      const subadmin = await prisma.user.findUnique({
+        where: { id: decoded.userId }
+      });
+
+      if (!subadmin || subadmin.role !== 'subadmin' || !subadmin.isAdmin) {
+        return res.status(401).json({ error: 'Invalid admin credentials' });
+      }
+
+      if (subadmin.adminStatus !== 'active' || !subadmin.isActive) {
+        return res.status(403).json({ error: 'Subadmin account is not active' });
+      }
+
+      req.admin = {
+        id: subadmin.id,
+        email: subadmin.email,
+        role: subadmin.role,
+        isActive: subadmin.isActive
+      };
+      return next();
+    }
+
+    return res.status(401).json({ error: 'Invalid admin token' });
   } catch (error) {
     res.status(401).json({ error: 'Invalid admin token' });
   }
