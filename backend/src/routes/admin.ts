@@ -63,9 +63,25 @@ router.post('/login', async (req: Request, res: Response) => {
     const normalizedEmail = data.email.toLowerCase().trim();
 
     // First check users table for subadmins (they take priority for @spllit.app emails)
-    const subadmin = await prisma.user.findUnique({
+    // Exact match path for clean data.
+    let subadmin = await prisma.user.findUnique({
       where: { email: normalizedEmail }
     });
+
+    // Fallback for legacy records that may contain accidental whitespace/case issues.
+    if (!subadmin) {
+      const candidates = await prisma.user.findMany({
+        where: {
+          OR: [{ role: 'subadmin' }, { isAdmin: true }],
+          email: {
+            startsWith: normalizedEmail
+          }
+        },
+        take: 10
+      });
+
+      subadmin = candidates.find((u) => u.email?.trim().toLowerCase() === normalizedEmail) || null;
+    }
 
     // If found in users table as subadmin, authenticate from there
     if (subadmin && (subadmin.role === 'subadmin' || subadmin.isAdmin)) {

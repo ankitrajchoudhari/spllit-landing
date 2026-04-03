@@ -15,7 +15,11 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await login(credentials);
+    const normalizedCredentials = {
+      email: credentials.email.trim().toLowerCase(),
+      password: credentials.password
+    };
+    const result = await login(normalizedCredentials);
     if (result.success) navigate('/admin/dashboard');
   };
 

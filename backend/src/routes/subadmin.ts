@@ -122,14 +122,16 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
     try {
 
         const { name, email, password, college, gender, phone } = req.body;
+        const normalizedEmail = email?.toLowerCase().trim();
+        const normalizedName = name?.trim();
 
         // Validate required fields
-        if (!name || !email || !password) {
+        if (!normalizedName || !normalizedEmail || !password) {
             return res.status(400).json({ error: 'Name, email, and password are required' });
         }
 
         // Validate email domain
-        if (!isValidEmailDomain(email)) {
+        if (!isValidEmailDomain(normalizedEmail)) {
             return res.status(400).json({ 
                 error: 'Email must be from a verified provider (Gmail, Yahoo, Outlook, Zoho, etc.)' 
             });
@@ -137,7 +139,7 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
 
         // Check if email already exists (including deleted admins)
         const existingUser = await prisma.user.findUnique({
-            where: { email: email.toLowerCase() }
+            where: { email: normalizedEmail }
         });
 
         if (existingUser) {
@@ -147,7 +149,7 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
                 const reactivatedAdmin = await prisma.user.update({
                     where: { id: existingUser.id },
                     data: {
-                        name,
+                        name: normalizedName,
                         password: await bcrypt.hash(password, 10),
                         college: college || existingUser.college,
                         gender: gender || existingUser.gender,
@@ -185,13 +187,13 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
         const hashedPassword = await bcrypt.hash(password, 10);
         
         // Create phone hash (simple hash for now)
-        const phoneHash = phone ? await bcrypt.hash(phone, 10) : await bcrypt.hash(email, 10);
+        const phoneHash = phone ? await bcrypt.hash(phone, 10) : await bcrypt.hash(normalizedEmail, 10);
 
         // Create subadmin
         const subadmin = await prisma.user.create({
             data: {
-                name,
-                email: email.toLowerCase(),
+            name: normalizedName,
+            email: normalizedEmail,
                 password: hashedPassword,
                 phone: phone || '',
                 phoneHash,
