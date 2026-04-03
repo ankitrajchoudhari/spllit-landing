@@ -44,6 +44,10 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showAddAdmin, setShowAddAdmin] = useState(false);
   const [newAdmin, setNewAdmin] = useState({ email: '', password: '', name: '' });
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetTargetAdmin, setResetTargetAdmin] = useState(null);
+  const [resetForm, setResetForm] = useState({ password: '', confirmPassword: '' });
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -258,27 +262,38 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleResetAdminPassword = async (id, name) => {
-    const password = window.prompt(`Enter new password for ${name} (minimum 8 characters, letters + numbers):`);
-    if (!password) return;
+  const handleOpenResetPasswordModal = (adminItem) => {
+    setResetTargetAdmin(adminItem);
+    setResetForm({ password: '', confirmPassword: '' });
+    setShowResetPasswordModal(true);
+  };
 
-    const confirmPassword = window.prompt('Confirm the new password:');
-    if (confirmPassword !== password) {
+  const handleSubmitResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resetTargetAdmin?.id) return;
+
+    if (resetForm.password !== resetForm.confirmPassword) {
       alert('Passwords do not match');
       return;
     }
 
     const strongPasswordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-    if (!strongPasswordRegex.test(password)) {
+    if (!strongPasswordRegex.test(resetForm.password)) {
       alert('Password must be at least 8 characters and include both letters and numbers');
       return;
     }
 
     try {
-      await resetAdminPassword(id, password);
+      setIsResettingPassword(true);
+      await resetAdminPassword(resetTargetAdmin.id, resetForm.password);
+      setShowResetPasswordModal(false);
+      setResetTargetAdmin(null);
+      setResetForm({ password: '', confirmPassword: '' });
       alert('Subadmin password reset successfully');
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to reset subadmin password');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -1149,7 +1164,7 @@ const AdminDashboard = () => {
                                 Enable
                               </button>
                               <button
-                                onClick={() => handleResetAdminPassword(adm.id, adm.name)}
+                                onClick={() => handleOpenResetPasswordModal(adm)}
                                 className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-all text-xs sm:text-sm font-medium"
                                 title="Reset password securely"
                               >
@@ -1166,7 +1181,7 @@ const AdminDashboard = () => {
                           )}
                           {isMasterAdmin && adm.role === 'subadmin' && adm.adminStatus === 'active' && (
                             <button
-                              onClick={() => handleResetAdminPassword(adm.id, adm.name)}
+                              onClick={() => handleOpenResetPasswordModal(adm)}
                               className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-all text-xs sm:text-sm font-medium"
                               title="Reset password securely"
                             >
@@ -1255,6 +1270,77 @@ const AdminDashboard = () => {
                   className="w-full py-3 sm:py-4 bg-accent-green text-black font-bold rounded-xl hover:bg-accent-green/90 transition-all text-sm sm:text-base"
                 >
                   Create Admin
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reset Password Modal */}
+      <AnimatePresence>
+        {showResetPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setShowResetPasswordModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-bg-secondary border border-white/10 rounded-2xl sm:rounded-3xl p-6 sm:p-8 max-w-md w-full"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold">Reset Subadmin Password</h2>
+                <button
+                  onClick={() => setShowResetPasswordModal(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <FaTimes size={20} />
+                </button>
+              </div>
+
+              <p className="text-sm text-gray-400 mb-4">
+                Set a new password for <span className="text-white font-semibold">{resetTargetAdmin?.name}</span>.
+              </p>
+
+              <form onSubmit={handleSubmitResetPassword} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-accent-green ml-4 tracking-widest uppercase">New Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={resetForm.password}
+                    onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })}
+                    className="w-full mt-2 px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-accent-green/50 text-white text-sm"
+                    placeholder="Minimum 8 chars with letters and numbers"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-accent-green ml-4 tracking-widest uppercase">Confirm Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={resetForm.confirmPassword}
+                    onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
+                    className="w-full mt-2 px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-accent-green/50 text-white text-sm"
+                    placeholder="Re-enter new password"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isResettingPassword}
+                  className="w-full py-3 sm:py-4 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-all text-sm sm:text-base disabled:opacity-50"
+                >
+                  {isResettingPassword ? 'Resetting...' : 'Reset Password'}
                 </button>
               </form>
             </motion.div>
