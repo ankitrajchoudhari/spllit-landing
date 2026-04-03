@@ -16,6 +16,7 @@ const SpllitSocial = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedInfo, setSubmittedInfo] = useState(null);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -44,6 +45,7 @@ const SpllitSocial = () => {
         const status = await earlyAccessAPI.checkStatus(identifiedEmail);
         if (status.submitted) {
           setIsSubmitted(true);
+          setSubmittedInfo(status.registration || null);
         }
       } catch (e) {
         // No-op for status check failures.
@@ -113,10 +115,12 @@ const SpllitSocial = () => {
 
       setSuccess(result.message || 'Registered successfully');
       setIsSubmitted(true);
+      setSubmittedInfo(result.registration || null);
       setFormData((prev) => ({ ...prev, message: '' }));
     } catch (err) {
       if (err.response?.data?.code === 'ALREADY_REGISTERED') {
         setIsSubmitted(true);
+        setSubmittedInfo(err.response?.data?.registration || null);
         setError('You have already joined early access. Coming soon, stay tuned.');
       } else {
         setError(err.response?.data?.error || 'Failed to submit registration');
@@ -204,6 +208,24 @@ const SpllitSocial = () => {
                 <div>
                   <p className="text-white font-semibold">You have submitted</p>
                   <p className="text-gray-300 text-sm mt-1">Coming soon. Stay tuned for updates and Pro early benefits.</p>
+
+                  <div className="mt-3 text-xs text-gray-300 space-y-1">
+                    <p>
+                      <span className="text-gray-400">Email:</span> {submittedInfo?.email || identifiedEmail || 'N/A'}
+                    </p>
+                    <p>
+                      <span className="text-gray-400">Submitted At:</span>{' '}
+                      {submittedInfo?.createdAt
+                        ? new Date(submittedInfo.createdAt).toLocaleString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'N/A'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
