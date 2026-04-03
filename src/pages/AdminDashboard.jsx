@@ -56,6 +56,7 @@ const AdminDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [socket, setSocket] = useState(null);
   const [emergencies, setEmergencies] = useState([]);
+  const [updatingEmergencyId, setUpdatingEmergencyId] = useState(null);
 
   const normalizeEmergency = (data) => {
     const lat = data.location?.lat ?? data.locationLat;
@@ -199,6 +200,25 @@ const AdminDashboard = () => {
 
   const removeNotification = (id) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const handleEmergencyStatusUpdate = async (emergencyId, status) => {
+    try {
+      setUpdatingEmergencyId(emergencyId);
+      await emergencyAPI.updateEmergencyStatus(emergencyId, status);
+
+      if (status === 'resolved' || status === 'false-alarm') {
+        setEmergencies((prev) => prev.filter((item) => item.id !== emergencyId));
+      } else {
+        setEmergencies((prev) => prev.map((item) =>
+          item.id === emergencyId ? { ...item, status } : item
+        ));
+      }
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to update emergency status');
+    } finally {
+      setUpdatingEmergencyId(null);
+    }
   };
 
   const loadData = async () => {
@@ -1114,8 +1134,12 @@ const AdminDashboard = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">
                                 <h3 className="text-lg font-bold text-white">SOS Alert</h3>
-                                <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full animate-pulse">
-                                  LIVE
+                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                                  emergency.status === 'acknowledged'
+                                    ? 'bg-yellow-500 text-black'
+                                    : 'bg-red-500 text-white animate-pulse'
+                                }`}>
+                                  {emergency.status === 'acknowledged' ? 'ACKNOWLEDGED' : 'LIVE'}
                                 </span>
                               </div>
                               <p className="text-sm text-gray-300 mb-2">
@@ -1135,9 +1159,15 @@ const AdminDashboard = () => {
                                   <span className="text-gray-400">{new Date(emergency.timestamp).toLocaleTimeString()}</span>
                                 </div>
                               </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mt-2">
+                                <p className="text-gray-400">Type: <span className="text-white capitalize">{emergency.emergencyType || 'other'}</span></p>
+                                <p className="text-gray-400">Email: <span className="text-white">{emergency.userEmail || 'N/A'}</span></p>
+                                <p className="text-gray-400">College: <span className="text-white">{emergency.college || 'N/A'}</span></p>
+                                <p className="text-gray-400">Message: <span className="text-white">{emergency.message || 'N/A'}</span></p>
+                              </div>
                             </div>
                           </div>
-                          <div className="flex gap-2 w-full sm:w-auto">
+                          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                             {emergency.phone && emergency.phone !== 'N/A' ? (
                               <a
                                 href={`tel:${emergency.phone}`}
@@ -1154,8 +1184,43 @@ const AdminDashboard = () => {
                                 Call User
                               </button>
                             )}
-                            <button className="flex-1 sm:flex-initial px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all font-semibold text-sm">
-                              View Details
+                            {emergency.locationLat && emergency.locationLng ? (
+                              <a
+                                href={`https://maps.google.com/?q=${emergency.locationLat},${emergency.locationLng}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 sm:flex-initial px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all font-semibold text-sm text-center"
+                              >
+                                View Map
+                              </a>
+                            ) : (
+                              <button type="button" disabled className="flex-1 sm:flex-initial px-4 py-2 bg-white/10 text-gray-400 rounded-xl cursor-not-allowed font-semibold text-sm">
+                                View Map
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={updatingEmergencyId === emergency.id || emergency.status === 'acknowledged'}
+                              onClick={() => handleEmergencyStatusUpdate(emergency.id, 'acknowledged')}
+                              className="flex-1 sm:flex-initial px-4 py-2 bg-yellow-500/20 text-yellow-300 rounded-xl hover:bg-yellow-500/30 transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Acknowledge
+                            </button>
+                            <button
+                              type="button"
+                              disabled={updatingEmergencyId === emergency.id}
+                              onClick={() => handleEmergencyStatusUpdate(emergency.id, 'resolved')}
+                              className="flex-1 sm:flex-initial px-4 py-2 bg-green-500/20 text-green-300 rounded-xl hover:bg-green-500/30 transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Resolve
+                            </button>
+                            <button
+                              type="button"
+                              disabled={updatingEmergencyId === emergency.id}
+                              onClick={() => handleEmergencyStatusUpdate(emergency.id, 'false-alarm')}
+                              className="flex-1 sm:flex-initial px-4 py-2 bg-gray-500/20 text-gray-300 rounded-xl hover:bg-gray-500/30 transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              False Alarm
                             </button>
                           </div>
                         </div>
