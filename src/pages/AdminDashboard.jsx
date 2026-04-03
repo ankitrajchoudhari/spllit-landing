@@ -6,12 +6,12 @@ import {
   FaChartLine, FaCrown, FaUserShield, FaTrash, FaSync, FaSearch, FaDownload,
   FaBell, FaClock, FaCheckCircle, FaTimesCircle, FaFilter, FaUser,
   FaMapMarkerAlt, FaCalendarAlt, FaMoneyBillWave, FaUserClock, FaExclamationTriangle,
-  FaPhone, FaAmbulance, FaLifeRing
+  FaPhone, FaAmbulance, FaLifeRing, FaBullhorn, FaImage, FaPaperPlane
 } from 'react-icons/fa';
 import useAdminStore from '../store/adminStore';
 import useAuthStore from '../store/authStore';
 import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchEarlyAccess, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, resetAdminPassword, deleteAdmin } from '../services/adminAPI';
-import { emergencyAPI } from '../services/api';
+import { emergencyAPI, announcementsAPI } from '../services/api';
 import NotificationContainer from '../components/NotificationToast';
 import io from 'socket.io-client';
 import { SOCKET_BASE_URL } from '../config/backendUrl';
@@ -57,6 +57,15 @@ const AdminDashboard = () => {
   const [socket, setSocket] = useState(null);
   const [emergencies, setEmergencies] = useState([]);
   const [updatingEmergencyId, setUpdatingEmergencyId] = useState(null);
+  const [adminAnnouncements, setAdminAnnouncements] = useState([]);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: '',
+    message: '',
+    location: '',
+    imageUrl: '',
+    imageAlt: ''
+  });
+  const [announcementSubmitting, setAnnouncementSubmitting] = useState(false);
 
   const normalizeEmergency = (data) => {
     const lat = data.location?.lat ?? data.locationLat;
@@ -226,6 +235,7 @@ const AdminDashboard = () => {
       if (activeTab === 'dashboard') {
         const response = await fetchStats();
         setStats(response.data);
+        await loadAnnouncements();
       } else if (activeTab === 'users') {
         const response = await fetchUsers();
         setUsers(response.data.users);
@@ -268,6 +278,74 @@ const AdminDashboard = () => {
     return matches.reduce((total, match) => {
       return total + (match.ride?.fare || 0);
     }, 0);
+  };
+
+  const loadAnnouncements = async () => {
+    try {
+      const response = await announcementsAPI.getAnnouncements();
+      const items = Array.isArray(response?.announcements) ? response.announcements : [];
+      setAdminAnnouncements(items);
+      return items;
+    } catch (error) {
+      console.error('Failed to load announcements:', error);
+      return [];
+    }
+  };
+
+  const handleAnnouncementImageChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose an image file');
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Image should be under 3MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAnnouncementForm((prev) => ({
+        ...prev,
+        imageUrl: String(reader.result || ''),
+        imageAlt: prev.imageAlt || file.name
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCreateAnnouncement = async (event) => {
+    event.preventDefault();
+
+    try {
+      setAnnouncementSubmitting(true);
+      const payload = {
+        title: announcementForm.title,
+        message: announcementForm.message,
+        location: announcementForm.location,
+        imageUrl: announcementForm.imageUrl || undefined,
+        imageAlt: announcementForm.imageAlt || announcementForm.title
+      };
+
+      const response = await announcementsAPI.createAnnouncement(payload);
+      const createdAnnouncement = response?.announcement;
+
+      if (createdAnnouncement) {
+        setAdminAnnouncements((prev) => [createdAnnouncement, ...prev.filter((item) => item.id !== createdAnnouncement.id)]);
+      } else {
+        await loadAnnouncements();
+      }
+
+      setAnnouncementForm({ title: '', message: '', location: '', imageUrl: '', imageAlt: '' });
+      alert('Announcement posted successfully');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to post announcement');
+    } finally {
+      setAnnouncementSubmitting(false);
+    }
   };
 
   const handleAddAdmin = async (e) => {
@@ -651,6 +729,145 @@ const AdminDashboard = () => {
                         <span className="text-xs sm:text-sm font-medium text-accent-green">Add Admin</span>
                       </button>
                     )}
+                  </div>
+                </div>
+
+                {/* Announcement Studio */}
+                <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-4 sm:gap-6">
+                  <div className="bg-gradient-to-br from-white/5 to-white/3 border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                      <div>
+                        <h3 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                          <FaBullhorn className="text-accent-green" /> Announcement Studio
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-2">
+                          Post campus updates, event drops, and location-based notices for users.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-400 bg-white/5 rounded-full px-3 py-2 self-start">
+                        <FaPaperPlane className="text-accent-green" /> Live feed
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleCreateAnnouncement} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-white mb-2">Post Title</label>
+                          <input
+                            type="text"
+                            value={announcementForm.title}
+                            onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, title: e.target.value }))}
+                            placeholder="Campus fest, exam alert, meetup..."
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green/50"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-white mb-2">Location</label>
+                          <input
+                            type="text"
+                            value={announcementForm.location}
+                            onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, location: e.target.value }))}
+                            placeholder="IIT Madras, Velachery..."
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green/50"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-white mb-2">Announcement Text</label>
+                        <textarea
+                          rows={4}
+                          value={announcementForm.message}
+                          onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, message: e.target.value }))}
+                          placeholder="Tell users what is happening, when, and why they should care..."
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green/50 resize-none"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                        <div>
+                          <label className="block text-sm font-semibold text-white mb-2">Upload Image</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAnnouncementImageChange}
+                            className="w-full text-sm text-gray-300 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-accent-green file:text-black file:font-bold hover:file:bg-accent-green/90"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-white mb-2">Image Caption</label>
+                          <input
+                            type="text"
+                            value={announcementForm.imageAlt}
+                            onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, imageAlt: e.target.value }))}
+                            placeholder="A short caption for accessibility"
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green/50"
+                          />
+                        </div>
+                      </div>
+
+                      {announcementForm.imageUrl && (
+                        <div className="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
+                          <img
+                            src={announcementForm.imageUrl}
+                            alt={announcementForm.imageAlt || announcementForm.title || 'Preview'}
+                            className="w-full max-h-64 object-cover"
+                          />
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={announcementSubmitting}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-accent-green to-emerald-400 text-black font-black hover:opacity-90 transition-all disabled:opacity-60"
+                      >
+                        <FaPaperPlane className="text-sm" />
+                        {announcementSubmitting ? 'Posting...' : 'Post Announcement'}
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="bg-bg-secondary border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-base sm:text-xl font-bold flex items-center gap-2">
+                        <FaImage className="text-accent-green" /> Recent Drops
+                      </h3>
+                      <span className="text-xs text-gray-500">{adminAnnouncements.length} posts</span>
+                    </div>
+                    <div className="space-y-3 max-h-[34rem] overflow-y-auto">
+                      {adminAnnouncements.length === 0 ? (
+                        <div className="text-center py-10 text-gray-400 text-sm">
+                          No announcements yet.
+                        </div>
+                      ) : adminAnnouncements.slice(0, 6).map((announcement) => (
+                        <div key={announcement.id} className="bg-white/5 rounded-2xl overflow-hidden border border-white/10">
+                          {announcement.imageUrl ? (
+                            <img src={announcement.imageUrl} alt={announcement.imageAlt || announcement.title} className="w-full h-36 object-cover" />
+                          ) : (
+                            <div className="w-full h-36 bg-gradient-to-br from-accent-green/20 to-purple-500/20 flex items-center justify-center">
+                              <FaBullhorn className="text-4xl text-accent-green" />
+                            </div>
+                          )}
+                          <div className="p-4 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-white font-semibold text-sm break-words">{announcement.title}</p>
+                                <p className="text-gray-400 text-xs mt-1 break-words">{announcement.location}</p>
+                              </div>
+                              <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                {new Date(announcement.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                              </span>
+                            </div>
+                            <p className="text-gray-300 text-xs leading-relaxed break-words">
+                              {announcement.message}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

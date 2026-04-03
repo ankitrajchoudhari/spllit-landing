@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash, FaExclamationTriangle, FaMicrophone, FaImage, FaBullhorn } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
 import socketService from '../services/socket';
-import { ridesAPI, matchesAPI, emergencyAPI } from '../services/api';
+import { ridesAPI, matchesAPI, emergencyAPI, announcementsAPI } from '../services/api';
 import { NotificationContainer } from '../components/UserNotification';
 import ChatModal from '../components/ChatModal';
 import SubadminManagement from '../components/SubadminManagement';
@@ -70,6 +70,8 @@ const Dashboard = () => {
     const [notificationFeed, setNotificationFeed] = useState([]);
     const [rideAnnouncements, setRideAnnouncements] = useState([]);
     const [showRideAnnouncements, setShowRideAnnouncements] = useState(false);
+    const [adminAnnouncements, setAdminAnnouncements] = useState([]);
+    const [showAdminAnnouncements, setShowAdminAnnouncements] = useState(false);
     const [showMessageCenter, setShowMessageCenter] = useState(false);
     const [showMatchedCenter, setShowMatchedCenter] = useState(false);
     const [socket, setSocket] = useState(null);
@@ -114,6 +116,7 @@ const Dashboard = () => {
     const rideAnnouncementSeenKey = `ride-announcements-seen-${user?.id || 'guest'}`;
     const notificationFeedKey = `notification-feed-${user?.id || 'guest'}`;
     const dismissedFeedKey = `notification-feed-dismissed-${user?.id || 'guest'}`;
+    const adminAnnouncementSeenKey = `admin-announcements-seen-${user?.id || 'guest'}`;
     const rideActiveWindowMs = 8 * 60 * 60 * 1000;
     const notificationFeedExpiryMs = 2 * 60 * 60 * 1000;
 
@@ -291,6 +294,19 @@ const Dashboard = () => {
         timestamp: announcement.createdAt
     });
 
+    const normalizeAdminAnnouncement = (announcement) => ({
+        id: announcement.id,
+        title: announcement.title || 'Campus update',
+        message: announcement.message || '',
+        location: announcement.location || 'Campus',
+        imageUrl: announcement.imageUrl || '',
+        imageAlt: announcement.imageAlt || announcement.title || 'Announcement image',
+        createdByName: announcement.createdByName || 'Admin',
+        createdByRole: announcement.createdByRole || 'admin',
+        createdAt: announcement.createdAt,
+        timestamp: announcement.createdAt
+    });
+
     const seenRideAnnouncementsAt = () => {
         const storedValue = localStorage.getItem(rideAnnouncementSeenKey);
         const parsed = storedValue ? new Date(storedValue) : null;
@@ -300,6 +316,17 @@ const Dashboard = () => {
     const unreadRideAnnouncementCount = rideAnnouncements.filter((announcement) => {
         const createdAt = new Date(announcement.createdAt || announcement.timestamp || 0);
         return createdAt > seenRideAnnouncementsAt();
+    }).length;
+
+    const seenAdminAnnouncementsAt = () => {
+        const storedValue = localStorage.getItem(adminAnnouncementSeenKey);
+        const parsed = storedValue ? new Date(storedValue) : null;
+        return parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date(0);
+    };
+
+    const unreadAdminAnnouncementCount = adminAnnouncements.filter((announcement) => {
+        const createdAt = new Date(announcement.createdAt || announcement.timestamp || 0);
+        return createdAt > seenAdminAnnouncementsAt();
     }).length;
 
     const notificationFeedCount = notificationFeed.length;
@@ -325,6 +352,31 @@ const Dashboard = () => {
             return nextAnnouncements;
         } catch (error) {
             console.error('Failed to load ride announcements:', error);
+            return [];
+        }
+    };
+
+    const markAdminAnnouncementsSeen = (announcements = adminAnnouncements) => {
+        if (!announcements.length) return;
+
+        const latestTimestamp = announcements.reduce((latest, announcement) => {
+            const createdAt = new Date(announcement.createdAt || announcement.timestamp || 0).getTime();
+            return createdAt > latest ? createdAt : latest;
+        }, 0);
+
+        if (latestTimestamp > 0) {
+            localStorage.setItem(adminAnnouncementSeenKey, new Date(latestTimestamp).toISOString());
+        }
+    };
+
+    const loadAdminAnnouncements = async () => {
+        try {
+            const response = await announcementsAPI.getAnnouncements();
+            const nextAnnouncements = (response.announcements || []).map(normalizeAdminAnnouncement);
+            setAdminAnnouncements(nextAnnouncements);
+            return nextAnnouncements;
+        } catch (error) {
+            console.error('Failed to load admin announcements:', error);
             return [];
         }
     };
@@ -566,10 +618,36 @@ const Dashboard = () => {
             ));
         });
 
+        newSocket.on('new-admin-announcement', (data) => {
+            if (!data?.announcement) return;
+
+            const announcement = normalizeAdminAnnouncement(data.announcement);
+            setAdminAnnouncements(prev => [announcement, ...prev.filter((item) => item.id !== announcement.id)]);
+            addNotificationFeedItem({
+                id: `announcement-${announcement.id}`,
+                type: 'info',
+                title: announcement.title,
+                message: `${announcement.location} • ${announcement.message}`,
+                timestamp: announcement.createdAt,
+                meta: {
+                    location: announcement.location,
+                    imageUrl: announcement.imageUrl,
+                    imageAlt: announcement.imageAlt
+                }
+            });
+            addNotification({
+                type: 'success',
+                title: 'New announcement',
+                message: announcement.title
+            });
+            playNotificationSound();
+        });
+
         // Load Google Maps early so the ride modal is ready quickly
         loadGoogleMaps();
 
         loadRideAnnouncements();
+        loadAdminAnnouncements();
         loadNotificationFeed();
         loadMatches();
 
@@ -627,6 +705,19 @@ const Dashboard = () => {
             document.removeEventListener('keydown', handleEscape);
         };
     }, [showRideAnnouncements]);
+
+    useEffect(() => {
+        if (!showAdminAnnouncements) return;
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setShowAdminAnnouncements(false);
+            }
+        };
+
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [showAdminAnnouncements]);
 
     const addNotification = (notification) => {
         const id = Date.now();
@@ -782,6 +873,7 @@ const Dashboard = () => {
     const handleRideBellClick = async () => {
         setShowMessageCenter(false);
         setShowMatchedCenter(false);
+        setShowAdminAnnouncements(false);
         const willOpen = !showRideAnnouncements;
         setShowRideAnnouncements(willOpen);
 
@@ -798,8 +890,18 @@ const Dashboard = () => {
         }
     };
 
+    const handleAnnouncementMicClick = async () => {
+        setShowMessageCenter(false);
+        setShowMatchedCenter(false);
+        setShowRideAnnouncements(false);
+        const nextAnnouncements = await loadAdminAnnouncements();
+        markAdminAnnouncementsSeen(nextAnnouncements);
+        setShowAdminAnnouncements((prev) => !prev);
+    };
+
     const handleMessageCenterClick = async () => {
         setShowRideAnnouncements(false);
+        setShowAdminAnnouncements(false);
         setShowMatchedCenter(false);
         await loadMatches();
         setShowMessageCenter(true);
@@ -807,6 +909,7 @@ const Dashboard = () => {
 
     const handleMatchedCenterClick = async (filter = 'pending') => {
         setShowRideAnnouncements(false);
+        setShowAdminAnnouncements(false);
         setShowMessageCenter(false);
         await loadMatches();
         setMatchStatusFilter(filter);
@@ -814,6 +917,7 @@ const Dashboard = () => {
     };
 
     const matchedActionCount = pendingRequests.length + rejectedMatches.length;
+    const announcementActionCount = unreadAdminAnnouncementCount;
 
     const getSeatLimitByVehicleType = (vehicleType) => {
         if (vehicleType === 'auto') return 3;
@@ -1404,6 +1508,18 @@ const Dashboard = () => {
                                         )}
                                     </AnimatePresence>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={handleAnnouncementMicClick}
+                                    className="relative w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                                >
+                                    <FaMicrophone className="text-sm sm:text-base" /> <span>Drop</span>
+                                    {announcementActionCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full bg-red-500 text-white text-[10px] sm:text-[11px] leading-4 sm:leading-5 font-bold text-center">
+                                            {announcementActionCount > 99 ? '99+' : announcementActionCount}
+                                        </span>
+                                    )}
+                                </button>
                                 <button
                                     type="button"
                                     onClick={handleMessageCenterClick}
@@ -2240,6 +2356,92 @@ const Dashboard = () => {
                                     {sendingSOS ? 'Sending SOS...' : 'Send SOS Now'}
                                 </button>
                             </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Admin Announcements Modal */}
+            <AnimatePresence>
+                {showAdminAnnouncements && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[115] flex items-center justify-center p-3 sm:p-6"
+                        onClick={() => setShowAdminAnnouncements(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 16 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 16 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-bg-secondary border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-4xl w-full max-h-[92vh] overflow-y-auto"
+                        >
+                            <div className="flex justify-between items-start gap-4 mb-6">
+                                <div>
+                                    <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 flex items-center gap-2">
+                                        <FaBullhorn className="text-accent-green text-2xl sm:text-3xl" /> Campus Drops
+                                    </h2>
+                                    <p className="text-gray-400 text-sm">Fresh event posts from the admin desk</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowAdminAnnouncements(false)}
+                                    className="text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <FaTimes size={24} />
+                                </button>
+                            </div>
+
+                            {adminAnnouncements.length === 0 ? (
+                                <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/10">
+                                    <FaMicrophone className="mx-auto text-5xl text-gray-500 mb-4" />
+                                    <p className="text-white text-lg font-semibold">No campus drops yet</p>
+                                    <p className="text-gray-400 text-sm mt-2">Check back when admin posts an update, event, or location drop.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                                    {adminAnnouncements.map((announcement) => (
+                                        <div key={announcement.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+                                            <div className="relative">
+                                                {announcement.imageUrl ? (
+                                                    <img
+                                                        src={announcement.imageUrl}
+                                                        alt={announcement.imageAlt || announcement.title}
+                                                        className="w-full h-52 object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-52 bg-gradient-to-br from-accent-green/20 via-white/5 to-purple-500/20 flex items-center justify-center">
+                                                        <FaImage className="text-5xl text-accent-green/80" />
+                                                    </div>
+                                                )}
+                                                <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-semibold">
+                                                    New Drop
+                                                </div>
+                                            </div>
+                                            <div className="p-4 sm:p-5 space-y-3">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <h3 className="text-lg sm:text-xl font-bold text-white break-words">{announcement.title}</h3>
+                                                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-2">
+                                                            <FaUser className="text-[10px]" /> {announcement.createdByName}
+                                                        </p>
+                                                    </div>
+                                                    <span className="px-2.5 py-1 rounded-full bg-accent-green/15 text-accent-green text-[11px] font-semibold whitespace-nowrap">
+                                                        {formatAnnouncementTime(announcement.createdAt)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-gray-300 text-sm leading-relaxed break-words">{announcement.message}</p>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="px-3 py-1 rounded-full bg-white/5 text-gray-200 border border-white/10 text-xs flex items-center gap-2">
+                                                        <FaMapMarkerAlt className="text-accent-green" /> {announcement.location}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </motion.div>
                     </motion.div>
                 )}

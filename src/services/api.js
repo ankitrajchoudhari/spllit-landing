@@ -62,6 +62,25 @@ api.interceptors.response.use(
     }
 );
 
+const announcementApi = axios.create({
+    baseURL: API_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    withCredentials: false,
+});
+
+announcementApi.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
 // ============ AUTH API ============
 
 export const authAPI = {
@@ -255,6 +274,20 @@ export const emergencyAPI = {
 
     updateEmergencyStatus: async (id, status) => {
         const response = await api.patch(`/emergency/${id}/status`, { status });
+        return response.data;
+    }
+};
+
+// ============ ANNOUNCEMENTS API ============
+
+export const announcementsAPI = {
+    getAnnouncements: async () => {
+        const response = await announcementApi.get('/announcements');
+        return response.data;
+    },
+
+    createAnnouncement: async (data) => {
+        const response = await announcementApi.post('/announcements', data);
         return response.data;
     }
 };

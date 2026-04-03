@@ -9,6 +9,7 @@ import matchRoutes from './routes/matches.js';
 import userRoutes from './routes/users.js';
 import adminRoutes from './routes/admin.js';
 import emergencyRoutes from './routes/emergency.js';
+import announcementRoutes from './routes/announcements.js';
 import subadminRoutes from './routes/subadmin.js';
 import earlyAccessRoutes from './routes/earlyAccess.js';
 import { setupSocketHandlers } from './services/socket.js';
@@ -87,6 +88,7 @@ app.use('/api/matches', matchRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/emergency', emergencyRoutes);
+app.use('/api/announcements', announcementRoutes);
 app.use('/api/subadmin', subadminRoutes);
 app.use('/api/early-access', earlyAccessRoutes);
 

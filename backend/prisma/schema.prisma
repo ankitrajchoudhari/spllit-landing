@@ -100,6 +100,24 @@ model RideAnnouncement {
   @@index([departureTime])
 }
 
+// Admin-posted announcements for the home dashboard feed
+model Announcement {
+  id              String    @id @default(cuid()) @map("_id")
+  title           String
+  message         String
+  location        String
+  imageUrl        String?
+  imageAlt        String?
+  createdById     String
+  createdByName   String
+  createdByRole   String    @default("admin")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([createdAt])
+  @@index([createdByRole])
+}
+
 // Match model for connecting users
 model Match {
   id              String    @id @default(cuid()) @map("_id")
