@@ -1196,20 +1196,20 @@ const Dashboard = () => {
                                                                         )}
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
-                                                                        <div className="flex items-start justify-between gap-3 mb-1">
+                                                                        <div className="flex items-start justify-between gap-2 sm:gap-3 mb-1">
                                                                             <div>
-                                                                                <p className="text-white font-semibold leading-tight">
+                                                                                <p className="text-white font-semibold leading-tight break-words">
                                                                                     {item.title}
                                                                                 </p>
                                                                                 <p className="text-gray-500 text-xs mt-1">
                                                                                     {item.type === 'ride' ? 'Ride announcement' : item.type === 'match' ? 'Match update' : 'Notification'}
                                                                                 </p>
                                                                             </div>
-                                                                            <span className="text-[11px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10 whitespace-nowrap">
+                                                                            <span className="text-[11px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10 whitespace-nowrap shrink-0">
                                                                                 {formatAnnouncementTime(item.timestamp)}
                                                                             </span>
                                                                         </div>
-                                                                        <p className="text-gray-300 text-sm leading-relaxed">
+                                                                        <p className="text-gray-300 text-sm leading-relaxed break-words">
                                                                             {item.message}
                                                                         </p>
                                                                         <div className="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs">
@@ -1230,7 +1230,7 @@ const Dashboard = () => {
                                                                                     </span>
                                                                                 ) : null}
                                                                             </div>
-                                                                            <div className="flex items-center gap-2">
+                                                                            <div className="flex flex-wrap items-center justify-end gap-2">
                                                                                 {(item.matchId || item.chatRoomId) && (
                                                                                     <button
                                                                                         type="button"
@@ -1645,9 +1645,9 @@ const Dashboard = () => {
                                                         <div className="w-10 h-10 rounded-full bg-accent-green flex items-center justify-center">
                                                             <FaUser className="text-black" />
                                                         </div>
-                                                        <div>
-                                                            <p className="text-white font-semibold">{ride.creator.name}</p>
-                                                            <p className="text-gray-400 text-xs">{ride.creator.college}</p>
+                                                        <div className="min-w-0">
+                                                            <p className="text-white font-semibold break-words">{ride.creator.name}</p>
+                                                            <p className="text-gray-400 text-xs break-words">{ride.creator.college}</p>
                                                         </div>
                                                     </div>
                                                 </div>
