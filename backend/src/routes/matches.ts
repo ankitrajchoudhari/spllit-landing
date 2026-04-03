@@ -575,6 +575,7 @@ router.post('/:id/messages', authenticate, async (req: AuthRequest, res: Respons
     // Notify recipient
     io.emit(`message_notification_${recipientId}`, {
       notification: {
+        id: `message-${message.id}`,
         type: 'match',
         title: '💬 New Message',
         message: `${message.sender.name}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,

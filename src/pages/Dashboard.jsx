@@ -503,8 +503,9 @@ const Dashboard = () => {
         newSocket.on(`message_notification_${user.id}`, (data) => {
             console.log('Message notification:', data);
             if (data.notification) {
+                const uniqueMessageNotificationId = data.notification.id || `message-${data.notification.matchId || 'general'}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
                 addNotificationFeedItem({
-                    id: `message-${data.notification.matchId || Date.now()}`,
+                    id: uniqueMessageNotificationId,
                     type: 'match',
                     title: data.notification.title,
                     message: data.notification.message,

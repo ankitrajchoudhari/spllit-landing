@@ -156,36 +156,36 @@ const ChatModal = ({ match, onClose, currentUserId, socketClient }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[150]">
+      <div className="bg-[#0b0b0b] border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#101010]">
           <div className="flex items-center space-x-3">
             <div className="relative">
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
                 {otherUser.name.charAt(0).toUpperCase()}
               </div>
-              <FaCircle className="absolute bottom-0 right-0 text-green-500 text-xs bg-white rounded-full" />
+              <FaCircle className="absolute bottom-0 right-0 text-green-500 text-xs bg-[#101010] rounded-full" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">{otherUser.name}</h3>
-              <p className="text-xs text-gray-500">{otherUser.college}</p>
+              <h3 className="font-semibold text-white">{otherUser.name}</h3>
+              <p className="text-xs text-gray-400">{otherUser.college}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-white transition-colors"
           >
             <FaTimes className="text-xl" />
           </button>
         </div>
 
         {/* Ride Details */}
-        <div className="px-4 py-2 bg-blue-50 border-b">
-          <p className="text-sm text-gray-700">
+        <div className="px-4 py-3 bg-[#111111] border-b border-white/10">
+          <p className="text-sm text-gray-200">
             <span className="font-semibold">Route:</span> {match.ride.origin} → {match.ride.destination}
           </p>
-          <p className="text-xs text-gray-600 mt-1">
+          <p className="text-xs text-gray-400 mt-1">
             {new Date(match.ride.departureTime).toLocaleString('en-US', { 
               month: 'short', 
               day: 'numeric', 
@@ -203,14 +203,14 @@ const ChatModal = ({ match, onClose, currentUserId, socketClient }) => {
         {/* Messages */}
         <div 
           ref={chatContainerRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+          className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0b0b0b]"
         >
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
               <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
@@ -230,7 +230,7 @@ const ChatModal = ({ match, onClose, currentUserId, socketClient }) => {
                       className={`max-w-[70%] rounded-lg px-4 py-2 ${
                         isOwnMessage
                           ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-900 border'
+                          : 'bg-[#141414] text-gray-100 border border-white/10'
                       }`}
                     >
                       {editingMessageId === msg.id ? (
@@ -238,7 +238,7 @@ const ChatModal = ({ match, onClose, currentUserId, socketClient }) => {
                           <textarea
                             value={editingContent}
                             onChange={(e) => setEditingContent(e.target.value)}
-                            className="w-full min-h-[84px] px-3 py-2 rounded-lg border border-white/10 bg-white/10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20"
+                            className="w-full min-h-[84px] px-3 py-2 rounded-lg border border-white/10 bg-black/30 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                           />
                           <div className="flex items-center gap-2 justify-end">
                             <button
@@ -304,14 +304,14 @@ const ChatModal = ({ match, onClose, currentUserId, socketClient }) => {
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSendMessage} className="p-4 border-t bg-white">
+        <form onSubmit={handleSendMessage} className="p-4 border-t border-white/10 bg-[#101010]">
           <div className="flex space-x-2">
             <input
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-4 py-2 border border-white/15 rounded-lg bg-black/30 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               disabled={sending || !chatIsActive}
             />
             <button
