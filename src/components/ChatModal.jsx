@@ -68,7 +68,9 @@ const ChatModal = ({ match, onClose, currentUserId, socketClient }) => {
       }
     };
 
-    if (!activeSocket) return undefined;
+    if (!activeSocket || typeof activeSocket.on !== 'function' || typeof activeSocket.off !== 'function') {
+      return undefined;
+    }
 
     activeSocket.on(`new_message_${match.chatRoomId}`, handleNewMessage);
     activeSocket.on(`message_updated_${match.chatRoomId}`, handleMessageUpdated);

@@ -135,7 +135,8 @@ const Dashboard = () => {
 
     const getDismissedFeedIds = () => {
         try {
-            return JSON.parse(localStorage.getItem(dismissedFeedKey) || '[]');
+            const parsed = JSON.parse(localStorage.getItem(dismissedFeedKey) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
         } catch {
             return [];
         }
@@ -172,9 +173,11 @@ const Dashboard = () => {
     const loadNotificationFeed = async () => {
         try {
             const dismissedIds = new Set(getDismissedFeedIds());
-            const storedFeed = JSON.parse(localStorage.getItem(notificationFeedKey) || '[]');
+            const parsedFeed = JSON.parse(localStorage.getItem(notificationFeedKey) || '[]');
+            const storedFeed = Array.isArray(parsedFeed) ? parsedFeed : [];
             const rideResponse = await ridesAPI.getAnnouncements();
-            const rideItems = (rideResponse.announcements || []).map((announcement) => normalizeFeedItem({
+            const announcements = Array.isArray(rideResponse?.announcements) ? rideResponse.announcements : [];
+            const rideItems = announcements.map((announcement) => normalizeFeedItem({
                 id: `ride-${announcement.id}`,
                 type: 'ride',
                 title: announcement.title || 'New Ride Available!',
@@ -716,14 +719,18 @@ const Dashboard = () => {
 
     const handleRideBellClick = async () => {
         setShowMessageCenter(false);
-        setShowRideAnnouncements(prev => !prev);
+        const willOpen = !showRideAnnouncements;
+        setShowRideAnnouncements(willOpen);
 
-        if (!showRideAnnouncements) {
+        if (willOpen) {
             Promise.allSettled([
                 loadRideAnnouncements(),
                 loadNotificationFeed()
-            ]).then(() => {
-                markRideAnnouncementsSeen(rideAnnouncements);
+            ]).then((results) => {
+                const rideResult = results[0];
+                if (rideResult.status === 'fulfilled' && Array.isArray(rideResult.value)) {
+                    markRideAnnouncementsSeen(rideResult.value);
+                }
             });
         }
     };
