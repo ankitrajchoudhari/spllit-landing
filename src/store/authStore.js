@@ -96,6 +96,7 @@ const useAuthStore = create(
             logout: () => {
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
+                localStorage.removeItem('auth-storage');
                 set({
                     user: null,
                     accessToken: null,

@@ -38,6 +38,8 @@ const Navbar = () => {
     const hideBackArrowPaths = ['/dashboard', '/admin/dashboard', '/spllit-social'];
     const showBackArrow = !isHome && !hideBackArrowPaths.includes(location.pathname);
     const profileLabel = user?.name?.trim()?.split(' ')?.[0] || 'Profile';
+    const authenticatedHomePath = user?.role === 'subadmin' || user?.isAdmin ? '/admin/dashboard' : '/dashboard';
+    const logoTarget = isAuthenticated && user ? authenticatedHomePath : '/';
 
     const isPublicNavVisible = !isAuthenticated;
 
@@ -83,8 +85,10 @@ const Navbar = () => {
     };
 
     const handleLogout = () => {
+        setMobileMenuOpen(false);
+        setShowProfileModal(false);
         logout();
-        navigate('/');
+        navigate('/', { replace: true });
     };
 
     return (
@@ -109,7 +113,7 @@ const Navbar = () => {
                                 </button>
                             )}
 
-                            <Link to="/" className="flex items-center gap-2 sm:gap-3 group">
+                            <Link to={logoTarget} className="flex items-center gap-2 sm:gap-3 group">
                                 <span className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                                     spllit<span className="text-accent-green">.</span>
                                 </span>
