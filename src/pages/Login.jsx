@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaTimes, FaLock, FaGoogle } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
-import AnnouncementDrops from '../components/AnnouncementDrops';
 
 
 // --- Premium Phone Mockup with "Live Match" Simulation ---
@@ -296,11 +295,6 @@ const Login = () => {
 
     return (
         <div className="min-h-screen bg-[#050505] overflow-x-hidden relative font-poppins selection:bg-accent-green selection:text-black">
-
-            {/* Announcements button - fixed safe corner, opens centered modal on click */}
-            <div className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-40">
-                <AnnouncementDrops />
-            </div>
 
             {/* Animated Grid Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-accent-green/[0.04] pointer-events-none" />

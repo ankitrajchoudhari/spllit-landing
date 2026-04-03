@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaArrowLeft, FaUserCircle, FaEnvelope, FaPhone, FaGraduationCap, FaVenusMars, FaBirthdayCake, FaSave } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
+import AnnouncementDrops from './AnnouncementDrops';
 
 const Navbar = () => {
     const [scrolled, setScrolled] = useState(false);
@@ -142,6 +143,7 @@ const Navbar = () => {
 
                                 {isAuthenticated && user ? (
                                     <div className="flex items-center gap-3">
+                                        <AnnouncementDrops />
                                         <button
                                             onClick={() => navigate('/spllit-social')}
                                             className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 px-4 py-2.5 rounded-xl font-semibold transition-all border border-blue-500/20"
@@ -164,6 +166,7 @@ const Navbar = () => {
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-3">
+                                        <AnnouncementDrops />
                                         <button
                                             onClick={() => navigate('/spllit-social')}
                                             className="px-4 py-2.5 rounded-xl font-semibold transition-all border border-white/15 bg-white/5 text-white/90 hover:bg-white/10"
@@ -180,13 +183,16 @@ const Navbar = () => {
                                 )}
                             </div>
 
-                            {/* Mobile Menu Button - Styled better for touch */}
-                            <button
-                                className="md:hidden text-white w-10 h-10 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 active:bg-white/10 active:scale-95 transition-all"
-                                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                            >
-                                {mobileMenuOpen ? <FaTimes size={18} /> : <FaBars size={18} />}
-                            </button>
+                            <div className="md:hidden flex items-center gap-2">
+                                <AnnouncementDrops />
+                                {/* Mobile Menu Button - Styled better for touch */}
+                                <button
+                                    className="text-white w-10 h-10 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 active:bg-white/10 active:scale-95 transition-all"
+                                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                                >
+                                    {mobileMenuOpen ? <FaTimes size={18} /> : <FaBars size={18} />}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
