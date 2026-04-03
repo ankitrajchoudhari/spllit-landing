@@ -59,9 +59,12 @@ router.post('/login', async (req: Request, res: Response) => {
   try {
     const data = adminLoginSchema.parse(req.body);
 
+    // Normalize email to lowercase
+    const normalizedEmail = data.email.toLowerCase().trim();
+
     // First check users table for subadmins (they take priority for @spllit.app emails)
     const subadmin = await prisma.user.findUnique({
-      where: { email: data.email }
+      where: { email: normalizedEmail }
     });
 
     // If found in users table as subadmin, authenticate from there
@@ -112,11 +115,11 @@ router.post('/login', async (req: Request, res: Response) => {
 
     // Then check admin table (for master admin only)
     let admin = await prisma.admin.findUnique({
-      where: { email: data.email }
+      where: { email: normalizedEmail }
     });
 
     // If master admin doesn't exist, create it on first login
-    if (!admin && data.email === 'ankit@spllit.app') {
+    if (!admin && normalizedEmail === 'ankit@spllit.app') {
       const hashedPassword = await hashPassword('Kurkure123@');
       admin = await prisma.admin.create({
         data: {

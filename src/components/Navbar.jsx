@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaArrowLeft } from 'react-icons/fa';
+import { FaBars, FaTimes, FaArrowLeft, FaUserCircle } from 'react-icons/fa';
+import useAuthStore from '../store/authStore';
 
 const Navbar = () => {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
+    const { user, isAuthenticated, logout } = useAuthStore();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -23,6 +25,18 @@ const Navbar = () => {
     }, []);
 
     const isHome = location.pathname === '/';
+    const isAdminUser = user?.role === 'subadmin' || user?.isAdmin;
+    const profileTarget = isAdminUser ? '/admin/dashboard' : '/dashboard';
+    const profileLabel = user?.name?.trim()?.split(' ')?.[0] || 'Profile';
+
+    const handleProfileClick = () => {
+        navigate(profileTarget);
+    };
+
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
 
     return (
         <>
@@ -62,12 +76,30 @@ const Navbar = () => {
 
                             <div className="w-px h-6 bg-white/10 mx-4"></div>
 
-                            <button
-                                onClick={() => navigate('/login?signin=1')}
-                                className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all transform hover:-translate-y-0.5 active:scale-95"
-                            >
-                                Sign In
-                            </button>
+                            {isAuthenticated && user ? (
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={handleProfileClick}
+                                        className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-xl font-semibold transition-all border border-white/10"
+                                    >
+                                        <FaUserCircle className="text-accent-green text-lg" />
+                                        <span>{profileLabel}</span>
+                                    </button>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="bg-red-500/10 hover:bg-red-500/20 text-red-300 px-4 py-2.5 rounded-xl font-semibold transition-all border border-red-500/20"
+                                    >
+                                        Logout
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => navigate('/login?signin=1')}
+                                    className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all transform hover:-translate-y-0.5 active:scale-95"
+                                >
+                                    Sign In
+                                </button>
+                            )}
                         </div>
 
                         {/* Mobile Menu Button */}
@@ -98,15 +130,38 @@ const Navbar = () => {
                                 <MobileNavLink to="/pricing" onClick={() => setMobileMenuOpen(false)}>Pricing</MobileNavLink>
                                 <MobileNavLink to="/blog" onClick={() => setMobileMenuOpen(false)}>Blog</MobileNavLink>
                                 <div className="h-px bg-white/10 my-2"></div>
-                                <button
-                                    onClick={() => {
-                                        setMobileMenuOpen(false);
-                                        navigate('/login?signin=1');
-                                    }}
-                                    className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-3 rounded-xl font-semibold w-full"
-                                >
-                                    Sign In
-                                </button>
+                                {isAuthenticated && user ? (
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                setMobileMenuOpen(false);
+                                                handleProfileClick();
+                                            }}
+                                            className="bg-white/5 text-white px-6 py-3 rounded-xl font-semibold w-full border border-white/10"
+                                        >
+                                            {profileLabel} Profile
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setMobileMenuOpen(false);
+                                                handleLogout();
+                                            }}
+                                            className="bg-red-500/10 text-red-300 px-6 py-3 rounded-xl font-semibold w-full border border-red-500/20"
+                                        >
+                                            Logout
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => {
+                                            setMobileMenuOpen(false);
+                                            navigate('/login?signin=1');
+                                        }}
+                                        className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-3 rounded-xl font-semibold w-full"
+                                    >
+                                        Sign In
+                                    </button>
+                                )}
                             </div>
                         </motion.div>
                     )}
