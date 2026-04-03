@@ -297,9 +297,8 @@ const Login = () => {
     return (
         <div className="min-h-screen bg-[#050505] overflow-x-hidden relative font-poppins selection:bg-accent-green selection:text-black">
 
-            {/* Announcements - Hidden or simplified on small mobile to avoid overlap */}
-            {/* Announcements - Floating Action Button & Popup Trigger */}
-            <div className="fixed top-20 sm:top-24 right-4 sm:right-6 z-40">
+            {/* Announcements button - fixed safe corner, opens centered modal on click */}
+            <div className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-40">
                 <AnnouncementDrops />
             </div>
 

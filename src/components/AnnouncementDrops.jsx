@@ -1,9 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FaBullhorn, FaClock, FaImage, FaMapMarkerAlt, FaTimes } from 'react-icons/fa';
 import { announcementsAPI } from '../services/api';
-
-const POPUP_DURATION_MS = 4000;
 
 const formatAnnouncementTime = (value) => {
     if (!value) return 'Just now';
@@ -22,30 +20,12 @@ const formatAnnouncementTime = (value) => {
 const AnnouncementDrops = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [open, setOpen] = useState(false);
-    const [showPopup, setShowPopup] = useState(false);
-    const [latestId, setLatestId] = useState(null);
-    const popupTimeoutRef = useRef(null);
 
     const loadAnnouncements = async () => {
         try {
             const response = await announcementsAPI.getPublicAnnouncements();
             const items = Array.isArray(response?.announcements) ? response.announcements : [];
             setAnnouncements(items);
-
-            if (items.length > 0) {
-                const newestId = items[0].id;
-                if (newestId && newestId !== latestId) {
-                    setLatestId(newestId);
-                    setShowPopup(true);
-
-                    if (popupTimeoutRef.current) {
-                        clearTimeout(popupTimeoutRef.current);
-                    }
-                    popupTimeoutRef.current = setTimeout(() => {
-                        setShowPopup(false);
-                    }, POPUP_DURATION_MS);
-                }
-            }
         } catch (error) {
             console.error('Failed to load public announcements:', error);
             setAnnouncements([]);
@@ -54,12 +34,6 @@ const AnnouncementDrops = () => {
 
     useEffect(() => {
         loadAnnouncements();
-
-        return () => {
-            if (popupTimeoutRef.current) {
-                clearTimeout(popupTimeoutRef.current);
-            }
-        };
     }, []);
 
     useEffect(() => {
@@ -75,18 +49,13 @@ const AnnouncementDrops = () => {
         return () => document.removeEventListener('keydown', handleEscape);
     }, [open]);
 
-    const latest = announcements[0];
-
     return (
         <div className="relative">
             <motion.button
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.04 }}
-                onClick={() => {
-                    setOpen(true);
-                    setShowPopup(false);
-                }}
-                className="relative flex h-11 w-11 items-center justify-center rounded-full border border-accent-green/30 bg-[#07110d]/92 text-accent-green shadow-[0_8px_25px_rgba(16,185,129,0.25)] backdrop-blur-xl"
+                onClick={() => setOpen(true)}
+                className="relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-accent-green/30 bg-[#07110d]/92 text-accent-green shadow-[0_8px_25px_rgba(16,185,129,0.25)] backdrop-blur-xl"
                 aria-label="Open announcements"
                 title="Announcements"
             >
@@ -95,39 +64,6 @@ const AnnouncementDrops = () => {
                     <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-accent-green animate-pulse" />
                 )}
             </motion.button>
-
-            <AnimatePresence>
-                {showPopup && latest && !open && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                        className="fixed right-4 top-28 z-[120] w-[min(88vw,320px)] rounded-2xl border border-accent-green/25 bg-[#0a0a0a]/95 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
-                    >
-                        <div className="flex items-start justify-between gap-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-accent-green">New Announcement</p>
-                            <button
-                                onClick={() => setShowPopup(false)}
-                                className="rounded-full bg-white/5 p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
-                                aria-label="Close announcement preview"
-                            >
-                                <FaTimes size={10} />
-                            </button>
-                        </div>
-
-                        <button
-                            onClick={() => {
-                                setOpen(true);
-                                setShowPopup(false);
-                            }}
-                            className="mt-3 w-full text-left"
-                        >
-                            <p className="line-clamp-1 text-sm font-bold text-white">{latest.title || 'Campus update'}</p>
-                            <p className="mt-1 line-clamp-2 text-xs text-gray-400">{latest.message || 'Tap to read full announcement.'}</p>
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             <AnimatePresence>
                 {open && (
