@@ -1548,7 +1548,7 @@ const Dashboard = () => {
                 </motion.div>
             </div>
 
-            {/* Create Ride Modal */}
+            {/* Create Ride Modal - Enhanced */}
             <AnimatePresence>
                 {showCreateRide && (
                     <motion.div
@@ -1563,160 +1563,219 @@ const Dashboard = () => {
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-bg-secondary border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-2xl w-full max-h-[92vh] sm:max-h-[90vh] overflow-y-auto"
+                            className="bg-gradient-to-br from-bg-secondary to-bg-secondary/80 border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-8 max-w-2xl w-full max-h-[92vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl"
                         >
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl sm:text-3xl font-bold text-white">Create Ride</h2>
+                            {/* Header */}
+                            <div className="flex justify-between items-start mb-8">
+                                <div>
+                                    <h2 className="text-3xl sm:text-4xl font-black text-white mb-2">Create Ride</h2>
+                                    <p className="text-gray-400 text-sm">Fill in the details to share your ride</p>
+                                </div>
                                 <button
                                     onClick={() => setShowCreateRide(false)}
-                                    className="text-gray-400 hover:text-white transition-colors"
+                                    className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-gray-400 hover:text-white"
                                 >
-                                    <FaTimes size={24} />
+                                    <FaTimes size={20} />
                                 </button>
                             </div>
 
-                            <form onSubmit={handleCreateRide} className="space-y-6">
-                                <div>
-                                    <label className="block text-gray-400 text-sm font-medium mb-2">
-                                        <FaMapPin className="inline mr-2 text-accent-green" />
-                                        Origin (Your Location)
-                                    </label>
-                                    <input
-                                        ref={originRef}
-                                        type="text"
-                                        value={rideData.origin}
-                                        onChange={(e) => setRideData({...rideData, origin: e.target.value})}
-                                        required
-                                        placeholder="Type: Velachery, IIT Madras, etc."
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green transition-colors"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Start typing to see suggestions</p>
-                                </div>
+                            <form onSubmit={handleCreateRide} className="space-y-8">
+                                {/* Location Section */}
+                                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 space-y-5">
+                                    <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                        <FaMapMarkerAlt className="text-accent-green" /> Journey Details
+                                    </h3>
 
-                                <div>
-                                    <label className="block text-gray-400 text-sm font-medium mb-2">
-                                        <FaMapMarkerAlt className="inline mr-2 text-purple-500" />
-                                        Destination (Exam Center)
-                                    </label>
-                                    <input
-                                        ref={destinationRef}
-                                        type="text"
-                                        value={rideData.destination}
-                                        onChange={(e) => setRideData({...rideData, destination: e.target.value})}
-                                        required
-                                        placeholder="Type: Fortune Tower Chennai, Anna University, etc."
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green transition-colors"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Google Maps will auto-search location</p>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="block text-gray-400 text-sm font-medium mb-2">
-                                            <FaCalendarAlt className="inline mr-2" />
-                                            Departure Time
+                                        <label className="block text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                                            <FaMapPin className="text-accent-green text-lg" />
+                                            <span>Pickup Location</span>
+                                            <span className="text-red-400">*</span>
                                         </label>
                                         <input
-                                            type="datetime-local"
-                                            value={rideData.departureTime}
-                                            onChange={(e) => setRideData({...rideData, departureTime: e.target.value})}
+                                            ref={originRef}
+                                            type="text"
+                                            value={rideData.origin}
+                                            onChange={(e) => setRideData({...rideData, origin: e.target.value})}
                                             required
-                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent-green transition-colors"
+                                            placeholder="e.g., Velachery, IIT Madras..."
+                                            className="w-full px-4 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-green focus:bg-white/8 focus:ring-2 focus:ring-accent-green/20 transition-all"
                                         />
+                                        <p className="text-xs text-gray-400 mt-2">Start typing to see Google Maps suggestions</p>
                                     </div>
 
                                     <div>
-                                        <label className="block text-gray-400 text-sm font-medium mb-2">
-                                            <FaUsers className="inline mr-2" />
-                                            Available Seats
+                                        <label className="block text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                                            <FaMapMarkerAlt className="text-purple-400 text-lg" />
+                                            <span>Drop Location</span>
+                                            <span className="text-red-400">*</span>
                                         </label>
                                         <input
-                                            type="number"
-                                            value={rideData.seats}
-                                            onChange={(e) => {
-                                                const requestedSeats = parseInt(e.target.value || '1', 10);
-                                                const seatLimit = getSeatLimitByVehicleType(rideData.vehicleType);
-                                                const safeSeats = Math.max(1, Math.min(Number.isNaN(requestedSeats) ? 1 : requestedSeats, seatLimit));
-                                                setRideData({ ...rideData, seats: safeSeats });
-                                            }}
-                                            min="1"
-                                            max={getSeatLimitByVehicleType(rideData.vehicleType)}
+                                            ref={destinationRef}
+                                            type="text"
+                                            value={rideData.destination}
+                                            onChange={(e) => setRideData({...rideData, destination: e.target.value})}
                                             required
-                                            placeholder={`1-${getSeatLimitByVehicleType(rideData.vehicleType)}`}
-                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green transition-colors"
+                                            placeholder="e.g., Fortune Tower, Anna University..."
+                                            className="w-full px-4 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-green focus:bg-white/8 focus:ring-2 focus:ring-accent-green/20 transition-all"
                                         />
+                                        <p className="text-xs text-gray-400 mt-2">Autocomplete will find your destination</p>
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-gray-400 text-sm font-medium mb-2">
-                                        <FaRupeeSign className="inline mr-2" />
-                                        Total Fare (₹)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={rideData.fare}
-                                        onChange={(e) => setRideData({...rideData, fare: e.target.value})}
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="e.g., 300"
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green transition-colors"
-                                    />
+                                {/* Time & Vehicle Section */}
+                                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 space-y-5">
+                                    <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                        <FaClock className="text-accent-green" /> Schedule & Vehicle
+                                    </h3>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                                                <FaCalendarAlt className="text-accent-green" />
+                                                <span>Departure Time</span>
+                                                <span className="text-red-400">*</span>
+                                            </label>
+                                            <input
+                                                type="datetime-local"
+                                                value={rideData.departureTime}
+                                                onChange={(e) => setRideData({...rideData, departureTime: e.target.value})}
+                                                required
+                                                className="w-full px-4 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 rounded-lg text-white focus:outline-none focus:border-accent-green focus:bg-white/8 focus:ring-2 focus:ring-accent-green/20 transition-all"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                                                <FaCar className="text-accent-green" />
+                                                <span>Vehicle Type</span>
+                                                <span className="text-red-400">*</span>
+                                            </label>
+                                            <select
+                                                value={rideData.vehicleType}
+                                                onChange={(e) => {
+                                                    const nextVehicleType = e.target.value;
+                                                    const seatLimit = getSeatLimitByVehicleType(nextVehicleType);
+                                                    const safeSeats = Math.min(parseInt(rideData.seats || 1, 10), seatLimit);
+                                                    setRideData({
+                                                        ...rideData,
+                                                        vehicleType: nextVehicleType,
+                                                        seats: safeSeats
+                                                    });
+                                                }}
+                                                className="w-full px-4 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 rounded-lg text-white focus:outline-none focus:border-accent-green focus:bg-white/8 focus:ring-2 focus:ring-accent-green/20 transition-all appearance-none"
+                                                style={{backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2366ff00' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem'}}
+                                            >
+                                                <option value="cab" style={{ color: '#111827', backgroundColor: '#ffffff' }}>🚕 Cab (4 seats)</option>
+                                                <option value="auto" style={{ color: '#111827', backgroundColor: '#ffffff' }}>🚌 Auto (3 seats)</option>
+                                                <option value="cab-xl" style={{ color: '#111827', backgroundColor: '#ffffff' }}>🚐 Cab XL (7 seats)</option>
+                                                <option value="bike" style={{ color: '#111827', backgroundColor: '#ffffff' }}>🏍️ Bike (1 seat)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Capacity & Pricing Section */}
+                                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 space-y-5">
+                                    <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                        <FaUsers className="text-accent-green" /> Capacity & Pricing
+                                    </h3>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                                                <FaUsers className="text-accent-green" />
+                                                <span>Available Seats</span>
+                                                <span className="text-red-400">*</span>
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    value={rideData.seats}
+                                                    onChange={(e) => {
+                                                        const requestedSeats = parseInt(e.target.value || '1', 10);
+                                                        const seatLimit = getSeatLimitByVehicleType(rideData.vehicleType);
+                                                        const safeSeats = Math.max(1, Math.min(Number.isNaN(requestedSeats) ? 1 : requestedSeats, seatLimit));
+                                                        setRideData({ ...rideData, seats: safeSeats });
+                                                    }}
+                                                    min="1"
+                                                    max={getSeatLimitByVehicleType(rideData.vehicleType)}
+                                                    required
+                                                    className="w-full px-4 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-green focus:bg-white/8 focus:ring-2 focus:ring-accent-green/20 transition-all"
+                                                />
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400 bg-white/5 px-2.5 py-1 rounded">
+                                                    Max: {getSeatLimitByVehicleType(rideData.vehicleType)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                                                <FaRupeeSign className="text-accent-green" />
+                                                <span>Total Fare</span>
+                                                <span className="text-red-400">*</span>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={rideData.fare}
+                                                onChange={(e) => setRideData({...rideData, fare: e.target.value})}
+                                                min="0"
+                                                step="0.01"
+                                                placeholder="e.g., 300"
+                                                className="w-full px-4 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-green focus:bg-white/8 focus:ring-2 focus:ring-accent-green/20 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Fare Breakdown */}
                                     {rideData.fare && rideData.seats && (
-                                        <p className="text-sm text-accent-green mt-2">
-                                            ₹{calculateFarePerPerson(rideData.fare, rideData.seats)} per person when shared
-                                        </p>
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="bg-accent-green/10 border border-accent-green/30 rounded-lg p-4 flex items-center justify-between"
+                                        >
+                                            <span className="text-gray-200 font-medium">Price per person</span>
+                                            <span className="text-2xl font-black text-accent-green">₹{calculateFarePerPerson(rideData.fare, rideData.seats)}</span>
+                                        </motion.div>
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-gray-400 text-sm font-medium mb-2">
-                                            Vehicle Type
-                                        </label>
-                                        <select
-                                            value={rideData.vehicleType}
-                                            onChange={(e) => {
-                                                const nextVehicleType = e.target.value;
-                                                const seatLimit = getSeatLimitByVehicleType(nextVehicleType);
-                                                const safeSeats = Math.min(parseInt(rideData.seats || 1, 10), seatLimit);
-                                                setRideData({
-                                                    ...rideData,
-                                                    vehicleType: nextVehicleType,
-                                                    seats: safeSeats
-                                                });
-                                            }}
-                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent-green transition-colors"
-                                        >
-                                            <option value="cab">Cab</option>
-                                            <option value="auto">Auto</option>
-                                            <option value="cab-xl">Cab XL</option>
-                                            <option value="bike">Bike</option>
-                                        </select>
-                                    </div>
+                                {/* Preferences Section */}
+                                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5">
+                                    <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2 mb-5">
+                                        <FaUser className="text-accent-green" /> Preferences
+                                    </h3>
 
                                     <div>
-                                        <label className="block text-gray-400 text-sm font-medium mb-2">
-                                            Gender Preference
-                                        </label>
+                                        <label className="block text-sm font-semibold text-white mb-3">Gender Preference</label>
                                         <select
                                             value={rideData.genderPref}
                                             onChange={(e) => setRideData({...rideData, genderPref: e.target.value})}
-                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-accent-green transition-colors"
+                                            className="w-full px-4 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 rounded-lg text-white focus:outline-none focus:border-accent-green focus:bg-white/8 focus:ring-2 focus:ring-accent-green/20 transition-all appearance-none"
+                                            style={{backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2366ff00' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem'}}
                                         >
-                                            <option value="any">Any</option>
-                                            <option value="male">Male Only</option>
-                                            <option value="female">Female Only</option>
+                                            <option value="any" style={{ color: '#111827', backgroundColor: '#ffffff' }}>👥 Any</option>
+                                            <option value="male" style={{ color: '#111827', backgroundColor: '#ffffff' }}>👨 Male Only</option>
+                                            <option value="female" style={{ color: '#111827', backgroundColor: '#ffffff' }}>👩 Female Only</option>
                                         </select>
+                                        <p className="text-xs text-gray-400 mt-2">All passengers will see your preference</p>
                                     </div>
                                 </div>
 
+                                {/* Submit Button */}
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full py-4 bg-accent-green text-black font-bold rounded-xl hover:bg-accent-green/90 transition-all disabled:opacity-50"
+                                    className="w-full py-4 bg-gradient-to-r from-accent-green to-accent-green/80 text-black font-black text-lg rounded-xl hover:from-accent-green/90 hover:to-accent-green/70 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:shadow-accent-green/30 transform hover:scale-[1.02] active:scale-95"
                                 >
-                                    {loading ? 'Creating...' : 'Create Ride & Find Matches'}
+                                    {loading ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                                            Creating your ride...
+                                        </span>
+                                    ) : (
+                                        '🚀 Create Ride & Find Matches'
+                                    )}
                                 </button>
                             </form>
                         </motion.div>
