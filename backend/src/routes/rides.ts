@@ -190,7 +190,28 @@ router.get('/available', authenticate, async (req: AuthRequest, res: Response) =
         status: 'pending',
         userId: {
           not: req.user.userId // Exclude own rides
-        }
+        },
+        AND: [
+          {
+            // Hide rides that already have an accepted match.
+            matches: {
+              none: {
+                status: 'accepted'
+              }
+            }
+          },
+          {
+            // Hide rides this user has already requested/joined.
+            matches: {
+              none: {
+                user2Id: req.user.userId,
+                status: {
+                  in: ['pending', 'accepted']
+                }
+              }
+            }
+          }
+        ]
       },
       include: {
         creator: {
