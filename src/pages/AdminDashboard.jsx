@@ -206,6 +206,16 @@ const AdminDashboard = () => {
   const handleAddAdmin = async (e) => {
     e.preventDefault();
     try {
+      const normalizedEmail = newAdmin.email.trim().toLowerCase();
+      const existingAdminsResponse = await fetchAdmins();
+      const existingAdmins = existingAdminsResponse.data.subadmins || existingAdminsResponse.data.admins || [];
+      const alreadyExists = existingAdmins.some((adm) => adm.email?.toLowerCase() === normalizedEmail);
+
+      if (alreadyExists) {
+        alert('Admin with this email already exists');
+        return;
+      }
+
       await createAdmin(newAdmin);
       setShowAddAdmin(false);
       setNewAdmin({ email: '', password: '', name: '' });

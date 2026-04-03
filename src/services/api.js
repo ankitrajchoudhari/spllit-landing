@@ -169,7 +169,7 @@ export const matchesAPI = {
 
     // Get all matches for current user
     getMyMatches: async () => {
-        const response = await api.get('/matches');
+        const response = await api.get('/matches/my');
         return response.data;
     },
 

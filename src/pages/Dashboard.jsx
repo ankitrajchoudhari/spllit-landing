@@ -16,8 +16,12 @@ const loadGoogleMaps = (callback) => {
     const existingScript = document.getElementById('googleMaps');
     if (!existingScript) {
         const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        if (!key) {
+            return false;
+        }
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
         script.id = 'googleMaps';
         script.async = true;
         script.defer = true;
@@ -28,6 +32,8 @@ const loadGoogleMaps = (callback) => {
     } else {
         if (callback) callback();
     }
+
+    return true;
 };
 
 const Dashboard = () => {
@@ -239,9 +245,7 @@ const Dashboard = () => {
         });
 
         // Load Google Maps
-        loadGoogleMaps(() => {
-            console.log('Google Maps loaded');
-        });
+        loadGoogleMaps();
 
         // Cleanup on unmount
         return () => {
@@ -271,7 +275,7 @@ const Dashboard = () => {
 
     // Initialize Google Places Autocomplete with new API
     useEffect(() => {
-        if (showCreateRide && window.google && window.google.maps) {
+        if (showCreateRide && window.google && window.google.maps && import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
             const initAutocomplete = async () => {
                 try {
                     // Use new Places API
