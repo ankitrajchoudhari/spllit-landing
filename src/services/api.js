@@ -95,13 +95,13 @@ export const authAPI = {
 export const userAPI = {
     // Get user profile
     getProfile: async () => {
-        const response = await api.get('/users/profile');
+        const response = await api.get('/users/me');
         return response.data;
     },
 
     // Update user profile
     updateProfile: async (data) => {
-        const response = await api.put('/users/profile', data);
+        const response = await api.put('/users/me', data);
         return response.data;
     },
 

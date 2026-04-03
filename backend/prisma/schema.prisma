@@ -16,6 +16,7 @@ model User {
   name              String
   email             String    @unique
   phone             String?   // Phone number for display
+  dateOfBirth       DateTime?
   phoneHash         String    @unique // Hashed phone number for privacy
   phoneVerified     Boolean   @default(false)
   emailVerified     Boolean   @default(false)
