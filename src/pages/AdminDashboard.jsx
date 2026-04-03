@@ -62,6 +62,7 @@ const AdminDashboard = () => {
     title: '',
     message: '',
     location: '',
+    imageLink: '',
     imageUrl: '',
     imageAlt: ''
   });
@@ -326,7 +327,7 @@ const AdminDashboard = () => {
         title: announcementForm.title,
         message: announcementForm.message,
         location: announcementForm.location,
-        imageUrl: announcementForm.imageUrl || undefined,
+        imageUrl: announcementForm.imageUrl || announcementForm.imageLink || undefined,
         imageAlt: announcementForm.imageAlt || announcementForm.title
       };
 
@@ -339,7 +340,7 @@ const AdminDashboard = () => {
         await loadAnnouncements();
       }
 
-      setAnnouncementForm({ title: '', message: '', location: '', imageUrl: '', imageAlt: '' });
+      setAnnouncementForm({ title: '', message: '', location: '', imageLink: '', imageUrl: '', imageAlt: '' });
       alert('Announcement posted successfully');
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to post announcement');
@@ -798,21 +799,32 @@ const AdminDashboard = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-white mb-2">Image Caption</label>
+                          <label className="block text-sm font-semibold text-white mb-2">Image Link</label>
                           <input
                             type="text"
-                            value={announcementForm.imageAlt}
-                            onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, imageAlt: e.target.value }))}
-                            placeholder="A short caption for accessibility"
+                            value={announcementForm.imageLink}
+                            onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, imageLink: e.target.value }))}
+                            placeholder="Paste an image URL if you don't want to upload"
                             className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green/50"
                           />
                         </div>
                       </div>
 
-                      {announcementForm.imageUrl && (
+                      <div>
+                        <label className="block text-sm font-semibold text-white mb-2">Image Caption</label>
+                        <input
+                          type="text"
+                          value={announcementForm.imageAlt}
+                          onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, imageAlt: e.target.value }))}
+                          placeholder="A short caption for accessibility"
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-accent-green/50"
+                        />
+                      </div>
+
+                      {(announcementForm.imageUrl || announcementForm.imageLink) && (
                         <div className="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
                           <img
-                            src={announcementForm.imageUrl}
+                            src={announcementForm.imageUrl || announcementForm.imageLink}
                             alt={announcementForm.imageAlt || announcementForm.title || 'Preview'}
                             className="w-full max-h-64 object-cover"
                           />

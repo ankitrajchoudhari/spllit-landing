@@ -1510,18 +1510,6 @@ const Dashboard = () => {
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={handleAnnouncementMicClick}
-                                    className="relative w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
-                                >
-                                    <FaMicrophone className="text-sm sm:text-base" /> <span>Drop</span>
-                                    {announcementActionCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full bg-red-500 text-white text-[10px] sm:text-[11px] leading-4 sm:leading-5 font-bold text-center">
-                                            {announcementActionCount > 99 ? '99+' : announcementActionCount}
-                                        </span>
-                                    )}
-                                </button>
-                                <button
-                                    type="button"
                                     onClick={handleMessageCenterClick}
                                     className="w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
                                 >

@@ -2,8 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import prisma from '../utils/prisma.js';
-import { authenticate } from '../middleware/auth.js';
-import { AuthRequest, AdminRequest } from '../types/express.js';
+import { AdminRequest } from '../types/express.js';
 import { io } from '../server.js';
 
 const router = Router();
@@ -58,7 +57,7 @@ const authenticateAdmin = async (req: AdminRequest, res: Response, next: any) =>
   }
 };
 
-router.get('/', authenticate, async (_req: AuthRequest, res: Response) => {
+router.get('/', async (_req, res: Response) => {
   try {
     const announcements = await prisma.announcement.findMany({
       orderBy: { createdAt: 'desc' },
@@ -76,6 +75,21 @@ router.post('/', authenticateAdmin, async (req: AdminRequest, res: Response) => 
   try {
     const data = createAnnouncementSchema.parse(req.body);
 
+    let createdByName = req.admin!.email;
+    if (req.admin!.role === 'master') {
+      const admin = await prisma.admin.findUnique({
+        where: { id: req.admin!.id },
+        select: { name: true }
+      });
+      createdByName = admin?.name || createdByName;
+    } else if (req.admin!.role === 'subadmin') {
+      const subadmin = await prisma.user.findUnique({
+        where: { id: req.admin!.id },
+        select: { name: true }
+      });
+      createdByName = subadmin?.name || createdByName;
+    }
+
     const announcement = await prisma.announcement.create({
       data: {
         title: data.title,
@@ -84,7 +98,7 @@ router.post('/', authenticateAdmin, async (req: AdminRequest, res: Response) => 
         imageUrl: data.imageUrl || null,
         imageAlt: data.imageAlt || null,
         createdById: req.admin!.id,
-        createdByName: req.admin!.email,
+        createdByName,
         createdByRole: req.admin!.role
       }
     });

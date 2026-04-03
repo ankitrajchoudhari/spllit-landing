@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaRobot, FaTimes, FaChevronRight, FaFingerprint, FaWhatsapp } from 'react-icons/fa';
+import AnnouncementDrops from './AnnouncementDrops';
 
 const TypewriterText = ({ text, onComplete }) => {
     const [displayedText, setDisplayedText] = useState('');
@@ -194,6 +195,7 @@ const Hero = () => {
                             </motion.p>
 
                             <ActivationInterface onActivate={handleStartEngine} isIgniting={isIgniting} />
+                            <AnnouncementDrops />
                         </motion.div>
                     ) : (
                         <motion.div
