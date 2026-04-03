@@ -11,6 +11,7 @@ import {
 import useAdminStore from '../store/adminStore';
 import useAuthStore from '../store/authStore';
 import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchEarlyAccess, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, resetAdminPassword, deleteAdmin } from '../services/adminAPI';
+import { emergencyAPI } from '../services/api';
 import NotificationContainer from '../components/NotificationToast';
 import io from 'socket.io-client';
 import { SOCKET_BASE_URL } from '../config/backendUrl';
@@ -55,6 +56,27 @@ const AdminDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [socket, setSocket] = useState(null);
   const [emergencies, setEmergencies] = useState([]);
+
+  const normalizeEmergency = (data) => {
+    const lat = data.location?.lat ?? data.locationLat;
+    const lng = data.location?.lng ?? data.locationLng;
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+    return {
+      id: data.id,
+      userName: data.userName || data.user?.name || 'Unknown User',
+      phone: data.userPhone || data.phone || data.user?.phone || 'N/A',
+      userEmail: data.userEmail || data.user?.email || 'N/A',
+      college: data.college || data.user?.college || 'N/A',
+      location: hasCoords ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : 'Location pending...',
+      locationLat: hasCoords ? lat : null,
+      locationLng: hasCoords ? lng : null,
+      message: data.message || 'Emergency SOS triggered',
+      emergencyType: data.emergencyType || 'other',
+      timestamp: data.timestamp || data.createdAt || new Date().toISOString(),
+      status: data.status || 'active'
+    };
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -129,18 +151,25 @@ const AdminDashboard = () => {
 
     // Listen for emergency SOS
     newSocket.on('emergency-sos', (data) => {
+      const emergency = normalizeEmergency(data);
       addNotification({
         type: 'emergency',
         title: '🚨 EMERGENCY SOS',
-        message: `${data.userName} needs help! Location: ${data.location}`,
+        message: `${emergency.userName} needs help! Call ${emergency.phone} now.`,
         timestamp: Date.now()
       });
-      setEmergencies(prev => [data, ...prev]);
+      setEmergencies(prev => [emergency, ...prev.filter((item) => item.id !== emergency.id)]);
       // Play alert sound
       if (typeof Audio !== 'undefined') {
         const audio = new Audio('/alert.mp3');
         audio.play().catch(e => console.log('Audio play failed:', e));
       }
+    });
+
+    newSocket.on('emergency-status-updated', (data) => {
+      setEmergencies((prev) => prev.map((item) =>
+        item.id === data.id ? { ...item, status: data.status, resolvedAt: data.resolvedAt } : item
+      ).filter((item) => ['active', 'acknowledged'].includes(item.status)));
     });
 
     // Listen for subadmin status changes (real-time)
@@ -192,6 +221,10 @@ const AdminDashboard = () => {
       } else if (activeTab === 'admins' && canManageAdmins) {
         const response = await fetchAdmins();
         setAdmins(response.data.subadmins || response.data.admins || []);
+      } else if (activeTab === 'emergency') {
+        const response = await emergencyAPI.getEmergencies();
+        const items = Array.isArray(response?.emergencies) ? response.emergencies : [];
+        setEmergencies(items.map(normalizeEmergency));
       }
       setLoading(false);
     } catch (error) {
@@ -1105,9 +1138,22 @@ const AdminDashboard = () => {
                             </div>
                           </div>
                           <div className="flex gap-2 w-full sm:w-auto">
-                            <button className="flex-1 sm:flex-initial px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all font-semibold text-sm">
-                              Take Action
-                            </button>
+                            {emergency.phone && emergency.phone !== 'N/A' ? (
+                              <a
+                                href={`tel:${emergency.phone}`}
+                                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl transition-all font-semibold text-sm text-center bg-red-500 text-white hover:bg-red-600"
+                              >
+                                Call User
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl transition-all font-semibold text-sm text-center bg-red-500/30 text-red-200 cursor-not-allowed"
+                              >
+                                Call User
+                              </button>
+                            )}
                             <button className="flex-1 sm:flex-initial px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all font-semibold text-sm">
                               View Details
                             </button>

@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
 import socketService from '../services/socket';
-import { ridesAPI, matchesAPI } from '../services/api';
+import { ridesAPI, matchesAPI, emergencyAPI } from '../services/api';
 import { NotificationContainer } from '../components/UserNotification';
 import ChatModal from '../components/ChatModal';
 import SubadminManagement from '../components/SubadminManagement';
@@ -79,6 +79,8 @@ const Dashboard = () => {
     const [rejectedMatches, setRejectedMatches] = useState([]);
     const [allMatches, setAllMatches] = useState([]);
     const [matchStatusFilter, setMatchStatusFilter] = useState('pending');
+    const [showSOSModal, setShowSOSModal] = useState(false);
+    const [sendingSOS, setSendingSOS] = useState(false);
     const [nowMs, setNowMs] = useState(Date.now());
     
     // Form data with location coordinates
@@ -94,6 +96,10 @@ const Dashboard = () => {
         fare: '',
         vehicleType: 'cab',
         genderPref: 'any'
+    });
+    const [sosData, setSosData] = useState({
+        emergencyType: 'other',
+        message: ''
     });
 
     // Refs for autocomplete
@@ -811,6 +817,75 @@ const Dashboard = () => {
 
     const matchedActionCount = pendingRequests.length + rejectedMatches.length;
 
+    const triggerSOSFeedback = () => {
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            navigator.vibrate([240, 120, 320]);
+        }
+
+        try {
+            const siren = new Audio('/alert.mp3');
+            siren.play().catch(() => {});
+            setTimeout(() => {
+                siren.pause();
+                siren.currentTime = 0;
+            }, 2200);
+        } catch {
+            // Ignore optional siren failures.
+        }
+    };
+
+    const getCurrentLocation = () => new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('Location services are not available on this device.'));
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                });
+            },
+            () => {
+                reject(new Error('Unable to fetch location. Please enable location permissions.'));
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 10000
+            }
+        );
+    });
+
+    const handleSendSOS = async () => {
+        setSendingSOS(true);
+        setError('');
+
+        try {
+            triggerSOSFeedback();
+            const location = await getCurrentLocation();
+            await emergencyAPI.sendSOS({
+                location,
+                emergencyType: sosData.emergencyType,
+                message: sosData.message?.trim() || undefined
+            });
+
+            addNotification({
+                type: 'success',
+                title: 'SOS sent',
+                message: 'Emergency team has been alerted with your phone and location.'
+            });
+
+            setShowSOSModal(false);
+            setSosData({ emergencyType: 'other', message: '' });
+        } catch (sosError) {
+            setError(sosError?.response?.data?.error || sosError?.message || 'Failed to send SOS alert.');
+        } finally {
+            setSendingSOS(false);
+        }
+    };
+
     const isMatchChatActive = (match) => {
         if (!match?.acceptedAt) return false;
         const acceptedTime = new Date(match.acceptedAt).getTime();
@@ -1335,6 +1410,13 @@ const Dashboard = () => {
                                             {matchedActionCount > 99 ? '99+' : matchedActionCount}
                                         </span>
                                     )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSOSModal(true)}
+                                    className="px-4 sm:px-6 py-3 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center gap-2 font-semibold animate-pulse"
+                                >
+                                    <FaExclamationTriangle /> SOS
                                 </button>
                             </div>
                         </div>
@@ -1991,6 +2073,81 @@ const Dashboard = () => {
                                     })}
                                 </div>
                             )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* SOS Modal */}
+            <AnimatePresence>
+                {showSOSModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[160] flex items-center justify-center p-3 sm:p-6"
+                        onClick={() => setShowSOSModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 12 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 12 }}
+                            onClick={(event) => event.stopPropagation()}
+                            className="w-full max-w-lg bg-bg-secondary border border-red-500/30 rounded-3xl p-5 sm:p-7"
+                        >
+                            <div className="flex items-start justify-between gap-4 mb-5">
+                                <div>
+                                    <h3 className="text-2xl font-bold text-red-300 flex items-center gap-2">
+                                        <FaExclamationTriangle /> Emergency SOS
+                                    </h3>
+                                    <p className="text-gray-400 text-sm mt-2">
+                                        This sends your live location and phone number instantly to admin emergency desk.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSOSModal(false)}
+                                    className="text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <FaTimes size={22} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-sm text-gray-300 block mb-2">Emergency Type</label>
+                                    <select
+                                        value={sosData.emergencyType}
+                                        onChange={(event) => setSosData((prev) => ({ ...prev, emergencyType: event.target.value }))}
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
+                                    >
+                                        <option value="other">Other emergency</option>
+                                        <option value="accident">Accident</option>
+                                        <option value="medical">Medical</option>
+                                        <option value="harassment">Harassment</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="text-sm text-gray-300 block mb-2">Optional Note</label>
+                                    <textarea
+                                        rows={3}
+                                        value={sosData.message}
+                                        onChange={(event) => setSosData((prev) => ({ ...prev, message: event.target.value }))}
+                                        placeholder="Briefly describe the emergency"
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500"
+                                    />
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleSendSOS}
+                                    disabled={sendingSOS}
+                                    className="w-full py-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {sendingSOS ? 'Sending SOS...' : 'Send SOS Now'}
+                                </button>
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}

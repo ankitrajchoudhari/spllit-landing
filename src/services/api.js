@@ -236,4 +236,27 @@ export const earlyAccessAPI = {
     },
 };
 
+// ============ EMERGENCY API ============
+
+export const emergencyAPI = {
+    sendSOS: async ({ location, message, emergencyType }) => {
+        const response = await api.post('/emergency/sos', {
+            location,
+            message,
+            emergencyType
+        });
+        return response.data;
+    },
+
+    getEmergencies: async () => {
+        const response = await api.get('/emergency');
+        return response.data;
+    },
+
+    updateEmergencyStatus: async (id, status) => {
+        const response = await api.patch(`/emergency/${id}/status`, { status });
+        return response.data;
+    }
+};
+
 export default api;
