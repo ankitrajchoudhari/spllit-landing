@@ -16,27 +16,51 @@ const authenticateAdmin = async (req: AdminRequest, res: Response, next: any) =>
         }
 
         const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
-        
-        // Check if it's an admin token (has adminId)
-        if (!decoded.adminId) {
-            return res.status(401).json({ error: 'Invalid admin token' });
+
+        // Master admin token
+        if (decoded.adminId) {
+            const admin = await prisma.admin.findUnique({
+                where: { id: decoded.adminId }
+            });
+
+            if (!admin || !admin.isActive) {
+                return res.status(401).json({ error: 'Invalid admin credentials' });
+            }
+
+            req.admin = {
+                id: admin.id,
+                email: admin.email,
+                role: admin.role
+            };
+
+            return next();
         }
 
-        const admin = await prisma.admin.findUnique({
-            where: { id: decoded.adminId }
-        });
+        // Subadmin token (from /api/admin/login)
+        if (decoded.userId) {
+            const subadmin = await prisma.user.findUnique({
+                where: { id: decoded.userId }
+            });
 
-        if (!admin || !admin.isActive) {
-            return res.status(401).json({ error: 'Invalid admin credentials' });
+            if (!subadmin || subadmin.role !== 'subadmin' || !subadmin.isAdmin) {
+                return res.status(401).json({ error: 'Invalid admin credentials' });
+            }
+
+            if (subadmin.adminStatus !== 'active' || !subadmin.isActive) {
+                return res.status(403).json({ error: 'Subadmin account is not active' });
+            }
+
+            req.admin = {
+                id: subadmin.id,
+                email: subadmin.email,
+                role: subadmin.role
+            };
+
+            return next();
         }
 
-        req.admin = {
-            id: admin.id,
-            email: admin.email,
-            role: admin.role
-        };
+        return res.status(401).json({ error: 'Invalid admin token' });
         
-        next();
     } catch (error) {
         console.error('Admin authentication error:', error);
         res.status(401).json({ error: 'Invalid admin token' });
@@ -47,6 +71,14 @@ const authenticateAdmin = async (req: AdminRequest, res: Response, next: any) =>
 const requireMaster = (req: AdminRequest, res: Response, next: any) => {
     if (req.admin?.role !== 'master') {
         return res.status(403).json({ error: 'Master admin access required' });
+    }
+    next();
+};
+
+// Allow both master admin and active subadmin for non-destructive admin tasks
+const requireAdminOrSubadmin = (req: AdminRequest, res: Response, next: any) => {
+    if (!req.admin || (req.admin.role !== 'master' && req.admin.role !== 'subadmin')) {
+        return res.status(403).json({ error: 'Admin access required' });
     }
     next();
 };
@@ -84,9 +116,9 @@ const isValidEmailDomain = (email: string): boolean => {
 
 /**
  * POST /api/subadmin/create
- * Master admin creates a subadmin
+ * Master admin or subadmin creates a subadmin
  */
-router.post('/create', authenticateAdmin, requireMaster, async (req: AdminRequest, res: Response) => {
+router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: AdminRequest, res: Response) => {
     try {
 
         const { name, email, password, college, gender, phone } = req.body;
@@ -200,9 +232,9 @@ router.post('/create', authenticateAdmin, requireMaster, async (req: AdminReques
 
 /**
  * GET /api/subadmin/list
- * Master admin lists all subadmins
+ * Master admin or subadmin lists all subadmins
  */
-router.get('/list', authenticateAdmin, requireMaster, async (req: AdminRequest, res: Response) => {
+router.get('/list', authenticateAdmin, requireAdminOrSubadmin, async (req: AdminRequest, res: Response) => {
     try {
         console.log('=== GET /list DEBUG ===');
         console.log('Admin from token:', req.admin);

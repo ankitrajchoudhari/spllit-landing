@@ -24,7 +24,8 @@ const AdminDashboard = () => {
   const isAuthenticated = adminStore.isAuthenticated || (authStore.isAuthenticated && (authStore.user?.role === 'subadmin' || authStore.user?.isAdmin));
   const admin = adminStore.admin || authStore.user;
   const isMasterAdmin = adminStore.admin?.role === 'master';
-  const isSubAdmin = authStore.user?.role === 'subadmin' || authStore.user?.isAdmin;
+  const isSubAdmin = admin?.role === 'subadmin' || admin?.isAdmin;
+  const canManageAdmins = isMasterAdmin || isSubAdmin;
   
   const logout = () => {
     if (adminStore.isAuthenticated) {
@@ -174,7 +175,7 @@ const AdminDashboard = () => {
       } else if (activeTab === 'matches') {
         const response = await fetchMatches();
         setMatches(response.data.matches);
-      } else if (activeTab === 'admins' && isMasterAdmin) {
+      } else if (activeTab === 'admins' && canManageAdmins) {
         const response = await fetchAdmins();
         setAdmins(response.data.subadmins || response.data.admins || []);
       }
@@ -371,7 +372,7 @@ const AdminDashboard = () => {
               { id: 'rides', label: 'Rides', icon: FaCar },
               { id: 'matches', label: 'Matches', icon: FaHandshake },
               { id: 'emergency', label: 'Emergency', icon: FaExclamationTriangle },
-              ...(isMasterAdmin ? [{ id: 'admins', label: 'Admins', icon: FaUserShield }] : [])
+              ...(canManageAdmins ? [{ id: 'admins', label: 'Admins', icon: FaUserShield }] : [])
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -515,7 +516,7 @@ const AdminDashboard = () => {
                       <FaHandshake className="text-xl sm:text-2xl text-green-400 group-hover:scale-110 transition-transform" />
                       <span className="text-xs sm:text-sm font-medium">View Matches</span>
                     </button>
-                    {admin?.role === 'master' && (
+                    {canManageAdmins && (
                       <button
                         onClick={() => setShowAddAdmin(true)}
                         className="flex flex-col items-center gap-2 p-3 sm:p-4 bg-accent-green/10 hover:bg-accent-green/20 rounded-xl transition-all group"
@@ -1043,8 +1044,8 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {/* Admins Tab (Master Only) */}
-            {activeTab === 'admins' && isMasterAdmin && (
+            {/* Admins Tab */}
+            {activeTab === 'admins' && canManageAdmins && (
               <div className="space-y-4 sm:space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <h2 className="text-xl sm:text-2xl font-bold">Admin Management</h2>
@@ -1096,7 +1097,7 @@ const AdminDashboard = () => {
                           }`}>
                             {adm.adminStatus === 'active' ? '● Enabled' : '○ Disabled'}
                           </span>
-                          {adm.role === 'subadmin' && adm.adminStatus === 'active' && (
+                          {isMasterAdmin && adm.role === 'subadmin' && adm.adminStatus === 'active' && (
                             <button
                               onClick={() => handleDeactivateAdmin(adm.id)}
                               className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-all text-xs sm:text-sm font-medium"
@@ -1105,7 +1106,7 @@ const AdminDashboard = () => {
                               Disable
                             </button>
                           )}
-                          {adm.role === 'subadmin' && adm.adminStatus === 'inactive' && (
+                          {isMasterAdmin && adm.role === 'subadmin' && adm.adminStatus === 'inactive' && (
                             <>
                               <button
                                 onClick={() => handleActivateAdmin(adm.id)}
