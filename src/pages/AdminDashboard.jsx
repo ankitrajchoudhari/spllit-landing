@@ -10,7 +10,7 @@ import {
 } from 'react-icons/fa';
 import useAdminStore from '../store/adminStore';
 import useAuthStore from '../store/authStore';
-import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, resetAdminPassword, deleteAdmin } from '../services/adminAPI';
+import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchEarlyAccess, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, resetAdminPassword, deleteAdmin } from '../services/adminAPI';
 import NotificationContainer from '../components/NotificationToast';
 import io from 'socket.io-client';
 import { SOCKET_BASE_URL } from '../config/backendUrl';
@@ -39,6 +39,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [rides, setRides] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [earlyAccess, setEarlyAccess] = useState([]);
   const [admins, setAdmins] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
@@ -185,6 +186,9 @@ const AdminDashboard = () => {
       } else if (activeTab === 'matches') {
         const response = await fetchMatches();
         setMatches(response.data.matches);
+      } else if (activeTab === 'early-access') {
+        const response = await fetchEarlyAccess();
+        setEarlyAccess(response.data.registrations || []);
       } else if (activeTab === 'admins' && canManageAdmins) {
         const response = await fetchAdmins();
         setAdmins(response.data.subadmins || response.data.admins || []);
@@ -416,6 +420,7 @@ const AdminDashboard = () => {
               { id: 'users', label: 'Users', icon: FaUsers },
               { id: 'rides', label: 'Rides', icon: FaCar },
               { id: 'matches', label: 'Matches', icon: FaHandshake },
+              { id: 'early-access', label: 'Early Access', icon: FaUserClock },
               { id: 'emergency', label: 'Emergency', icon: FaExclamationTriangle },
               ...(canManageAdmins ? [{ id: 'admins', label: 'Admins', icon: FaUserShield }] : [])
             ].map((tab) => (
@@ -651,6 +656,51 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'early-access' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl sm:text-2xl font-bold">Spllit Social Early Access</h2>
+                  <span className="text-sm text-gray-400">{earlyAccess.length} registrations</span>
+                </div>
+
+                <div className="bg-bg-secondary border border-white/10 rounded-xl sm:rounded-2xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[700px]">
+                      <thead className="bg-white/5">
+                        <tr>
+                          <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Name</th>
+                          <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Email</th>
+                          <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Phone</th>
+                          <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Registered At</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {earlyAccess.map((lead) => (
+                          <tr key={lead.id} className="border-t border-white/5 hover:bg-white/5 transition-all">
+                            <td className="p-3 sm:p-4 text-white font-medium text-xs sm:text-sm">{lead.name}</td>
+                            <td className="p-3 sm:p-4 text-gray-300 text-xs sm:text-sm break-all">{lead.email}</td>
+                            <td className="p-3 sm:p-4 text-gray-300 text-xs sm:text-sm">{lead.phone}</td>
+                            <td className="p-3 sm:p-4 text-gray-400 text-xs sm:text-sm whitespace-nowrap">
+                              {new Date(lead.createdAt).toLocaleString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {earlyAccess.length === 0 && (
+                    <div className="text-center py-10 text-gray-400">No registrations yet.</div>
+                  )}
+                </div>
               </div>
             )}
 

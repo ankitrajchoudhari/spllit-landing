@@ -204,4 +204,13 @@ export const matchesAPI = {
     },
 };
 
+// ============ EARLY ACCESS API ============
+
+export const earlyAccessAPI = {
+    register: async (data) => {
+        const response = await api.post('/early-access', data);
+        return response.data;
+    },
+};
+
 export default api;

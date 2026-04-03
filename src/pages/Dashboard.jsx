@@ -715,7 +715,7 @@ const Dashboard = () => {
                     {/* Header */}
                     <div className="mb-12">
                         <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tight">
-                            Welcome to <span className="text-accent-green">Spllit</span>
+                            Welcome to <span className="text-accent-green">Spllit Lift</span>
                         </h1>
                         <p className="text-gray-400 text-lg">
                             Your smart ride-matching dashboard is ready!

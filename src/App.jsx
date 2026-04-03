@@ -23,6 +23,7 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const Login = lazy(() => import('./pages/Login'));
 const QuizPage = lazy(() => import('./pages/QuizPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const SpllitSocial = lazy(() => import('./pages/SpllitSocial'));
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 import { PrivacyPolicy, TermsOfService, CookiePolicy } from './pages/Legal';
@@ -165,6 +166,15 @@ function App() {
                         description="Manage your rides, matches, and profile on Spllit."
                       />
                       <Dashboard />
+                    </>
+                  } />
+                  <Route path="/spllit-social" element={
+                    <>
+                      <SEO
+                        title="Spllit Social | Coming Soon"
+                        description="Join early access for Spllit Social and get Pro updates first."
+                      />
+                      <SpllitSocial />
                     </>
                   } />
                   <Route path="/privacy" element={<PrivacyPolicy />} />

@@ -624,4 +624,38 @@ router.get('/chart-data', authenticateAdmin, async (req: any, res: Response) => 
   }
 });
 
+/**
+ * GET /api/admin/early-access
+ * Get Spllit Social early access registrations
+ */
+router.get('/early-access', authenticateAdmin, async (req: any, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 100;
+    const skip = (page - 1) * limit;
+
+    const [registrations, total] = await Promise.all([
+      prisma.earlyAccess.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.earlyAccess.count()
+    ]);
+
+    res.json({
+      registrations,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Failed to fetch early access registrations:', error);
+    res.status(500).json({ error: 'Failed to fetch early access registrations' });
+  }
+});
+
 export default router;

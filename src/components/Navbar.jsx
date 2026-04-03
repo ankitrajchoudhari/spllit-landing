@@ -35,6 +35,8 @@ const Navbar = () => {
     }, []);
 
     const isHome = location.pathname === '/';
+    const hideBackArrowPaths = ['/dashboard', '/admin/dashboard', '/spllit-social'];
+    const showBackArrow = !isHome && !hideBackArrowPaths.includes(location.pathname);
     const profileLabel = user?.name?.trim()?.split(' ')?.[0] || 'Profile';
 
     const isPublicNavVisible = !isAuthenticated;
@@ -97,7 +99,7 @@ const Navbar = () => {
                     <div className="flex items-center justify-between">
                         {/* Logo & Back Button */}
                         <div className="flex items-center gap-2 md:gap-4">
-                            {!isHome && (
+                            {showBackArrow && (
                                 <button
                                     onClick={() => navigate(-1)}
                                     className="p-1.5 md:p-2 rounded-full bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white transition-colors border border-white/10 group flex items-center justify-center"
@@ -129,6 +131,12 @@ const Navbar = () => {
                             {isAuthenticated && user ? (
                                 <div className="flex items-center gap-3">
                                     <button
+                                        onClick={() => navigate('/spllit-social')}
+                                        className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 px-4 py-2.5 rounded-xl font-semibold transition-all border border-blue-500/20"
+                                    >
+                                        Spllit Social
+                                    </button>
+                                    <button
                                         onClick={handleProfileClick}
                                         className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-xl font-semibold transition-all border border-white/10"
                                     >
@@ -143,12 +151,20 @@ const Navbar = () => {
                                     </button>
                                 </div>
                             ) : (
-                                <button
-                                    onClick={() => navigate('/login?signin=1')}
-                                    className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all transform hover:-translate-y-0.5 active:scale-95"
-                                >
-                                    Sign In
-                                </button>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => navigate('/spllit-social')}
+                                        className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 px-4 py-2.5 rounded-xl font-semibold transition-all border border-blue-500/20"
+                                    >
+                                        Spllit Social
+                                    </button>
+                                    <button
+                                        onClick={() => navigate('/login?signin=1')}
+                                        className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all transform hover:-translate-y-0.5 active:scale-95"
+                                    >
+                                        Sign In
+                                    </button>
+                                </div>
                             )}
                         </div>
 
@@ -189,6 +205,15 @@ const Navbar = () => {
                                         <button
                                             onClick={() => {
                                                 setMobileMenuOpen(false);
+                                                navigate('/spllit-social');
+                                            }}
+                                            className="bg-blue-500/10 text-blue-300 px-6 py-3 rounded-xl font-semibold w-full border border-blue-500/20"
+                                        >
+                                            Spllit Social
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setMobileMenuOpen(false);
                                                 handleProfileClick();
                                             }}
                                             className="bg-white/5 text-white px-6 py-3 rounded-xl font-semibold w-full border border-white/10"
@@ -206,15 +231,26 @@ const Navbar = () => {
                                         </button>
                                     </>
                                 ) : (
-                                    <button
-                                        onClick={() => {
-                                            setMobileMenuOpen(false);
-                                            navigate('/login?signin=1');
-                                        }}
-                                        className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-3 rounded-xl font-semibold w-full"
-                                    >
-                                        Sign In
-                                    </button>
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                setMobileMenuOpen(false);
+                                                navigate('/spllit-social');
+                                            }}
+                                            className="bg-blue-500/10 text-blue-300 px-6 py-3 rounded-xl font-semibold w-full border border-blue-500/20"
+                                        >
+                                            Spllit Social
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setMobileMenuOpen(false);
+                                                navigate('/login?signin=1');
+                                            }}
+                                            className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-3 rounded-xl font-semibold w-full"
+                                        >
+                                            Sign In
+                                        </button>
+                                    </>
                                 )}
                             </div>
                         </motion.div>

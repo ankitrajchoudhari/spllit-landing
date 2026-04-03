@@ -195,3 +195,16 @@ model Emergency {
   @@index([status])
   @@index([createdAt])
 }
+
+// Early access registrations for Spllit Social launch
+model EarlyAccess {
+  id              String    @id @default(cuid()) @map("_id")
+  name            String
+  email           String
+  phone           String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([email])
+  @@index([createdAt])
+}

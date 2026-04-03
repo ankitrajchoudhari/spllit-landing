@@ -32,6 +32,7 @@ export const fetchStats = () => adminAPI.get('/stats');
 export const fetchUsers = (page = 1) => adminAPI.get(`/users?page=${page}`);
 export const fetchRides = (page = 1) => adminAPI.get(`/rides?page=${page}`);
 export const fetchMatches = (page = 1) => adminAPI.get(`/matches?page=${page}`);
+export const fetchEarlyAccess = (page = 1) => adminAPI.get(`/early-access?page=${page}`);
 export const fetchAdmins = () => subadminAPI.get('/list');
 export const createAdmin = (data) => subadminAPI.post('/create', data);
 export const deactivateAdmin = (id) => subadminAPI.put(`/${id}/deactivate`);
