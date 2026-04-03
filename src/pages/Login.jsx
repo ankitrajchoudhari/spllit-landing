@@ -143,7 +143,7 @@ const Login = () => {
     }, [searchParams]);
 
     useEffect(() => {
-        if (!isModalOpen || authMethod !== 'google') return;
+        if (!isModalOpen) return;
         if (googleInitialized) return;
 
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -173,7 +173,15 @@ const Login = () => {
         script.onload = () => setGoogleReady(true);
         script.onerror = () => setGoogleReady(false);
         document.body.appendChild(script);
-    }, [isModalOpen, authMethod]);
+    }, [isModalOpen, googleInitialized]);
+
+    useEffect(() => {
+        if (authMethod !== 'google' || !isModalOpen) return;
+        if (!googleReady || !window.google?.accounts?.id) return;
+        if (googleInitialized) return;
+
+        handleGoogleSignIn();
+    }, [authMethod, isModalOpen, googleReady, googleInitialized]);
 
     // Stats Counter Animation
     const [count, setCount] = useState(0);
@@ -418,12 +426,12 @@ const Login = () => {
                             <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8 sm:hidden" />
 
                             {/* Accent Glow */}
-                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-40 bg-accent-green/10 blur-[100px] rounded-full" />
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-40 bg-accent-green/10 blur-[100px] rounded-full pointer-events-none" />
 
                             {/* Close Button */}
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="absolute top-6 right-6 w-10 h-10 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-center transition-all group"
+                                className="absolute top-6 right-6 z-20 w-10 h-10 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-center transition-all group"
                             >
                                 <FaTimes className="text-gray-400 group-hover:text-white transition-colors" />
                             </button>
