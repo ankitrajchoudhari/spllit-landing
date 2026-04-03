@@ -809,6 +809,8 @@ const Dashboard = () => {
         setShowMatchedCenter(true);
     };
 
+    const matchedActionCount = pendingRequests.length + rejectedMatches.length;
+
     const isMatchChatActive = (match) => {
         if (!match?.acceptedAt) return false;
         const acceptedTime = new Date(match.acceptedAt).getTime();
@@ -1325,9 +1327,14 @@ const Dashboard = () => {
                                 <button
                                     type="button"
                                     onClick={() => handleMatchedCenterClick('pending')}
-                                    className="px-4 sm:px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-medium"
+                                    className="relative px-4 sm:px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-medium"
                                 >
                                     <FaCheck /> Matched
+                                    {matchedActionCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 font-bold text-center">
+                                            {matchedActionCount > 99 ? '99+' : matchedActionCount}
+                                        </span>
+                                    )}
                                 </button>
                             </div>
                         </div>
