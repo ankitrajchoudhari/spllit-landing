@@ -48,13 +48,6 @@ const SubadminManagement = () => {
         setSuccess('');
 
         try {
-            const normalizedEmail = formData.email.trim().toLowerCase();
-            const alreadyExists = subadmins.some((admin) => admin.email?.toLowerCase() === normalizedEmail);
-            if (alreadyExists) {
-                setError('Admin with this email already exists');
-                return;
-            }
-
             const token = localStorage.getItem('accessToken');
             const response = await axios.post(
                 `${API_URL}/subadmin/create`,

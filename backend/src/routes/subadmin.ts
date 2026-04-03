@@ -147,7 +147,10 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
 
         if (existingUser) {
             // If previously deleted subadmin record exists, reactivate it.
-            if (existingUser.adminStatus === 'deleted') {
+            if (
+                (existingUser.role === 'subadmin' || existingUser.isAdmin) &&
+                (existingUser.adminStatus === 'deleted' || existingUser.adminStatus === 'inactive' || !existingUser.isActive)
+            ) {
                 const reactivatedAdmin = await prisma.user.update({
                     where: { id: existingUser.id },
                     data: {
@@ -177,6 +180,13 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
                 return res.status(200).json({
                     message: 'Subadmin reactivated successfully',
                     subadmin: reactivatedAdmin
+                });
+            }
+
+            // If already an active subadmin, block duplicate creation.
+            if (existingUser.role === 'subadmin' || existingUser.isAdmin) {
+                return res.status(400).json({
+                    error: 'Admin with this email already exists'
                 });
             }
 
@@ -215,10 +225,6 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
                     subadmin: promotedAdmin
                 });
             }
-
-            return res.status(400).json({
-                error: 'Admin with this email already exists'
-            });
         }
 
         // Create phone hash (simple hash for now)
