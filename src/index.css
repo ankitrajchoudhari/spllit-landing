@@ -121,3 +121,10 @@ body {
 .pac-container {
   z-index: 99999 !important;
 }
+
+/* Ensure native select dropdown options are readable on mobile browsers */
+select option,
+select optgroup {
+  color: #111827;
+  background-color: #ffffff;
+}

@@ -2121,10 +2121,10 @@ const Dashboard = () => {
                                         onChange={(event) => setSosData((prev) => ({ ...prev, emergencyType: event.target.value }))}
                                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
                                     >
-                                        <option value="other">Other emergency</option>
-                                        <option value="accident">Accident</option>
-                                        <option value="medical">Medical</option>
-                                        <option value="harassment">Harassment</option>
+                                        <option value="other" style={{ color: '#111827', backgroundColor: '#ffffff' }}>Other emergency</option>
+                                        <option value="accident" style={{ color: '#111827', backgroundColor: '#ffffff' }}>Accident</option>
+                                        <option value="medical" style={{ color: '#111827', backgroundColor: '#ffffff' }}>Medical</option>
+                                        <option value="harassment" style={{ color: '#111827', backgroundColor: '#ffffff' }}>Harassment</option>
                                     </select>
                                 </div>
 
