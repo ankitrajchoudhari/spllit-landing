@@ -698,6 +698,8 @@ const AdminDashboard = () => {
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Name</th>
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Contact</th>
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">College</th>
+                          <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Gender</th>
+                          <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">DOB</th>
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Rides</th>
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Joined</th>
                           <th className="text-left p-3 sm:p-4 text-xs sm:text-sm font-semibold text-gray-400">Status</th>
@@ -715,11 +717,17 @@ const AdminDashboard = () => {
                               </div>
                             </td>
                             <td className="p-3 sm:p-4">
-                              <p className="text-gray-400 text-xs sm:text-sm truncate">{user.email.split('@')[0]}@***</p>
-                              <p className="text-gray-500 text-[10px] sm:text-xs">{user.phone || 'N/A'}</p>
+                              <p className="text-gray-300 text-xs sm:text-sm break-all">{user.email}</p>
+                              <p className="text-gray-400 text-[10px] sm:text-xs">{user.phone || 'Not provided'}</p>
                             </td>
                             <td className="p-3 sm:p-4 text-gray-400 text-xs sm:text-sm">
                               <div className="truncate max-w-[150px]">{user.college}</div>
+                            </td>
+                            <td className="p-3 sm:p-4 text-gray-400 text-xs sm:text-sm capitalize">
+                              {user.gender || 'N/A'}
+                            </td>
+                            <td className="p-3 sm:p-4 text-gray-400 text-xs sm:text-sm whitespace-nowrap">
+                              {user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString('en-GB') : 'Not set'}
                             </td>
                             <td className="p-3 sm:p-4">
                               <span className="bg-accent-green/20 text-accent-green px-2 py-1 rounded-lg text-xs sm:text-sm font-semibold">

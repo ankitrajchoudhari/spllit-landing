@@ -343,9 +343,11 @@ router.get('/users', authenticateAdmin, async (req: any, res: Response) => {
           phone: true,
           college: true,
           gender: true,
+          dateOfBirth: true,
           rating: true,
           totalRides: true,
           createdAt: true,
+          updatedAt: true,
           lastSeen: true,
           isActive: true,
           _count: {
