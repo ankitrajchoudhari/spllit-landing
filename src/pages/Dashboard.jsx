@@ -1129,10 +1129,14 @@ const Dashboard = () => {
                                                         </p>
                                                     </div>
                                                     <button
-                                                        onClick={() => setShowRideAnnouncements(false)}
-                                                        className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                                                        onMouseDown={(event) => event.stopPropagation()}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            setShowRideAnnouncements(false);
+                                                        }}
+                                                        className="w-10 h-10 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
                                                     >
-                                                        <FaTimes className="mx-auto" />
+                                                        <FaTimes />
                                                     </button>
                                                 </div>
                                                 <div className="max-h-[24rem] overflow-y-auto">
@@ -1194,11 +1198,12 @@ const Dashboard = () => {
                                                                             </div>
                                                                             <button
                                                                                 type="button"
+                                                                                onMouseDown={(event) => event.stopPropagation()}
                                                                                 onClick={(event) => {
                                                                                     event.stopPropagation();
                                                                                     removeNotificationFeedItem(item.id);
                                                                                 }}
-                                                                                className="text-gray-500 hover:text-white transition-colors"
+                                                                                className="w-8 h-8 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
                                                                             >
                                                                                 <FaTimes />
                                                                             </button>
