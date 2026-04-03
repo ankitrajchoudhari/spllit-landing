@@ -1116,11 +1116,7 @@ const Dashboard = () => {
                     </div>
 
                     {/* User Profile Card */}
-                    <motion.div
-                        initial={{ scale: 0.95 }}
-                        animate={{ scale: 1 }}
-                        className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 mb-6 shadow-xl"
-                    >
+                    <div className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 mb-6 shadow-xl">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                             <div className="flex items-center gap-4">
                                 <div className="w-16 h-16 sm:w-20 sm:h-20 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center">
@@ -1153,7 +1149,7 @@ const Dashboard = () => {
                                                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                className="fixed left-1/2 -translate-x-1/2 top-24 w-[calc(100vw-1rem)] max-w-[28rem] bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[10001] pointer-events-auto sm:absolute sm:left-auto sm:top-auto sm:translate-x-0 sm:right-0 sm:mt-3 sm:w-[22rem] md:w-[28rem] sm:rounded-3xl"
+                                                className="fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top)+5rem)] w-[calc(100vw-1rem)] max-w-[28rem] max-h-[calc(100dvh-6rem)] bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[10001] pointer-events-auto sm:absolute sm:left-auto sm:top-auto sm:translate-x-0 sm:right-0 sm:mt-3 sm:w-[22rem] sm:max-h-none md:w-[28rem] sm:rounded-3xl"
                                             >
                                                 <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                                                     <div>
@@ -1293,7 +1289,7 @@ const Dashboard = () => {
                                 <p className="text-white font-medium">{user.phone || 'Not provided'}</p>
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
 
                     {/* Features Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
