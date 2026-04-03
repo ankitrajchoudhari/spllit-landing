@@ -1388,20 +1388,6 @@ const Dashboard = () => {
                         </motion.div>
                     )}
 
-                    {/* Status Message */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                        className="mt-12 bg-accent-green/10 border border-accent-green/20 rounded-2xl p-6 text-center"
-                    >
-                        <p className="text-accent-green font-bold text-lg">
-                            🎉 Backend Integration Complete!
-                        </p>
-                        <p className="text-gray-400 text-sm mt-2">
-                            Your login is now connected to the backend API. Socket.IO real-time features are ready!
-                        </p>
-                    </motion.div>
                 </motion.div>
             </div>
 
