@@ -281,13 +281,23 @@ export const emergencyAPI = {
 // ============ ANNOUNCEMENTS API ============
 
 export const announcementsAPI = {
+    getPublicAnnouncements: async () => {
+        const response = await api.get('/announcements');
+        return response.data;
+    },
+
     getAnnouncements: async () => {
-        const response = await announcementApi.get('/announcements');
+        const response = await announcementApi.get('/admin/announcements');
         return response.data;
     },
 
     createAnnouncement: async (data) => {
-        const response = await announcementApi.post('/announcements', data);
+        const response = await announcementApi.post('/admin/announcements', data);
+        return response.data;
+    },
+
+    deleteAnnouncement: async (id) => {
+        const response = await announcementApi.delete(`/admin/announcements/${id}`);
         return response.data;
     }
 };

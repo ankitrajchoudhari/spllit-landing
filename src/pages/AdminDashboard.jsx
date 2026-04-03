@@ -198,6 +198,11 @@ const AdminDashboard = () => {
       }
     });
 
+    newSocket.on('admin-announcement-deleted', (data) => {
+      if (!data?.id) return;
+      setAdminAnnouncements((prev) => prev.filter((item) => item.id !== data.id));
+    });
+
     return () => {
       newSocket.disconnect();
     };
@@ -346,6 +351,19 @@ const AdminDashboard = () => {
       alert(error.response?.data?.error || 'Failed to post announcement');
     } finally {
       setAnnouncementSubmitting(false);
+    }
+  };
+
+  const handleDeleteAnnouncement = async (announcementId) => {
+    if (!announcementId) return;
+    if (!confirm('Delete this announcement post?')) return;
+
+    try {
+      await announcementsAPI.deleteAnnouncement(announcementId);
+      setAdminAnnouncements((prev) => prev.filter((item) => item.id !== announcementId));
+      alert('Announcement deleted successfully');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to delete announcement');
     }
   };
 
@@ -876,6 +894,15 @@ const AdminDashboard = () => {
                             <p className="text-gray-300 text-xs leading-relaxed break-words">
                               {announcement.message}
                             </p>
+                            <div className="pt-2">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAnnouncement(announcement.id)}
+                                className="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-red-500/30 text-red-300 bg-red-500/10 hover:bg-red-500/20 transition-all"
+                              >
+                                Delete Post
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}

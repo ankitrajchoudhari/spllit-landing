@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../utils/prisma.js';
 import { hashPassword, comparePassword, generateAccessToken } from '../utils/helpers.js';
 import jwt from 'jsonwebtoken';
+import { io } from '../server.js';
 
 const router = Router();
 
@@ -83,6 +84,14 @@ const createAdminSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(2)
+});
+
+const createAnnouncementSchema = z.object({
+  title: z.string().trim().min(3).max(120),
+  message: z.string().trim().min(5).max(500),
+  location: z.string().trim().min(2).max(120),
+  imageUrl: z.string().trim().optional().nullable(),
+  imageAlt: z.string().trim().max(140).optional().nullable()
 });
 
 /**
@@ -321,6 +330,109 @@ router.get('/stats', authenticateAdmin, async (req: any, res: Response) => {
   } catch (error) {
     console.error('Failed to fetch stats:', error);
     res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+/**
+ * GET /api/admin/announcements
+ * Fetch admin announcements (admin-authenticated path)
+ */
+router.get('/announcements', authenticateAdmin, async (_req: any, res: Response) => {
+  try {
+    const announcements = await prisma.announcement.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 30
+    });
+
+    res.json({ announcements });
+  } catch (error) {
+    console.error('Failed to fetch admin announcements:', error);
+    res.status(500).json({ error: 'Failed to fetch announcements' });
+  }
+});
+
+/**
+ * POST /api/admin/announcements
+ * Create announcement post from admin panel
+ */
+router.post('/announcements', authenticateAdmin, async (req: any, res: Response) => {
+  try {
+    const data = createAnnouncementSchema.parse(req.body);
+
+    let createdByName = req.admin?.email || 'Admin';
+    if (req.admin?.role === 'master') {
+      const masterAdmin = await prisma.admin.findUnique({
+        where: { id: req.admin.id },
+        select: { name: true }
+      });
+      createdByName = masterAdmin?.name || createdByName;
+    } else if (req.admin?.role === 'subadmin') {
+      const subadmin = await prisma.user.findUnique({
+        where: { id: req.admin.id },
+        select: { name: true }
+      });
+      createdByName = subadmin?.name || createdByName;
+    }
+
+    const announcement = await prisma.announcement.create({
+      data: {
+        title: data.title,
+        message: data.message,
+        location: data.location,
+        imageUrl: data.imageUrl || null,
+        imageAlt: data.imageAlt || null,
+        createdById: req.admin.id,
+        createdByName,
+        createdByRole: req.admin.role || 'admin'
+      }
+    });
+
+    io.emit('new-admin-announcement', { announcement });
+
+    res.status(201).json({
+      message: 'Announcement created successfully',
+      announcement
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+
+    console.error('Failed to create admin announcement:', error);
+    res.status(500).json({ error: 'Failed to create announcement' });
+  }
+});
+
+/**
+ * DELETE /api/admin/announcements/:id
+ * Delete announcement post from admin panel
+ */
+router.delete('/announcements/:id', authenticateAdmin, async (req: any, res: Response) => {
+  try {
+    const announcementId = req.params.id;
+
+    const existing = await prisma.announcement.findUnique({
+      where: { id: announcementId },
+      select: { id: true }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    await prisma.announcement.delete({
+      where: { id: announcementId }
+    });
+
+    io.emit('admin-announcement-deleted', { id: announcementId });
+
+    res.json({
+      message: 'Announcement deleted successfully',
+      id: announcementId
+    });
+  } catch (error) {
+    console.error('Failed to delete admin announcement:', error);
+    res.status(500).json({ error: 'Failed to delete announcement' });
   }
 });
 
