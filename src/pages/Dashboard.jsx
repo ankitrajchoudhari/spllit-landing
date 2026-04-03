@@ -1253,26 +1253,26 @@ const Dashboard = () => {
                     {/* User Profile Card */}
                     <div className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 mb-6 shadow-xl">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center">
-                                    <FaUser className="text-accent-green text-2xl sm:text-3xl" />
+                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                                <div className="w-14 h-14 sm:w-20 sm:h-20 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center flex-shrink-0">
+                                    <FaUser className="text-accent-green text-xl sm:text-3xl" />
                                 </div>
-                                <div>
-                                    <h2 className="text-xl sm:text-2xl font-bold text-white break-words">{user.name}</h2>
-                                    <p className="text-gray-500 text-sm">{user.college || 'IIT Madras BS Degree'}</p>
+                                <div className="min-w-0">
+                                    <h2 className="text-lg sm:text-2xl font-bold text-white break-words leading-tight">{user.name}</h2>
+                                    <p className="text-gray-500 text-xs sm:text-sm break-words">{user.college || 'IIT Madras BS Degree'}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 self-start sm:self-auto">
+                            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 w-full sm:w-auto">
                                 {/* Notification Bell */}
-                                <div className="relative" ref={notificationBellRef}>
+                                <div className="relative w-full sm:w-auto" ref={notificationBellRef}>
                                     <button
                                         type="button"
                                         onClick={handleRideBellClick}
-                                        className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative"
+                                        className="w-full sm:w-auto p-2.5 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative flex items-center justify-center"
                                     >
-                                        <FaBell className="text-accent-green text-xl" />
+                                        <FaBell className="text-accent-green text-sm sm:text-xl" />
                                         {(notifications.length > 0 || notificationFeedCount > 0 || unreadRideAnnouncementCount > 0) && (
-                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center font-bold">
                                                 {Math.max(notifications.length, notificationFeedCount, unreadRideAnnouncementCount)}
                                             </span>
                                         )}
@@ -1407,18 +1407,18 @@ const Dashboard = () => {
                                 <button
                                     type="button"
                                     onClick={handleMessageCenterClick}
-                                    className="px-4 sm:px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-medium"
+                                    className="w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
                                 >
-                                    <FaComments /> Messages
+                                    <FaComments className="text-sm sm:text-base" /> <span>Messages</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleMatchedCenterClick('pending')}
-                                    className="relative px-4 sm:px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-medium"
+                                    className="relative w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
                                 >
-                                    <FaCheck /> Matched
+                                    <FaCheck className="text-sm sm:text-base" /> <span>Matched</span>
                                     {matchedActionCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 font-bold text-center">
+                                        <span className="absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full bg-red-500 text-white text-[10px] sm:text-[11px] leading-4 sm:leading-5 font-bold text-center">
                                             {matchedActionCount > 99 ? '99+' : matchedActionCount}
                                         </span>
                                     )}
@@ -1426,9 +1426,9 @@ const Dashboard = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowSOSModal(true)}
-                                    className="px-4 sm:px-6 py-3 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center gap-2 font-semibold animate-pulse"
+                                    className="w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 font-semibold text-sm sm:text-base animate-pulse"
                                 >
-                                    <FaExclamationTriangle /> SOS
+                                    <FaExclamationTriangle className="text-sm sm:text-base" /> <span>SOS</span>
                                 </button>
                             </div>
                         </div>
@@ -1453,21 +1453,21 @@ const Dashboard = () => {
                     </div>
 
                     {/* Features Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                         {/* Create Ride Card */}
                         <motion.div
                             whileHover={{ scale: 1.02 }}
                             onClick={() => setShowCreateRide(true)}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-6 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
+                            className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
-                            <div className="w-16 h-16 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <FaCar className="text-accent-green text-2xl" />
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <FaCar className="text-accent-green text-xl sm:text-2xl" />
                             </div>
-                            <h3 className="text-2xl font-bold text-white mb-2">Create Ride</h3>
+                            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Create Ride</h3>
                             <p className="text-gray-400 text-sm leading-relaxed">
                                 Post your ride request and find students going to the same exam center within 30 minutes.
                             </p>
-                            <div className="mt-6 text-accent-green font-bold text-sm uppercase tracking-wider">
+                            <div className="mt-5 text-accent-green font-bold text-sm uppercase tracking-wider">
                                 Create Now →
                             </div>
                         </motion.div>
@@ -1476,16 +1476,16 @@ const Dashboard = () => {
                         <motion.div
                             whileHover={{ scale: 1.02 }}
                             onClick={() => { setShowFindMatches(true); handleSearchRides(); }}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-6 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
+                            className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
-                            <div className="w-16 h-16 bg-purple-500/20 border-2 border-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <FaMapMarkerAlt className="text-purple-500 text-2xl" />
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-purple-500/20 border-2 border-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <FaMapMarkerAlt className="text-purple-500 text-xl sm:text-2xl" />
                             </div>
-                            <h3 className="text-2xl font-bold text-white mb-2">Find Matches</h3>
+                            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Find Matches</h3>
                             <p className="text-gray-400 text-sm leading-relaxed">
                                 Browse available rides and connect with verified students for safe group travel.
                             </p>
-                            <div className="mt-6 text-accent-green font-bold text-sm uppercase tracking-wider">
+                            <div className="mt-5 text-accent-green font-bold text-sm uppercase tracking-wider">
                                 Find Rides →
                             </div>
                         </motion.div>
@@ -1494,16 +1494,16 @@ const Dashboard = () => {
                         <motion.div
                             whileHover={{ scale: 1.02 }}
                             onClick={handleGetMyRides}
-                            className="bg-bg-secondary border border-white/10 rounded-3xl p-6 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
+                            className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
-                            <div className="w-16 h-16 bg-blue-500/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <FaUser className="text-blue-500 text-2xl" />
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <FaUser className="text-blue-500 text-xl sm:text-2xl" />
                             </div>
-                            <h3 className="text-2xl font-bold text-white mb-2">My Rides</h3>
+                            <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">My Rides</h3>
                             <p className="text-gray-400 text-sm leading-relaxed">
                                 View and manage your active rides, check matches, and track your ride history.
                             </p>
-                            <div className="mt-6 text-accent-green font-bold text-sm uppercase tracking-wider">
+                            <div className="mt-5 text-accent-green font-bold text-sm uppercase tracking-wider">
                                 View Rides →
                             </div>
                         </motion.div>

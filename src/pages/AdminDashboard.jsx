@@ -395,31 +395,31 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-[#0A0F1E] text-white">
       {/* Header */}
       <div className="bg-bg-secondary border-b border-white/10 sticky top-0 z-40 backdrop-blur-lg bg-opacity-90">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-5">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-5">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 sm:gap-4">
             {/* Left Section */}
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-accent-green/10 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <FaShieldAlt className="text-accent-green text-xl sm:text-2xl" />
+              <div className="w-9 h-9 sm:w-12 sm:h-12 bg-accent-green/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <FaShieldAlt className="text-accent-green text-base sm:text-2xl" />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold whitespace-nowrap">Admin Dashboard</h1>
-                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                <h1 className="text-base sm:text-xl lg:text-2xl font-bold leading-tight break-words">Admin Dashboard</h1>
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1.5">
                   <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg">
-                    <div className="w-5 h-5 bg-gradient-to-br from-accent-green to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-[9px] font-bold text-black">{admin?.name?.[0]?.toUpperCase()}</span>
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-br from-accent-green to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-black">{admin?.name?.[0]?.toUpperCase()}</span>
                     </div>
                     <span className="text-[11px] sm:text-xs text-gray-300 whitespace-nowrap">Admin</span>
                   </div>
                   {isMasterAdmin && (
                     <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-lg">
-                      <FaCrown className="text-yellow-400 text-[10px]" />
+                      <FaCrown className="text-yellow-400 text-[9px] sm:text-[10px]" />
                       <span className="text-[10px] text-yellow-400 font-semibold whitespace-nowrap">MASTER</span>
                     </div>
                   )}
                   {isSubAdmin && !isMasterAdmin && (
                     <div className="flex items-center gap-1 bg-blue-500/10 px-2 py-1 rounded-lg">
-                      <FaUserShield className="text-blue-400 text-[10px]" />
+                      <FaUserShield className="text-blue-400 text-[9px] sm:text-[10px]" />
                       <span className="text-[10px] text-blue-400 font-semibold whitespace-nowrap">SUBADMIN</span>
                     </div>
                   )}
@@ -428,15 +428,15 @@ const AdminDashboard = () => {
             </div>
             
             {/* Right Section */}
-            <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto flex-shrink-0">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-stretch gap-2 w-full lg:w-auto flex-shrink-0">
               {/* Notification Bell */}
               <button
                 onClick={() => setActiveTab('emergency')}
-                className="relative flex items-center justify-center p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
+                className="relative flex items-center justify-center p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-all w-full sm:w-auto"
               >
-                <FaBell className="text-gray-400" />
+                <FaBell className="text-gray-400 text-sm sm:text-base" />
                 {emergencies.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-[9px] sm:text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
                     {emergencies.length}
                   </span>
                 )}
@@ -444,19 +444,19 @@ const AdminDashboard = () => {
               
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl transition-all text-xs sm:text-sm flex-1 lg:flex-initial ${
+                className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl transition-all text-xs sm:text-sm flex-1 lg:flex-initial w-full sm:w-auto ${
                   autoRefresh ? 'bg-accent-green/20 text-accent-green' : 'bg-white/5 text-gray-400'
                 }`}
               >
-                <FaSync className={`${autoRefresh ? 'animate-spin' : ''} text-sm`} />
+                <FaSync className={`${autoRefresh ? 'animate-spin' : ''} text-xs sm:text-sm`} />
                 <span className="hidden sm:inline whitespace-nowrap">Auto Refresh</span>
                 <span className="sm:hidden">Auto</span>
               </button>
               <button
                 onClick={handleLogout}
-                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all text-xs sm:text-sm flex-1 lg:flex-initial whitespace-nowrap"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all text-xs sm:text-sm flex-1 lg:flex-initial whitespace-nowrap w-full sm:w-auto"
               >
-                <FaSignOutAlt />
+                <FaSignOutAlt className="text-xs sm:text-sm" />
                 <span>Logout</span>
               </button>
             </div>
