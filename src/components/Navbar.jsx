@@ -91,6 +91,15 @@ const Navbar = () => {
         navigate('/', { replace: true });
     };
 
+    const handleSignInClick = () => {
+        setMobileMenuOpen(false);
+        if (location.pathname === '/login') {
+            window.dispatchEvent(new CustomEvent('spllit:open-signin-modal'));
+            return;
+        }
+        navigate('/login?signin=1');
+    };
+
     return (
         <>
             <nav
@@ -163,7 +172,7 @@ const Navbar = () => {
                                         Spllit Social
                                     </button>
                                     <button
-                                        onClick={() => navigate('/login?signin=1')}
+                                        onClick={handleSignInClick}
                                         className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all transform hover:-translate-y-0.5 active:scale-95"
                                     >
                                         Sign In
@@ -247,8 +256,7 @@ const Navbar = () => {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                setMobileMenuOpen(false);
-                                                navigate('/login?signin=1');
+                                                handleSignInClick();
                                             }}
                                             className="bg-gradient-to-r from-accent-green to-accent-emerald text-white px-6 py-3 rounded-xl font-semibold w-full"
                                         >

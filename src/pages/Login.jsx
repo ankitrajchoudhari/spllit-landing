@@ -143,6 +143,18 @@ const Login = () => {
     }, [searchParams]);
 
     useEffect(() => {
+        const handleOpenSignInModal = () => {
+            setIsModalOpen(true);
+            setError('');
+        };
+
+        window.addEventListener('spllit:open-signin-modal', handleOpenSignInModal);
+        return () => {
+            window.removeEventListener('spllit:open-signin-modal', handleOpenSignInModal);
+        };
+    }, []);
+
+    useEffect(() => {
         if (!isModalOpen) return;
         if (googleInitialized) return;
 
