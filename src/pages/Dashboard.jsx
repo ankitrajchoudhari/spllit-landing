@@ -742,6 +742,58 @@ const Dashboard = () => {
         setShowMessageCenter(true);
     };
 
+    const handleNotificationItemClick = async (item) => {
+        if (!item?.matchId && !item?.chatRoomId) {
+            return;
+        }
+
+        try {
+            // Prefer already loaded matches for instant open, then refresh from API if needed.
+            let allMatches = Array.isArray(matches) ? matches : [];
+            let targetMatch = allMatches.find((match) =>
+                (item.matchId && match.id === item.matchId) ||
+                (item.chatRoomId && match.chatRoomId === item.chatRoomId)
+            );
+
+            if (!targetMatch) {
+                const response = await matchesAPI.getMyMatches();
+                allMatches = Array.isArray(response?.matches) ? response.matches : [];
+                targetMatch = allMatches.find((match) =>
+                    (item.matchId && match.id === item.matchId) ||
+                    (item.chatRoomId && match.chatRoomId === item.chatRoomId)
+                );
+            }
+
+            if (!targetMatch) {
+                addNotification({
+                    type: 'error',
+                    title: 'Chat not found',
+                    message: 'This conversation is not available right now.'
+                });
+                return;
+            }
+
+            if (targetMatch.status !== 'accepted') {
+                addNotification({
+                    type: 'error',
+                    title: 'Chat unavailable',
+                    message: 'This ride is not accepted yet, so chat is not active.'
+                });
+                return;
+            }
+
+            setShowRideAnnouncements(false);
+            setShowMessageCenter(false);
+            setActiveChat(targetMatch);
+        } catch (error) {
+            addNotification({
+                type: 'error',
+                title: 'Unable to open chat',
+                message: 'Please try again in a moment.'
+            });
+        }
+    };
+
     const handleCreateRide = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -1059,7 +1111,10 @@ const Dashboard = () => {
                                         )}
                                     </button>
                                     <AnimatePresence>
-                                        {showRideAnnouncements && (
+                                                                                onClick={(event) => {
+                                                                                    event.stopPropagation();
+                                                                                    removeNotificationFeedItem(item.id);
+                                                                                }}
                                             <motion.div
                                                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                                                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1089,7 +1144,8 @@ const Dashboard = () => {
                                                         notificationFeed.map((item) => (
                                                             <div
                                                                 key={item.id}
-                                                                className="px-5 py-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors"
+                                                                onClick={() => handleNotificationItemClick(item)}
+                                                                className="px-5 py-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors cursor-pointer"
                                                             >
                                                                 <div className="flex items-start gap-3">
                                                                     <div className="w-11 h-11 rounded-2xl bg-accent-green/15 border border-accent-green/20 flex items-center justify-center flex-shrink-0">
@@ -1138,7 +1194,10 @@ const Dashboard = () => {
                                                                             </div>
                                                                             <button
                                                                                 type="button"
-                                                                                onClick={() => removeNotificationFeedItem(item.id)}
+                                                                                onClick={(event) => {
+                                                                                    event.stopPropagation();
+                                                                                    removeNotificationFeedItem(item.id);
+                                                                                }}
                                                                                 className="text-gray-500 hover:text-white transition-colors"
                                                                             >
                                                                                 <FaTimes />
