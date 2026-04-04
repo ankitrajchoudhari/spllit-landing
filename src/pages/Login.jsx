@@ -6,6 +6,8 @@ import { getRedirectResult, setPersistence, browserLocalPersistence, signInWithP
 import useAuthStore from '../store/authStore';
 import { firebaseAuth, googleProvider } from '../config/firebase';
 
+const GOOGLE_REDIRECT_PENDING_KEY = 'googleRedirectPending';
+
 
 // --- Premium Phone Mockup with "Live Match" Simulation ---
 const PhoneMockup = () => {
@@ -170,9 +172,15 @@ const Login = () => {
                     return;
                 }
 
+                const hasPendingRedirect = localStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) === '1';
+                if (!hasPendingRedirect) {
+                    return;
+                }
+
                 setIsGoogleRedirecting(true);
                 const result = await getRedirectResult(firebaseAuth);
                 if (!result?.user) {
+                    localStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
                     return;
                 }
 
@@ -191,6 +199,7 @@ const Login = () => {
             } catch (error) {
                 setError(mapFirebaseAuthError(error));
             } finally {
+                localStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
                 setIsGoogleRedirecting(false);
             }
         };
@@ -346,14 +355,8 @@ const Login = () => {
                 prompt: 'select_account'
             });
 
-            const isLikelyMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                navigator.userAgent
-            ) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth <= 1024);
-
-            if (isLikelyMobile) {
-                await signInWithRedirect(firebaseAuth, googleProvider);
-                return;
-            }
+            // Use popup first on both desktop and phone to avoid redirect-handler bounce.
+            // Redirect is kept only as fallback for browsers that block popup auth.
 
             const result = await signInWithPopup(firebaseAuth, googleProvider);
             const idToken = await result.user.getIdToken(true);
@@ -381,9 +384,11 @@ const Login = () => {
             if (shouldFallbackToRedirect) {
                 try {
                     setIsGoogleRedirecting(true);
+                    localStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1');
                     await signInWithRedirect(firebaseAuth, googleProvider);
                     return;
                 } catch (redirectError) {
+                    localStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
                     setIsGoogleRedirecting(false);
                     setError(mapFirebaseAuthError(redirectError));
                     return;
