@@ -176,7 +176,7 @@ const Login = () => {
 
                 setError(authResult.error || 'Google login failed.');
             } catch (error) {
-                setError('Google login failed after redirect. Please try again.');
+                setError(mapFirebaseAuthError(error));
             } finally {
                 setIsGoogleRedirecting(false);
             }
@@ -187,6 +187,28 @@ const Login = () => {
 
     // Stats Counter Animation
     const [count, setCount] = useState(0);
+
+    const mapFirebaseAuthError = (error) => {
+        const code = error?.code || '';
+
+        if (code === 'auth/unauthorized-domain') {
+            return `Google sign-in is not enabled for this domain (${window.location.hostname}). Ask admin to add it in Firebase Authentication -> Settings -> Authorized domains.`;
+        }
+
+        if (code === 'auth/operation-not-allowed') {
+            return 'Google provider is disabled in Firebase Authentication. Please enable Google sign-in in Firebase console.';
+        }
+
+        if (code === 'auth/popup-closed-by-user') {
+            return 'Google sign-in popup was closed. Please try again.';
+        }
+
+        if (code === 'auth/network-request-failed') {
+            return 'Network error during Google sign-in. Check your internet and try again.';
+        }
+
+        return 'Google login failed. Please try again.';
+    };
     
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -283,12 +305,12 @@ const Login = () => {
                     return;
                 } catch (redirectError) {
                     setIsGoogleRedirecting(false);
-                    setError('Google sign-in redirect failed. Please try again.');
+                    setError(mapFirebaseAuthError(redirectError));
                     return;
                 }
             }
 
-            setError('Google login failed. Please try again.');
+            setError(mapFirebaseAuthError(error));
         }
     };
 
