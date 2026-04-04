@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaRobot, FaTimes, FaChevronRight, FaFingerprint, FaWhatsapp, FaBolt, FaShieldAlt, FaWallet } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaChevronRight, FaWhatsapp, FaBolt, FaShieldAlt, FaWallet } from 'react-icons/fa';
 
 const TypewriterText = ({ text, onComplete }) => {
     const [displayedText, setDisplayedText] = useState('');
@@ -56,76 +56,6 @@ const CinematicTitle = () => (
     </div>
 );
 
-const ActivationInterface = ({ onActivate, isIgniting }) => {
-    return (
-        <div className="relative flex flex-col items-center justify-center mt-8">
-            {/* Status Text */}
-            <motion.div
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="mb-8 font-mono text-xs tracking-[0.3em] text-accent-green/80 uppercase"
-            >
-                {isIgniting ? "Initializing AI Core..." : "System Standby"}
-            </motion.div>
-
-            {/* The Button */}
-            <div className="relative w-32 h-32 flex items-center justify-center cursor-pointer group" onClick={onActivate}>
-                {/* Background Glow */}
-                <div className={`absolute inset-0 rounded-full bg-accent-green/20 blur-3xl transition-all duration-500 ${isIgniting ? 'scale-150 bg-accent-green/40' : 'group-hover:scale-125'}`} />
-
-                {/* Rotating Rings */}
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: isIgniting ? 1 : 8, repeat: Infinity, ease: "linear" }}
-                    className="absolute inset-0 rounded-full border border-accent-green/30 border-t-accent-green border-l-transparent"
-                />
-                <motion.div
-                    animate={{ rotate: -360 }}
-                    transition={{ duration: isIgniting ? 1.5 : 12, repeat: Infinity, ease: "linear" }}
-                    className="absolute inset-2 rounded-full border border-accent-emerald/30 border-b-accent-emerald border-r-transparent"
-                />
-
-                {/* Core Button */}
-                <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    animate={isIgniting ? { scale: [1, 0.9, 1.2, 0], opacity: [1, 1, 1, 0] } : {}}
-                    transition={isIgniting ? { duration: 1, times: [0, 0.3, 0.6, 1], ease: "easeInOut" } : {}}
-                    className="relative w-20 h-20 rounded-full bg-gradient-to-br from-gray-900 to-black border border-white/10 shadow-[inner_0_0_20px_rgba(16,185,129,0.2)] flex items-center justify-center overflow-hidden z-10"
-                >
-                    {/* Scanner Effect */}
-                    <motion.div
-                        animate={{ top: ['0%', '100%'], opacity: [0, 1, 0] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                        className="absolute w-full h-[2px] bg-accent-green shadow-[0_0_10px_rgba(16,185,129,1)]"
-                    />
-
-                    <FaFingerprint className={`text-4xl transition-all duration-300 ${isIgniting ? 'text-white' : 'text-accent-green/50 group-hover:text-accent-green'}`} />
-                </motion.div>
-
-                {/* Ignition Blast */}
-                <AnimatePresence>
-                    {isIgniting && (
-                        <motion.div
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: [1, 5, 20], opacity: [0.5, 1, 0] }}
-                            transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-                            className="absolute inset-0 bg-white rounded-full z-50 pointer-events-none mix-blend-screen"
-                        />
-                    )}
-                </AnimatePresence>
-            </div>
-
-            <motion.div
-                className="mt-6 text-[10px] font-mono text-text-muted tracking-[0.22em] uppercase opacity-70 group-hover:opacity-100 transition-opacity"
-                animate={{ opacity: isIgniting ? 0 : 0.7 }}
-            >
-                Tap to Initialize
-            </motion.div>
-        </div>
-    );
-};
-
 const statCards = [
     {
         icon: FaBolt,
@@ -150,7 +80,6 @@ const statCards = [
 const Hero = () => {
     const [chatOpen, setChatOpen] = useState(false);
     const [chatStep, setChatStep] = useState(0);
-    const [isIgniting, setIsIgniting] = useState(false);
     const chatContainerRef = useRef(null);
 
     useEffect(() => {
@@ -160,14 +89,8 @@ const Hero = () => {
     }, [chatStep]);
 
     const handleStartEngine = () => {
-        if (isIgniting) return;
-        setIsIgniting(true);
-        // Play sound effect here if available
-        setTimeout(() => {
-            setChatOpen(true);
-            setChatStep(1);
-            setIsIgniting(false);
-        }, 2000);
+        setChatOpen(true);
+        setChatStep(1);
     };
 
     const chatMessages = [
@@ -268,8 +191,6 @@ const Hero = () => {
                                     );
                                 })}
                             </motion.div>
-
-                            <ActivationInterface onActivate={handleStartEngine} isIgniting={isIgniting} />
                         </motion.div>
                     ) : (
                         <motion.div
