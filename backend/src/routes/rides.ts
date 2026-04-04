@@ -7,7 +7,7 @@ import { calculateDistance, isTimeWithinWindow } from '../utils/helpers.js';
 import { io } from '../server.js';
 
 const router = Router();
-const RIDE_ACTIVE_WINDOW_MS = 8 * 60 * 60 * 1000;
+const RIDE_POST_DEPARTURE_ACTIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 const getMaxSeatsByVehicleType = (vehicleType: string) => {
   if (vehicleType === 'auto') return 3;
@@ -16,15 +16,15 @@ const getMaxSeatsByVehicleType = (vehicleType: string) => {
   return 4; // cab default
 };
 
-const getRideExpiryDate = (createdAt: Date) => new Date(createdAt.getTime() + RIDE_ACTIVE_WINDOW_MS);
+const getRideExpiryDate = (departureTime: Date) => new Date(departureTime.getTime() + RIDE_POST_DEPARTURE_ACTIVE_WINDOW_MS);
 
 const deactivateExpiredPendingRides = async () => {
-  const cutoff = new Date(Date.now() - RIDE_ACTIVE_WINDOW_MS);
+  const cutoff = new Date(Date.now() - RIDE_POST_DEPARTURE_ACTIVE_WINDOW_MS);
 
   const expiredPendingRides = await prisma.ride.findMany({
     where: {
       status: 'pending',
-      createdAt: {
+      departureTime: {
         lt: cutoff
       }
     },
@@ -220,22 +220,22 @@ router.get('/announcements', authenticate, async (req: AuthRequest, res: Respons
 
     await deactivateExpiredPendingRides();
 
-    const activeCutoff = new Date(Date.now() - RIDE_ACTIVE_WINDOW_MS);
+    const activeCutoff = new Date(Date.now() - RIDE_POST_DEPARTURE_ACTIVE_WINDOW_MS);
     const activeRides = await prisma.ride.findMany({
       where: {
         status: 'pending',
-        createdAt: {
+        departureTime: {
           gte: activeCutoff
         }
       },
       select: {
         id: true,
-        createdAt: true
+        departureTime: true
       }
     });
 
     const activeRideIdSet = new Set(activeRides.map((ride) => ride.id));
-    const activeCreatedAtMap = new Map(activeRides.map((ride) => [ride.id, ride.createdAt]));
+    const activeDepartureTimeMap = new Map(activeRides.map((ride) => [ride.id, ride.departureTime]));
 
     const announcements = await prisma.rideAnnouncement.findMany({
       where: {
@@ -252,7 +252,7 @@ router.get('/announcements', authenticate, async (req: AuthRequest, res: Respons
     res.json({
       announcements: announcements.map((announcement) => ({
         ...announcement,
-        expiresAt: getRideExpiryDate(activeCreatedAtMap.get(announcement.rideId) || announcement.createdAt)
+        expiresAt: getRideExpiryDate(activeDepartureTimeMap.get(announcement.rideId) || announcement.departureTime)
       }))
     });
   } catch (error) {
@@ -273,12 +273,12 @@ router.get('/available', authenticate, async (req: AuthRequest, res: Response) =
 
     await deactivateExpiredPendingRides();
 
-    const activeCutoff = new Date(Date.now() - RIDE_ACTIVE_WINDOW_MS);
+    const activeCutoff = new Date(Date.now() - RIDE_POST_DEPARTURE_ACTIVE_WINDOW_MS);
 
     const rides = await prisma.ride.findMany({
       where: {
         status: 'pending',
-        createdAt: {
+        departureTime: {
           gte: activeCutoff
         },
         userId: {
@@ -326,7 +326,7 @@ router.get('/available', authenticate, async (req: AuthRequest, res: Response) =
       rides: rides.map(ride => ({
         ...ride,
         seatsAvailable: ride.seats,
-        expiresAt: getRideExpiryDate(ride.createdAt)
+        expiresAt: getRideExpiryDate(ride.departureTime)
       }))
     });
   } catch (error) {
@@ -372,15 +372,14 @@ router.get('/search', authenticate, async (req: AuthRequest, res: Response) => {
     // Find rides in time window
     const timeWindowStart = new Date(searchTime.getTime() - data.timeWindowMinutes * 60000);
     const timeWindowEnd = new Date(searchTime.getTime() + data.timeWindowMinutes * 60000);
+    const activeCutoff = new Date(Date.now() - RIDE_POST_DEPARTURE_ACTIVE_WINDOW_MS);
+    const effectiveStartTime = new Date(Math.max(timeWindowStart.getTime(), activeCutoff.getTime()));
 
     const rides = await prisma.ride.findMany({
       where: {
         status: 'pending',
-        createdAt: {
-          gte: new Date(Date.now() - RIDE_ACTIVE_WINDOW_MS)
-        },
         departureTime: {
-          gte: timeWindowStart,
+          gte: effectiveStartTime,
           lte: timeWindowEnd
         },
         userId: {
@@ -434,7 +433,7 @@ router.get('/search', authenticate, async (req: AuthRequest, res: Response) => {
         ...ride,
         distance: calculateDistance(data.destLat, data.destLng, ride.destLat, ride.destLng),
         timeDiff: Math.abs(ride.departureTime.getTime() - searchTime.getTime()) / 60000, // minutes
-        expiresAt: getRideExpiryDate(ride.createdAt)
+        expiresAt: getRideExpiryDate(ride.departureTime)
       }))
       .sort((a: any, b: any) => {
         // Sort by time difference first, then distance
@@ -495,7 +494,7 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
     res.json({
       rides: rides.map((ride) => ({
         ...ride,
-        expiresAt: getRideExpiryDate(ride.createdAt)
+        expiresAt: getRideExpiryDate(ride.departureTime)
       }))
     });
   } catch (error) {

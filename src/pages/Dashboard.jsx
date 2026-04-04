@@ -117,7 +117,7 @@ const Dashboard = () => {
     const notificationFeedKey = `notification-feed-${user?.id || 'guest'}`;
     const dismissedFeedKey = `notification-feed-dismissed-${user?.id || 'guest'}`;
     const adminAnnouncementSeenKey = `admin-announcements-seen-${user?.id || 'guest'}`;
-    const rideActiveWindowMs = 8 * 60 * 60 * 1000;
+    const ridePostDepartureWindowMs = 3 * 60 * 60 * 1000;
     const notificationFeedExpiryMs = 2 * 60 * 60 * 1000;
 
     const getNowIso = () => new Date().toISOString();
@@ -130,16 +130,31 @@ const Dashboard = () => {
         });
     };
 
+    const getRideExpiryMsFromData = (item, fallbackTimestamp) => {
+        const departureMs = new Date(item?.departureTime || item?.meta?.departureTime || 0).getTime();
+        if (Number.isFinite(departureMs) && departureMs > 0) {
+            return departureMs + ridePostDepartureWindowMs;
+        }
+
+        const fallbackMs = new Date(fallbackTimestamp || item?.timestamp || item?.createdAt || 0).getTime();
+        if (Number.isFinite(fallbackMs) && fallbackMs > 0) {
+            return fallbackMs + ridePostDepartureWindowMs;
+        }
+
+        return 0;
+    };
+
     const normalizeFeedItem = (item) => {
         const timestamp = item.timestamp || item.createdAt || getNowIso();
-        const defaultExpiryMs = item.type === 'ride' ? rideActiveWindowMs : notificationFeedExpiryMs;
+        const rideExpiryMs = getRideExpiryMsFromData(item, timestamp);
+        const defaultExpiryMs = item.type === 'ride' ? rideExpiryMs : new Date(timestamp).getTime() + notificationFeedExpiryMs;
         return {
             id: item.id || `${item.type || 'info'}-${Date.now()}`,
             type: item.type || 'info',
             title: item.title || 'Notification',
             message: item.message || '',
             timestamp,
-            expiresAt: item.expiresAt || new Date(new Date(timestamp).getTime() + defaultExpiryMs).toISOString(),
+            expiresAt: item.expiresAt || (defaultExpiryMs > 0 ? new Date(defaultExpiryMs).toISOString() : null),
             rideId: item.rideId,
             matchId: item.matchId,
             chatRoomId: item.chatRoomId,
@@ -201,7 +216,7 @@ const Dashboard = () => {
                 title: announcement.title || 'New Ride Available!',
                 message: announcement.message,
                 timestamp: announcement.createdAt,
-                expiresAt: announcement.expiresAt || new Date(new Date(announcement.createdAt).getTime() + rideActiveWindowMs).toISOString(),
+                expiresAt: announcement.expiresAt || new Date(new Date(announcement.departureTime || announcement.createdAt).getTime() + ridePostDepartureWindowMs).toISOString(),
                 rideId: announcement.rideId,
                 meta: {
                     origin: announcement.origin,
@@ -248,8 +263,7 @@ const Dashboard = () => {
             if (Number.isFinite(value)) return value;
         }
 
-        const createdAtMs = new Date(ride?.createdAt || ride?.timestamp || 0).getTime();
-        return Number.isFinite(createdAtMs) ? createdAtMs + rideActiveWindowMs : 0;
+        return getRideExpiryMsFromData(ride, ride?.createdAt || ride?.timestamp);
     };
 
     const getRideRemainingMs = (ride) => {
@@ -1948,7 +1962,7 @@ const Dashboard = () => {
                                                         {new Date(ride.departureTime).toLocaleString()}
                                                     </p>
                                                     <p className="text-xs text-accent-green mt-2 font-semibold">
-                                                        Active for: {formatRideCountdown(getRideRemainingMs(ride))}
+                                                        Expires in: {formatRideCountdown(getRideRemainingMs(ride))}
                                                     </p>
                                                 </div>
                                                 <div className="text-left sm:text-right">
