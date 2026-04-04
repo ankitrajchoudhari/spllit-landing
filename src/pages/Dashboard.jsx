@@ -385,7 +385,7 @@ const Dashboard = () => {
 
     const loadAdminAnnouncements = async () => {
         try {
-            const response = await announcementsAPI.getAnnouncements();
+            const response = await announcementsAPI.getPublicAnnouncements();
             const nextAnnouncements = (response.announcements || []).map(normalizeAdminAnnouncement);
             setAdminAnnouncements(nextAnnouncements);
             return nextAnnouncements;
