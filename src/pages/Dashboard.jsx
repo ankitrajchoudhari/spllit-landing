@@ -57,7 +57,7 @@ const loadGoogleMaps = (callback) => {
 
 const Dashboard = () => {
     const navigate = useNavigate();
-    const { user, isAuthenticated, logout } = useAuthStore();
+    const { user, isAuthenticated, hasHydrated, logout } = useAuthStore();
     const [showCreateRide, setShowCreateRide] = useState(false);
     const [showFindMatches, setShowFindMatches] = useState(false);
     const [showMyRides, setShowMyRides] = useState(false);
@@ -396,6 +396,10 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
+        if (!hasHydrated) {
+            return;
+        }
+
         // Redirect to login if not authenticated
         if (!isAuthenticated || !user) {
             navigate('/login');
@@ -671,7 +675,7 @@ const Dashboard = () => {
                 newSocket.disconnect();
             }
         };
-    }, [isAuthenticated, user?.id, navigate]);
+    }, [hasHydrated, isAuthenticated, user?.id, navigate]);
 
     useEffect(() => {
         const timer = setInterval(() => {

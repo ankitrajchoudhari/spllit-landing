@@ -31,29 +31,42 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+        const refreshToken = localStorage.getItem('refreshToken');
+        const isRefreshRequest = originalRequest?.url?.includes('/auth/refresh');
 
         // If 401 and we haven't tried to refresh yet
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest?._retry && !isRefreshRequest && refreshToken) {
             originalRequest._retry = true;
 
             try {
-                const refreshToken = localStorage.getItem('refreshToken');
                 const response = await axios.post(`${API_URL}/auth/refresh`, {
                     refreshToken,
                 });
 
-                const { accessToken } = response.data;
-                localStorage.setItem('accessToken', accessToken);
+                const nextAccessToken = response.data?.tokens?.accessToken || response.data?.accessToken;
+                const nextRefreshToken = response.data?.tokens?.refreshToken || response.data?.refreshToken;
+
+                if (!nextAccessToken) {
+                    throw new Error('Refresh did not return access token');
+                }
+
+                localStorage.setItem('accessToken', nextAccessToken);
+                if (nextRefreshToken) {
+                    localStorage.setItem('refreshToken', nextRefreshToken);
+                }
 
                 // Retry original request with new token
-                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                originalRequest.headers.Authorization = `Bearer ${nextAccessToken}`;
                 return api(originalRequest);
             } catch (refreshError) {
                 // Refresh failed, logout user
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
                 localStorage.removeItem('user');
-                window.location.href = '/login';
+                const path = window.location.pathname || '';
+                if (!path.startsWith('/admin')) {
+                    window.location.href = '/login';
+                }
                 return Promise.reject(refreshError);
             }
         }

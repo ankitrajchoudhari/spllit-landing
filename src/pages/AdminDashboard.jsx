@@ -5,7 +5,7 @@ import {
   FaUsers, FaCar, FaHandshake, FaShieldAlt, FaSignOutAlt, FaPlus, FaTimes, 
   FaChartLine, FaCrown, FaUserShield, FaTrash, FaSync, FaSearch, FaDownload,
   FaBell, FaClock, FaCheckCircle, FaTimesCircle, FaFilter, FaUser,
-  FaMapMarkerAlt, FaCalendarAlt, FaMoneyBillWave, FaUserClock, FaExclamationTriangle,
+  FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaMoneyBillWave, FaUserClock, FaExclamationTriangle,
   FaPhone, FaAmbulance, FaLifeRing, FaBullhorn, FaImage, FaPaperPlane
 } from 'react-icons/fa';
 import useAdminStore from '../store/adminStore';
@@ -84,6 +84,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const adminStore = useAdminStore();
   const authStore = useAuthStore();
+  const hasHydrated = authStore.hasHydrated;
   
   // Check both authentication methods
   const isAuthenticated = adminStore.isAuthenticated || (authStore.isAuthenticated && (authStore.user?.role === 'subadmin' || authStore.user?.isAdmin));
@@ -154,12 +155,16 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
     if (!isAuthenticated) {
       navigate('/admin/login');
       return;
     }
     loadData();
-  }, [isAuthenticated, navigate, activeTab]);
+  }, [hasHydrated, isAuthenticated, navigate, activeTab]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -595,6 +600,18 @@ const AdminDashboard = () => {
                     </div>
                     <span className="text-[11px] sm:text-xs text-gray-300 whitespace-nowrap">Admin</span>
                   </div>
+                  {!!admin?.name && (
+                    <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg">
+                      <FaUser className="text-gray-300 text-[9px] sm:text-[10px]" />
+                      <span className="text-[10px] sm:text-xs text-gray-300 max-w-[180px] truncate">{admin.name}</span>
+                    </div>
+                  )}
+                  {!!admin?.email && (
+                    <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg">
+                      <FaEnvelope className="text-gray-300 text-[9px] sm:text-[10px]" />
+                      <span className="text-[10px] sm:text-xs text-gray-300 max-w-[220px] truncate">{admin.email}</span>
+                    </div>
+                  )}
                   {isMasterAdmin && (
                     <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-lg">
                       <FaCrown className="text-yellow-400 text-[9px] sm:text-[10px]" />

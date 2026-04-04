@@ -121,7 +121,7 @@ const PainPointTicker = () => (
 const Login = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { login, loginWithGoogle, isLoading, isAuthenticated } = useAuthStore();
+    const { login, loginWithGoogle, isLoading, isAuthenticated, hasHydrated, user } = useAuthStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [authMethod, setAuthMethod] = useState('');
     const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
@@ -132,10 +132,17 @@ const Login = () => {
 
     // Redirect if already authenticated
     useEffect(() => {
-        if (isAuthenticated) {
-            navigate('/dashboard');
+        if (!hasHydrated || !isAuthenticated) {
+            return;
         }
-    }, [isAuthenticated, navigate]);
+
+        if (user?.role === 'subadmin' || user?.isAdmin) {
+            navigate('/admin/dashboard');
+            return;
+        }
+
+        navigate('/dashboard');
+    }, [hasHydrated, isAuthenticated, navigate, user]);
 
     useEffect(() => {
         if (searchParams.get('signin') === '1') {
@@ -158,12 +165,17 @@ const Login = () => {
     useEffect(() => {
         const handleGoogleRedirectResult = async () => {
             try {
+                if (!hasHydrated) {
+                    return;
+                }
+
+                setIsGoogleRedirecting(true);
                 const result = await getRedirectResult(firebaseAuth);
                 if (!result?.user) {
                     return;
                 }
 
-                const idToken = await result.user.getIdToken();
+                const idToken = await result.user.getIdToken(true);
                 const authResult = await loginWithGoogle(idToken);
                 if (authResult.success) {
                     if (authResult.user?.role === 'subadmin' || authResult.user?.isAdmin) {
@@ -183,7 +195,7 @@ const Login = () => {
         };
 
         handleGoogleRedirectResult();
-    }, [loginWithGoogle, navigate]);
+    }, [hasHydrated, loginWithGoogle, navigate]);
 
     // Stats Counter Animation
     const [count, setCount] = useState(0);
@@ -262,7 +274,12 @@ const Login = () => {
         setError('');
 
         try {
-            await setPersistence(firebaseAuth, browserLocalPersistence);
+            try {
+                await setPersistence(firebaseAuth, browserLocalPersistence);
+            } catch (persistenceError) {
+                console.warn('Falling back to Firebase default auth persistence:', persistenceError);
+            }
+
             googleProvider.setCustomParameters({ prompt: 'select_account' });
 
             const isMobileBrowser = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -276,7 +293,7 @@ const Login = () => {
             }
 
             const result = await signInWithPopup(firebaseAuth, googleProvider);
-            const idToken = await result.user.getIdToken();
+            const idToken = await result.user.getIdToken(true);
             const authResult = await loginWithGoogle(idToken);
 
             if (authResult.success) {

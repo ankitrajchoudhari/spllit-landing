@@ -10,11 +10,13 @@ const useAuthStore = create(
             accessToken: null,
             refreshToken: null,
             isAuthenticated: false,
+            hasHydrated: false,
             isLoading: false,
             error: null,
 
             // Actions
             setUser: (user) => set({ user, isAuthenticated: !!user }),
+            setHasHydrated: (hasHydrated) => set({ hasHydrated }),
 
             setTokens: (accessToken, refreshToken) => {
                 // Store in localStorage for API interceptor
@@ -157,6 +159,9 @@ const useAuthStore = create(
         }),
         {
             name: 'auth-storage',
+            onRehydrateStorage: () => (state) => {
+                state?.setHasHydrated(true);
+            },
             partialize: (state) => ({
                 user: state.user,
                 accessToken: state.accessToken,
