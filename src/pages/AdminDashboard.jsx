@@ -132,6 +132,7 @@ const AdminDashboard = () => {
     imageAlt: ''
   });
   const [announcementSubmitting, setAnnouncementSubmitting] = useState(false);
+  const [lastRefreshAt, setLastRefreshAt] = useState(Date.now());
 
   const normalizeEmergency = (data) => {
     const lat = data.location?.lat ?? data.locationLat;
@@ -334,6 +335,7 @@ const AdminDashboard = () => {
         setEmergencies(items.map(normalizeEmergency));
       }
       setLoading(false);
+      setLastRefreshAt(Date.now());
     } catch (error) {
       console.error('Failed to load data:', error);
       if (error.response?.status === 401) {
@@ -582,6 +584,61 @@ const AdminDashboard = () => {
     });
   };
 
+  const openDataTab = (tabId, nextFilter = 'all') => {
+    setActiveTab(tabId);
+    setSearchTerm('');
+    setFilterStatus(nextFilter);
+  };
+
+  const adminSuggestions = (() => {
+    if (!stats?.stats) return [];
+
+    const list = [];
+    const { totalUsers, activeRides, pendingMatches, todayUsers, earlyAccessCount } = stats.stats;
+
+    if (activeRides > 0 && pendingMatches === 0) {
+      list.push({
+        id: 'match-ops',
+        title: 'Review Active Rides',
+        description: `${activeRides} active rides with low match throughput. Check matching quality and pending approvals.`,
+        action: () => openDataTab('rides', 'pending'),
+        actionLabel: 'Open Rides'
+      });
+    }
+
+    if (todayUsers >= 10) {
+      list.push({
+        id: 'new-user-wave',
+        title: 'High New User Inflow',
+        description: `${todayUsers} users joined today. Validate onboarding quality and support response times.`,
+        action: () => openDataTab('users', 'all'),
+        actionLabel: 'Review Users'
+      });
+    }
+
+    if (earlyAccessCount > 0) {
+      list.push({
+        id: 'early-access-followup',
+        title: 'Spllit Social Lead Follow-up',
+        description: `${earlyAccessCount} early-access leads are available for targeted outreach.`,
+        action: () => openDataTab('early-access', 'all'),
+        actionLabel: 'View Leads'
+      });
+    }
+
+    if (totalUsers > 0 && pendingMatches > 0) {
+      list.push({
+        id: 'pending-matches',
+        title: 'Pending Match Pipeline',
+        description: `${pendingMatches} matches are pending. Track response delays and resolve stale requests.`,
+        action: () => openDataTab('matches', 'all'),
+        actionLabel: 'Open Matches'
+      });
+    }
+
+    return list.slice(0, 4);
+  })();
+
   return (
     <div className="min-h-screen bg-[#0A0F1E] text-white">
       {/* Header */}
@@ -655,6 +712,9 @@ const AdminDashboard = () => {
                 <span className="hidden sm:inline whitespace-nowrap">Auto Refresh</span>
                 <span className="sm:hidden">Auto</span>
               </button>
+              <div className="col-span-2 sm:col-span-1 flex items-center justify-center px-3 py-2.5 rounded-xl bg-white/5 text-[11px] sm:text-xs text-gray-400">
+                Updated {Math.max(0, Math.floor((Date.now() - lastRefreshAt) / 1000))}s ago
+              </div>
               <button
                 onClick={handleLogout}
                 className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition-all text-xs sm:text-sm flex-1 lg:flex-initial whitespace-nowrap w-full sm:w-auto"
@@ -714,10 +774,12 @@ const AdminDashboard = () => {
               <div className="space-y-4 sm:space-y-6">
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                  <motion.div
+                  <motion.button
+                    type="button"
+                    onClick={() => openDataTab('users', 'all')}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                    className="text-left bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:border-blue-400/40 hover:scale-[1.01] transition-all"
                   >
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
                       <FaUsers className="text-2xl sm:text-4xl text-blue-400" />
@@ -727,13 +789,15 @@ const AdminDashboard = () => {
                     </div>
                     <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1">{stats.stats.totalUsers}</h3>
                     <p className="text-xs sm:text-sm text-gray-400">Total Users</p>
-                  </motion.div>
+                  </motion.button>
 
-                  <motion.div
+                  <motion.button
+                    type="button"
+                    onClick={() => openDataTab('rides', 'all')}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                    className="text-left bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:border-purple-400/40 hover:scale-[1.01] transition-all"
                   >
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
                       <FaCar className="text-2xl sm:text-4xl text-purple-400" />
@@ -743,13 +807,15 @@ const AdminDashboard = () => {
                     </div>
                     <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1">{stats.stats.totalRides}</h3>
                     <p className="text-xs sm:text-sm text-gray-400">Total Rides</p>
-                  </motion.div>
+                  </motion.button>
 
-                  <motion.div
+                  <motion.button
+                    type="button"
+                    onClick={() => openDataTab('matches', 'all')}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                    className="text-left bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:border-green-400/40 hover:scale-[1.01] transition-all"
                   >
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
                       <FaHandshake className="text-2xl sm:text-4xl text-green-400" />
@@ -759,13 +825,15 @@ const AdminDashboard = () => {
                     </div>
                     <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1">{stats.stats.totalMatches}</h3>
                     <p className="text-xs sm:text-sm text-gray-400">Total Matches</p>
-                  </motion.div>
+                  </motion.button>
 
-                  <motion.div
+                  <motion.button
+                    type="button"
+                    onClick={() => openDataTab('rides', 'pending')}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                    className="text-left bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:border-yellow-400/40 hover:scale-[1.01] transition-all"
                   >
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
                       <FaChartLine className="text-2xl sm:text-4xl text-yellow-400" />
@@ -775,13 +843,15 @@ const AdminDashboard = () => {
                     </div>
                     <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1">{stats.stats.activeRides}</h3>
                     <p className="text-xs sm:text-sm text-gray-400">Active Rides</p>
-                  </motion.div>
+                  </motion.button>
 
-                  <motion.div
+                  <motion.button
+                    type="button"
+                    onClick={() => openDataTab('matches', 'all')}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.4 }}
-                    className="bg-gradient-to-br from-accent-green/10 to-emerald-600/5 border border-accent-green/20 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                    className="text-left bg-gradient-to-br from-accent-green/10 to-emerald-600/5 border border-accent-green/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:border-accent-green/40 hover:scale-[1.01] transition-all"
                   >
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
                       <FaMoneyBillWave className="text-2xl sm:text-4xl text-accent-green" />
@@ -791,13 +861,15 @@ const AdminDashboard = () => {
                     </div>
                     <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1">₹{calculateTotalSplitAmount()}</h3>
                     <p className="text-xs sm:text-sm text-gray-400">Split Amount</p>
-                  </motion.div>
+                  </motion.button>
 
-                  <motion.div
+                  <motion.button
+                    type="button"
+                    onClick={() => openDataTab('early-access', 'all')}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.5 }}
-                    className="bg-gradient-to-br from-blue-500/10 to-indigo-600/5 border border-blue-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6"
+                    className="text-left bg-gradient-to-br from-blue-500/10 to-indigo-600/5 border border-blue-500/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:border-blue-300/40 hover:scale-[1.01] transition-all"
                   >
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
                       <FaUserClock className="text-2xl sm:text-4xl text-blue-300" />
@@ -807,8 +879,31 @@ const AdminDashboard = () => {
                     </div>
                     <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1">{stats.stats.earlyAccessCount || 0}</h3>
                     <p className="text-xs sm:text-sm text-gray-400">Early Access Leads</p>
-                  </motion.div>
+                  </motion.button>
                 </div>
+
+                {adminSuggestions.length > 0 && (
+                  <div className="bg-bg-secondary border border-white/10 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+                    <h3 className="text-base sm:text-lg font-bold mb-4 flex items-center gap-2">
+                      <FaBell className="text-yellow-400" /> Admin Suggestions
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {adminSuggestions.map((item) => (
+                        <div key={item.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                          <p className="text-white font-semibold text-sm sm:text-base">{item.title}</p>
+                          <p className="text-gray-400 text-xs sm:text-sm mt-1">{item.description}</p>
+                          <button
+                            type="button"
+                            onClick={item.action}
+                            className="mt-3 px-3 py-2 bg-accent-green/15 text-accent-green rounded-lg text-xs sm:text-sm font-semibold hover:bg-accent-green/25 transition-all"
+                          >
+                            {item.actionLabel}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Quick Actions */}
                 <div className="bg-gradient-to-r from-accent-green/5 to-blue-500/5 border border-accent-green/20 rounded-xl sm:rounded-2xl p-4 sm:p-6">
