@@ -219,6 +219,14 @@ const Login = () => {
             return 'Network error during Google sign-in. Check your internet and try again.';
         }
 
+        if (code === 'auth/web-storage-unsupported') {
+            return 'Your browser is blocking secure storage required for login. Enable cookies/storage and try again.';
+        }
+
+        if (code === 'auth/internal-error') {
+            return 'Google redirect setup is incomplete for this domain. Please verify Firebase auth domain and authorized domains.';
+        }
+
         return 'Google login failed. Please try again.';
     };
     
@@ -272,6 +280,7 @@ const Login = () => {
 
     const handleGoogleSignIn = async () => {
         setError('');
+        setIsGoogleRedirecting(true);
 
         try {
             try {
@@ -280,17 +289,9 @@ const Login = () => {
                 console.warn('Falling back to Firebase default auth persistence:', persistenceError);
             }
 
-            googleProvider.setCustomParameters({ prompt: 'select_account' });
-
-            const isMobileBrowser = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                navigator.userAgent
-            );
-
-            if (isMobileBrowser) {
-                setIsGoogleRedirecting(true);
-                await signInWithRedirect(firebaseAuth, googleProvider);
-                return;
-            }
+            googleProvider.setCustomParameters({
+                prompt: 'select_account'
+            });
 
             const result = await signInWithPopup(firebaseAuth, googleProvider);
             const idToken = await result.user.getIdToken(true);
@@ -328,6 +329,8 @@ const Login = () => {
             }
 
             setError(mapFirebaseAuthError(error));
+        } finally {
+            setIsGoogleRedirecting(false);
         }
     };
 
@@ -348,8 +351,8 @@ const Login = () => {
                 </svg>
             </div>
 
-            <div className="container mx-auto px-4 sm:px-6 pt-36 sm:pt-44 md:pt-32 pb-20 relative z-10">
-                <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+            <div className="container mx-auto px-4 sm:px-6 pt-24 sm:pt-32 md:pt-28 pb-16 sm:pb-20 relative z-10">
+                <div className="flex flex-col lg:flex-row items-center gap-8 sm:gap-12 lg:gap-20">
 
                     {/* Left: Content */}
                     <div className="flex-1 text-center lg:text-left w-full max-w-4xl mx-auto lg:mx-0">
@@ -372,24 +375,26 @@ const Login = () => {
                                 </motion.div>
                             </div>
 
-                            <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white mb-6 sm:mb-8 leading-[1.05] tracking-tight">
+                            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-white mb-5 sm:mb-8 leading-[1.05] tracking-tight">
                                 Don't Travel to <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green via-emerald-400 to-teal-500">
                                     Exam Centers
                                 </span> <br className="hidden sm:block" /> Alone.
                             </h1>
 
-                            <p className="text-gray-400 text-base sm:text-lg lg:text-xl mb-8 sm:mb-10 w-full max-w-[280px] sm:max-w-xl mx-auto lg:mx-0 leading-relaxed px-2 sm:px-0 text-center lg:text-left">
+                            <p className="text-gray-400 text-sm sm:text-lg lg:text-xl mb-6 sm:mb-10 w-full max-w-[300px] sm:max-w-xl mx-auto lg:mx-0 leading-relaxed px-2 sm:px-0 text-center lg:text-left">
                                 Join 400+ verified IITM BS students. Split fares, share notes, and commute safely.
                             </p>
 
-                            <PainPointTicker />
+                            <div className="hidden sm:block w-full">
+                                <PainPointTicker />
+                            </div>
 
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 justify-center lg:justify-start w-full px-4 sm:px-0">
                                 <motion.button
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => setIsModalOpen(true)}
-                                    className="px-8 py-4.5 bg-accent-green text-black font-black rounded-2xl hover:bg-opacity-90 transition-all shadow-[0_10px_20px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2 text-lg"
+                                    className="px-8 py-4 sm:py-4.5 bg-accent-green text-black font-black rounded-2xl hover:bg-opacity-90 transition-all shadow-[0_10px_20px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2 text-base sm:text-lg"
                                 >
                                     Sign In
                                 </motion.button>
@@ -399,14 +404,14 @@ const Login = () => {
                                     href="https://chat.whatsapp.com/H49JywLfKsxAoC8X5wC0yg"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="px-8 py-4.5 bg-white/5 text-white border border-white/10 font-bold rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 text-lg backdrop-blur-sm"
+                                    className="px-8 py-4 sm:py-4.5 bg-white/5 text-white border border-white/10 font-bold rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 text-base sm:text-lg backdrop-blur-sm"
                                 >
                                     <FaWhatsapp className="text-[#25D366]" size={20} />
                                     Join Community
                                 </motion.a>
                             </div>
 
-                            <div className="mt-12 flex items-center justify-center lg:justify-start gap-4">
+                            <div className="mt-8 sm:mt-12 flex items-center justify-center lg:justify-start gap-4">
                                 <div className="flex -space-x-3">
                                     {[1, 2, 3, 4].map(i => (
                                         <div key={i} className="w-10 h-10 rounded-full border-2 border-black bg-gray-800 overflow-hidden">
@@ -426,7 +431,7 @@ const Login = () => {
                     </div>
 
                     {/* Right: Interactive Component */}
-                    <div className="flex-1 flex justify-center relative">
+                    <div className="hidden sm:flex flex-1 justify-center relative">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -469,7 +474,7 @@ const Login = () => {
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="bg-black border-t sm:border border-white/10 w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 md:p-8 relative shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+                            className="bg-black border-t sm:border border-white/10 w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-5 sm:p-6 md:p-8 relative shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto"
                         >
                             {/* Drag Indicator for Mobile */}
                             <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8 sm:hidden" />
@@ -487,7 +492,7 @@ const Login = () => {
 
                             {/* Header */}
                             <div className="text-center mb-8 relative z-10">
-                                <h2 className="text-3xl md:text-4xl font-black text-white mb-3 tracking-tight uppercase">
+                                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 tracking-tight uppercase">
                                     SIGN <span className="text-accent-green">IN</span>
                                 </h2>
                                 <p className="text-gray-400 text-xs leading-relaxed">
