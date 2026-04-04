@@ -409,9 +409,11 @@ const Dashboard = () => {
         // Connect to Socket.IO for real-time features
         const socketUrl = SOCKET_BASE_URL;
         const socketToken = localStorage.getItem('accessToken');
+        const isLikelyMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const newSocket = io(socketUrl, {
             auth: socketToken ? { token: socketToken } : undefined,
-            transports: ['websocket', 'polling'],
+            transports: isLikelyMobile ? ['polling'] : ['websocket', 'polling'],
+            upgrade: !isLikelyMobile,
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000

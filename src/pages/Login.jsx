@@ -293,6 +293,15 @@ const Login = () => {
                 prompt: 'select_account'
             });
 
+            const isLikelyMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent
+            ) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth <= 1024);
+
+            if (isLikelyMobile) {
+                await signInWithRedirect(firebaseAuth, googleProvider);
+                return;
+            }
+
             const result = await signInWithPopup(firebaseAuth, googleProvider);
             const idToken = await result.user.getIdToken(true);
             const authResult = await loginWithGoogle(idToken);

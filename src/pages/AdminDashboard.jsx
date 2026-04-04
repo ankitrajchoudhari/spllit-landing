@@ -182,9 +182,11 @@ const AdminDashboard = () => {
     }
 
     const socketUrl = SOCKET_BASE_URL;
+    const isLikelyMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const newSocket = io(socketUrl, {
       auth: { token: socketToken },
-      transports: ['websocket', 'polling']
+      transports: isLikelyMobile ? ['polling'] : ['websocket', 'polling'],
+      upgrade: !isLikelyMobile
     });
 
     setSocket(newSocket);

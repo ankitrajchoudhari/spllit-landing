@@ -21,8 +21,12 @@ class SocketService {
             return;
         }
 
+        const isLikelyMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
         this.socket = io(SOCKET_URL, {
             auth: { token },
+            transports: isLikelyMobile ? ['polling'] : ['websocket', 'polling'],
+            upgrade: !isLikelyMobile,
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionAttempts: 5,
