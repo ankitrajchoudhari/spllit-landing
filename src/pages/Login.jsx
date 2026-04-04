@@ -200,6 +200,26 @@ const Login = () => {
     // Stats Counter Animation
     const [count, setCount] = useState(0);
 
+    useEffect(() => {
+        const target = 420;
+        const durationMs = 900;
+        const frameMs = 16;
+        const increment = Math.max(1, Math.ceil(target / (durationMs / frameMs)));
+
+        const timer = setInterval(() => {
+            setCount((prev) => {
+                const next = prev + increment;
+                if (next >= target) {
+                    clearInterval(timer);
+                    return target;
+                }
+                return next;
+            });
+        }, frameMs);
+
+        return () => clearInterval(timer);
+    }, []);
+
     const mapFirebaseAuthError = (error) => {
         const code = error?.code || '';
 
@@ -349,6 +369,8 @@ const Login = () => {
 
             {/* Animated Grid Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-accent-green/[0.04] pointer-events-none" />
+            <div className="absolute -top-24 -left-16 w-72 h-72 bg-emerald-500/20 blur-[120px] rounded-full pointer-events-none" />
+            <div className="absolute top-32 right-[-80px] w-64 h-64 bg-cyan-400/10 blur-[120px] rounded-full pointer-events-none" />
             <div className="absolute inset-0 z-0 opacity-20">
                 <svg className="w-full h-full" width="100%" height="100%">
                     <defs>
@@ -360,7 +382,7 @@ const Login = () => {
                 </svg>
             </div>
 
-            <div className="container mx-auto px-4 sm:px-6 pt-24 sm:pt-32 md:pt-28 pb-16 sm:pb-20 relative z-10">
+            <div className="container mx-auto px-4 sm:px-6 pt-20 sm:pt-28 md:pt-28 pb-14 sm:pb-20 relative z-10">
                 <div className="flex flex-col lg:flex-row items-center gap-8 sm:gap-12 lg:gap-20">
 
                     {/* Left: Content */}
@@ -384,14 +406,14 @@ const Login = () => {
                                 </motion.div>
                             </div>
 
-                            <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-white mb-5 sm:mb-8 leading-[1.05] tracking-tight">
+                            <h1 className="text-[2rem] sm:text-5xl md:text-7xl lg:text-8xl font-black text-white mb-4 sm:mb-8 leading-[1.05] tracking-tight">
                                 Don't Travel to <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-green via-emerald-400 to-teal-500">
                                     Exam Centers
                                 </span> <br className="hidden sm:block" /> Alone.
                             </h1>
 
-                            <p className="text-gray-400 text-sm sm:text-lg lg:text-xl mb-6 sm:mb-10 w-full max-w-[300px] sm:max-w-xl mx-auto lg:mx-0 leading-relaxed px-2 sm:px-0 text-center lg:text-left">
+                            <p className="text-gray-400 text-sm sm:text-lg lg:text-xl mb-6 sm:mb-10 w-full max-w-[320px] sm:max-w-xl mx-auto lg:mx-0 leading-relaxed px-2 sm:px-0 text-center lg:text-left">
                                 Join 400+ verified IITM BS students. Split fares, share notes, and commute safely.
                             </p>
 
@@ -420,7 +442,22 @@ const Login = () => {
                                 </motion.a>
                             </div>
 
-                            <div className="mt-8 sm:mt-12 flex items-center justify-center lg:justify-start gap-4">
+                            <div className="grid grid-cols-3 gap-2 mt-5 w-full max-w-[360px] sm:hidden">
+                                <div className="rounded-xl border border-white/10 bg-white/5 p-2 text-center">
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider">Safety</p>
+                                    <p className="text-xs text-white font-semibold mt-1">Verified IDs</p>
+                                </div>
+                                <div className="rounded-xl border border-white/10 bg-white/5 p-2 text-center">
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider">Savings</p>
+                                    <p className="text-xs text-white font-semibold mt-1">Up to 60%</p>
+                                </div>
+                                <div className="rounded-xl border border-white/10 bg-white/5 p-2 text-center">
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider">Community</p>
+                                    <p className="text-xs text-white font-semibold mt-1">IITM-only</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-7 sm:mt-12 flex items-center justify-center lg:justify-start gap-4">
                                 <div className="flex -space-x-3">
                                     {[1, 2, 3, 4].map(i => (
                                         <div key={i} className="w-10 h-10 rounded-full border-2 border-black bg-gray-800 overflow-hidden">
@@ -500,7 +537,7 @@ const Login = () => {
                             </button>
 
                             {/* Header */}
-                            <div className="text-center mb-8 relative z-10">
+                            <div className="text-center mb-7 relative z-10">
                                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 tracking-tight uppercase">
                                     SIGN <span className="text-accent-green">IN</span>
                                 </h2>
@@ -548,7 +585,7 @@ const Login = () => {
                             </div>
 
                             {/* Sign-in Form */}
-                            <form onSubmit={handleSubmit} className="space-y-6">
+                            <form onSubmit={handleSubmit} className="space-y-5">
                                 {authMethod === 'google' && (
                                     <div className="p-4 rounded-2xl border border-white/10 bg-white/5 text-center">
                                         <p className="text-sm text-gray-300">
@@ -571,12 +608,12 @@ const Login = () => {
                                                 placeholder="Roll No (e.g. 25f36563058) or email@spllit.app"
                                                 value={emailId}
                                                 onChange={(e) => setEmailId(e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4.5 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
+                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
                                             />
                                             <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
                                         </div>
                                         {!emailId.includes('@') && (
-                                            <div className="bg-white/10 border border-t-0 sm:border-t sm:border-l-0 border-white/10 rounded-2xl px-4 py-4.5 text-gray-400 font-medium text-xs flex items-center justify-center whitespace-nowrap">
+                                            <div className="bg-white/10 border border-t-0 sm:border-t sm:border-l-0 border-white/10 rounded-2xl px-4 py-4 text-gray-400 font-medium text-xs flex items-center justify-center whitespace-nowrap">
                                                 @study.iitm.ac.in
                                             </div>
                                         )}
@@ -595,7 +632,7 @@ const Login = () => {
                                             placeholder="Enter your password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4.5 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
+                                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
                                         />
                                         <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
                                     </div>
@@ -605,7 +642,7 @@ const Login = () => {
                                 <button
                                     type="submit"
                                     disabled={isLoading || isGoogleRedirecting}
-                                    className="w-full py-5 bg-gradient-to-r from-accent-green to-emerald-500 text-black font-black text-xl rounded-2xl shadow-[0_15px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.4)] hover:-translate-y-1 active:scale-95 transition-all mt-4 uppercase tracking-tighter disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full py-4.5 bg-gradient-to-r from-accent-green to-emerald-500 text-black font-black text-lg sm:text-xl rounded-2xl shadow-[0_15px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.4)] hover:-translate-y-1 active:scale-95 transition-all mt-3 uppercase tracking-tighter disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isLoading || isGoogleRedirecting ? 'SIGNING IN...' : authMethod === 'google' ? 'Continue with Google' : 'Submit'}
                                 </button>
