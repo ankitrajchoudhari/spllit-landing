@@ -7,6 +7,9 @@ import useAuthStore from '../store/authStore';
 import { firebaseAuth, googleProvider } from '../config/firebase';
 
 const GOOGLE_REDIRECT_PENDING_KEY = 'googleRedirectPending';
+const isLikelyMobileDevice = () => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth <= 1024);
 
 
 // --- Premium Phone Mockup with "Live Match" Simulation ---
@@ -355,8 +358,14 @@ const Login = () => {
                 prompt: 'select_account'
             });
 
-            // Use popup first on both desktop and phone to avoid redirect-handler bounce.
-            // Redirect is kept only as fallback for browsers that block popup auth.
+            // On phone, use redirect to avoid popup window lifecycle issues and COOP warnings.
+            if (isLikelyMobileDevice()) {
+                localStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1');
+                await signInWithRedirect(firebaseAuth, googleProvider);
+                return;
+            }
+
+            // Desktop: popup first for smoother UX. Redirect remains fallback.
 
             const result = await signInWithPopup(firebaseAuth, googleProvider);
             const idToken = await result.user.getIdToken(true);
