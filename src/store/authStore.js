@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authAPI, userAPI } from '../services/api';
+import { signOut } from 'firebase/auth';
+import { firebaseAuth } from '../config/firebase';
 
 const useAuthStore = create(
     persist(
@@ -95,7 +97,13 @@ const useAuthStore = create(
             },
 
             // Logout user
-            logout: () => {
+            logout: async () => {
+                try {
+                    await signOut(firebaseAuth);
+                } catch (error) {
+                    console.warn('Firebase sign-out warning:', error);
+                }
+
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
                 localStorage.removeItem('auth-storage');

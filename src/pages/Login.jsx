@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaTimes, FaLock, FaGoogle } from 'react-icons/fa';
-import { getRedirectResult, setPersistence, browserLocalPersistence, signInWithPopup, signInWithRedirect } from 'firebase/auth';
+import { getRedirectResult, setPersistence, browserLocalPersistence, signInWithPopup, signInWithRedirect, onAuthStateChanged } from 'firebase/auth';
 import useAuthStore from '../store/authStore';
 import { firebaseAuth, googleProvider } from '../config/firebase';
 
@@ -125,6 +125,7 @@ const Login = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [authMethod, setAuthMethod] = useState('');
     const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
+    const [isSyncingGoogleUser, setIsSyncingGoogleUser] = useState(false);
 
     const [emailId, setEmailId] = useState('');
     const [password, setPassword] = useState('');
@@ -196,6 +197,38 @@ const Login = () => {
 
         handleGoogleRedirectResult();
     }, [hasHydrated, loginWithGoogle, navigate]);
+
+    useEffect(() => {
+        if (!hasHydrated) {
+            return;
+        }
+
+        const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
+            if (!firebaseUser || isAuthenticated || isSyncingGoogleUser) {
+                return;
+            }
+
+            try {
+                setIsSyncingGoogleUser(true);
+                const idToken = await firebaseUser.getIdToken(true);
+                const authResult = await loginWithGoogle(idToken);
+
+                if (authResult.success) {
+                    if (authResult.user?.role === 'subadmin' || authResult.user?.isAdmin) {
+                        navigate('/admin/dashboard');
+                    } else {
+                        navigate('/dashboard');
+                    }
+                }
+            } catch (error) {
+                setError(mapFirebaseAuthError(error));
+            } finally {
+                setIsSyncingGoogleUser(false);
+            }
+        });
+
+        return () => unsubscribe();
+    }, [hasHydrated, isAuthenticated, isSyncingGoogleUser, loginWithGoogle, navigate]);
 
     // Stats Counter Animation
     const [count, setCount] = useState(0);
@@ -641,10 +674,10 @@ const Login = () => {
 
                                 <button
                                     type="submit"
-                                    disabled={isLoading || isGoogleRedirecting}
+                                    disabled={isLoading || isGoogleRedirecting || isSyncingGoogleUser}
                                     className="w-full py-4.5 bg-gradient-to-r from-accent-green to-emerald-500 text-black font-black text-lg sm:text-xl rounded-2xl shadow-[0_15px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.4)] hover:-translate-y-1 active:scale-95 transition-all mt-3 uppercase tracking-tighter disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isLoading || isGoogleRedirecting ? 'SIGNING IN...' : authMethod === 'google' ? 'Continue with Google' : 'Submit'}
+                                    {isLoading || isGoogleRedirecting || isSyncingGoogleUser ? 'SIGNING IN...' : authMethod === 'google' ? 'Continue with Google' : 'Submit'}
                                 </button>
 
                                 <div className="text-center mt-6">
