@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaTimes, FaLock, FaGoogle } from 'react-icons/fa';
+import { getRedirectResult, setPersistence, browserLocalPersistence, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import useAuthStore from '../store/authStore';
+import { firebaseAuth, googleProvider } from '../config/firebase';
 
 
 // --- Premium Phone Mockup with "Live Match" Simulation ---
@@ -122,8 +124,7 @@ const Login = () => {
     const { login, loginWithGoogle, isLoading, isAuthenticated } = useAuthStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [authMethod, setAuthMethod] = useState('');
-    const [googleReady, setGoogleReady] = useState(false);
-    const [googleInitialized, setGoogleInitialized] = useState(false);
+    const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
 
     const [emailId, setEmailId] = useState('');
     const [password, setPassword] = useState('');
@@ -155,45 +156,34 @@ const Login = () => {
     }, []);
 
     useEffect(() => {
-        if (!isModalOpen) return;
-        if (googleInitialized) return;
+        const handleGoogleRedirectResult = async () => {
+            try {
+                const result = await getRedirectResult(firebaseAuth);
+                if (!result?.user) {
+                    return;
+                }
 
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-        if (!clientId) {
-            setGoogleReady(false);
-            return;
-        }
+                const idToken = await result.user.getIdToken();
+                const authResult = await loginWithGoogle(idToken);
+                if (authResult.success) {
+                    if (authResult.user?.role === 'subadmin' || authResult.user?.isAdmin) {
+                        navigate('/admin/dashboard');
+                    } else {
+                        navigate('/dashboard');
+                    }
+                    return;
+                }
 
-        if (window.google?.accounts?.id) {
-            setGoogleReady(true);
-            return;
-        }
-
-        const existingScript = document.getElementById('google-identity-script');
-        if (existingScript) {
-            if (window.google?.accounts?.id) {
-                setGoogleReady(true);
+                setError(authResult.error || 'Google login failed.');
+            } catch (error) {
+                setError('Google login failed after redirect. Please try again.');
+            } finally {
+                setIsGoogleRedirecting(false);
             }
-            return;
-        }
+        };
 
-        const script = document.createElement('script');
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.id = 'google-identity-script';
-        script.async = true;
-        script.defer = true;
-        script.onload = () => setGoogleReady(true);
-        script.onerror = () => setGoogleReady(false);
-        document.body.appendChild(script);
-    }, [isModalOpen, googleInitialized]);
-
-    useEffect(() => {
-        if (authMethod !== 'google' || !isModalOpen) return;
-        if (!googleReady || !window.google?.accounts?.id) return;
-        if (googleInitialized) return;
-
-        handleGoogleSignIn();
-    }, [authMethod, isModalOpen, googleReady, googleInitialized]);
+        handleGoogleRedirectResult();
+    }, [loginWithGoogle, navigate]);
 
     // Stats Counter Animation
     const [count, setCount] = useState(0);
@@ -246,50 +236,60 @@ const Login = () => {
         }
     };
 
-    const handleGoogleSignIn = () => {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-        if (!clientId) {
-            setError('Google sign-in is not configured. Please add VITE_GOOGLE_CLIENT_ID.');
-            return;
-        }
+    const handleGoogleSignIn = async () => {
+        setError('');
 
-        if (!googleReady || !window.google?.accounts?.id) {
-            setError('Google sign-in is still loading. Please wait a moment and try again.');
-            return;
-        }
+        try {
+            await setPersistence(firebaseAuth, browserLocalPersistence);
+            googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-        if (googleInitialized) {
-            window.google.accounts.id.prompt();
-            return;
-        }
+            const isMobileBrowser = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent
+            );
 
-        window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: async (response) => {
+            if (isMobileBrowser) {
+                setIsGoogleRedirecting(true);
+                await signInWithRedirect(firebaseAuth, googleProvider);
+                return;
+            }
+
+            const result = await signInWithPopup(firebaseAuth, googleProvider);
+            const idToken = await result.user.getIdToken();
+            const authResult = await loginWithGoogle(idToken);
+
+            if (authResult.success) {
+                if (authResult.user?.role === 'subadmin' || authResult.user?.isAdmin) {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/dashboard');
+                }
+                return;
+            }
+
+            setError(authResult.error || 'Google login failed.');
+        } catch (error) {
+            const firebaseErrorCode = error?.code || '';
+            const shouldFallbackToRedirect = [
+                'auth/popup-blocked',
+                'auth/popup-closed-by-user',
+                'auth/cancelled-popup-request',
+                'auth/operation-not-supported-in-this-environment'
+            ].includes(firebaseErrorCode);
+
+            if (shouldFallbackToRedirect) {
                 try {
-                    if (!response?.credential) {
-                        setError('Google authentication failed. Please try again.');
-                        return;
-                    }
-
-                    const result = await loginWithGoogle(response.credential);
-                    if (result.success) {
-                        if (result.user?.role === 'subadmin' || result.user?.isAdmin) {
-                            navigate('/admin/dashboard');
-                        } else {
-                            navigate('/dashboard');
-                        }
-                    } else {
-                        setError(result.error || 'Google login failed.');
-                    }
-                } catch (error) {
-                    setError('Google login failed. Please try again.');
+                    setIsGoogleRedirecting(true);
+                    await signInWithRedirect(firebaseAuth, googleProvider);
+                    return;
+                } catch (redirectError) {
+                    setIsGoogleRedirecting(false);
+                    setError('Google sign-in redirect failed. Please try again.');
+                    return;
                 }
             }
-        });
 
-        setGoogleInitialized(true);
-        window.google.accounts.id.prompt();
+            setError('Google login failed. Please try again.');
+        }
     };
 
 
@@ -499,11 +499,8 @@ const Login = () => {
                                 {authMethod === 'google' && (
                                     <div className="p-4 rounded-2xl border border-white/10 bg-white/5 text-center">
                                         <p className="text-sm text-gray-300">
-                                            Press submit to continue with your Google account popup.
+                                            Press submit to continue with Firebase Google sign-in.
                                         </p>
-                                        {!googleReady && (
-                                            <p className="text-xs text-gray-500 mt-2">Loading Google Sign-In...</p>
-                                        )}
                                     </div>
                                 )}
 
@@ -554,10 +551,10 @@ const Login = () => {
 
                                 <button
                                     type="submit"
-                                    disabled={isLoading}
+                                    disabled={isLoading || isGoogleRedirecting}
                                     className="w-full py-5 bg-gradient-to-r from-accent-green to-emerald-500 text-black font-black text-xl rounded-2xl shadow-[0_15px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.4)] hover:-translate-y-1 active:scale-95 transition-all mt-4 uppercase tracking-tighter disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isLoading ? 'SIGNING IN...' : authMethod === 'google' ? 'Continue with Google' : 'Submit'}
+                                    {isLoading || isGoogleRedirecting ? 'SIGNING IN...' : authMethod === 'google' ? 'Continue with Google' : 'Submit'}
                                 </button>
 
                                 <div className="text-center mt-6">

@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
-import { OAuth2Client } from 'google-auth-library';
 import prisma from '../utils/prisma.js';
 import { hashPassword, comparePassword, hashPhone, generateAccessToken, generateRefreshToken, sanitizeUser } from '../utils/helpers.js';
 import { io } from '../server.js';
+import { isFirebaseAdminConfigured, verifyFirebaseIdToken } from '../utils/firebaseAdmin.js';
 
 const router = Router();
 
@@ -27,9 +27,6 @@ const loginSchema = z.object({
 const googleLoginSchema = z.object({
   idToken: z.string().min(1)
 });
-
-const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
-const googleOAuthClient = googleClientId ? new OAuth2Client(googleClientId) : null;
 
 /**
  * POST /api/auth/register
@@ -167,17 +164,12 @@ router.post('/login', async (req: Request, res: Response) => {
  */
 router.post('/google', async (req: Request, res: Response) => {
   try {
-    if (!googleOAuthClient || !googleClientId) {
+    if (!isFirebaseAdminConfigured()) {
       return res.status(500).json({ error: 'Google login is not configured on server' });
     }
 
     const { idToken } = googleLoginSchema.parse(req.body);
-    const ticket = await googleOAuthClient.verifyIdToken({
-      idToken,
-      audience: googleClientId
-    });
-
-    const payload = ticket.getPayload();
+    const payload = await verifyFirebaseIdToken(idToken);
     if (!payload?.email) {
       return res.status(401).json({ error: 'Invalid Google token' });
     }

@@ -16,6 +16,7 @@
     "axios": "^1.13.4",
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
+    "firebase": "^12.11.0",
     "framer-motion": "^12.27.0",
     "lottie-react": "^2.4.1",
     "maath": "^0.10.8",
