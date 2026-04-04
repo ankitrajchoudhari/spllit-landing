@@ -2,14 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaTimes, FaLock, FaGoogle } from 'react-icons/fa';
-import { getRedirectResult, setPersistence, browserLocalPersistence, signInWithPopup, signInWithRedirect, onAuthStateChanged } from 'firebase/auth';
+import { setPersistence, browserLocalPersistence, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
 import useAuthStore from '../store/authStore';
 import { firebaseAuth, googleProvider } from '../config/firebase';
-
-const GOOGLE_REDIRECT_PENDING_KEY = 'googleRedirectPending';
-const isLikelyMobileDevice = () => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-) || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1 && window.innerWidth <= 1024);
 
 
 // --- Premium Phone Mockup with "Live Match" Simulation ---
@@ -169,48 +164,6 @@ const Login = () => {
     }, []);
 
     useEffect(() => {
-        const handleGoogleRedirectResult = async () => {
-            try {
-                if (!hasHydrated) {
-                    return;
-                }
-
-                const hasPendingRedirect = localStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) === '1';
-                if (!hasPendingRedirect) {
-                    return;
-                }
-
-                setIsGoogleRedirecting(true);
-                const result = await getRedirectResult(firebaseAuth);
-                if (!result?.user) {
-                    localStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
-                    return;
-                }
-
-                const idToken = await result.user.getIdToken(true);
-                const authResult = await loginWithGoogle(idToken);
-                if (authResult.success) {
-                    if (authResult.user?.role === 'subadmin' || authResult.user?.isAdmin) {
-                        navigate('/admin/dashboard');
-                    } else {
-                        navigate('/dashboard');
-                    }
-                    return;
-                }
-
-                setError(authResult.error || 'Google login failed.');
-            } catch (error) {
-                setError(mapFirebaseAuthError(error));
-            } finally {
-                localStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
-                setIsGoogleRedirecting(false);
-            }
-        };
-
-        handleGoogleRedirectResult();
-    }, [hasHydrated, loginWithGoogle, navigate]);
-
-    useEffect(() => {
         if (!hasHydrated) {
             return;
         }
@@ -358,14 +311,7 @@ const Login = () => {
                 prompt: 'select_account'
             });
 
-            // On phone, use redirect to avoid popup window lifecycle issues and COOP warnings.
-            if (isLikelyMobileDevice()) {
-                localStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1');
-                await signInWithRedirect(firebaseAuth, googleProvider);
-                return;
-            }
-
-            // Desktop: popup first for smoother UX. Redirect remains fallback.
+            // Popup-only flow avoids broken redirect handler domains causing init.json 404.
 
             const result = await signInWithPopup(firebaseAuth, googleProvider);
             const idToken = await result.user.getIdToken(true);
@@ -391,17 +337,8 @@ const Login = () => {
             ].includes(firebaseErrorCode);
 
             if (shouldFallbackToRedirect) {
-                try {
-                    setIsGoogleRedirecting(true);
-                    localStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1');
-                    await signInWithRedirect(firebaseAuth, googleProvider);
-                    return;
-                } catch (redirectError) {
-                    localStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
-                    setIsGoogleRedirecting(false);
-                    setError(mapFirebaseAuthError(redirectError));
-                    return;
-                }
+                setError('Popup sign-in was blocked or closed. Allow popups in browser settings and try again.');
+                return;
             }
 
             setError(mapFirebaseAuthError(error));
