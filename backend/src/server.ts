@@ -13,6 +13,7 @@ import announcementRoutes from './routes/announcements.js';
 import subadminRoutes from './routes/subadmin.js';
 import earlyAccessRoutes from './routes/earlyAccess.js';
 import { setupSocketHandlers } from './services/socket.js';
+import { perfMiddleware } from './middleware/perf.js';
 
 dotenv.config();
 
@@ -75,6 +76,7 @@ app.use('/api/auth', (req: any, res: any, next: any) => {
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(perfMiddleware);
 
 // Health check
 app.get('/health', (req, res) => {

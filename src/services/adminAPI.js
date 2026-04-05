@@ -29,10 +29,10 @@ subadminAPI.interceptors.request.use((config) => {
 });
 
 export const fetchStats = () => adminAPI.get('/stats');
-export const fetchUsers = (page = 1) => adminAPI.get(`/users?page=${page}`);
-export const fetchRides = (page = 1) => adminAPI.get(`/rides?page=${page}`);
-export const fetchMatches = (page = 1) => adminAPI.get(`/matches?page=${page}`);
-export const fetchEarlyAccess = (page = 1) => adminAPI.get(`/early-access?page=${page}`);
+export const fetchUsers = (page = 1, limit = 25) => adminAPI.get(`/users?page=${page}&limit=${limit}`);
+export const fetchRides = (page = 1, limit = 25) => adminAPI.get(`/rides?page=${page}&limit=${limit}`);
+export const fetchMatches = (page = 1, limit = 25) => adminAPI.get(`/matches?page=${page}&limit=${limit}`);
+export const fetchEarlyAccess = (page = 1, limit = 50) => adminAPI.get(`/early-access?page=${page}&limit=${limit}`);
 export const fetchAdmins = () => subadminAPI.get('/list');
 export const createAdmin = (data) => subadminAPI.post('/create', data);
 export const deactivateAdmin = (id) => subadminAPI.put(`/${id}/deactivate`);

@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt, { JwtPayload } from 'jsonwebtoken';
+import { createHash } from 'crypto';
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
@@ -23,7 +24,8 @@ export async function comparePassword(password: string, hash: string): Promise<b
  * Hash phone number for privacy (one-way hash)
  */
 export function hashPhone(phone: string): string {
-  return bcrypt.hashSync(phone, SALT_ROUNDS);
+  const pepper = process.env.PHONE_HASH_PEPPER || process.env.JWT_SECRET || 'spllit-phone-fallback-pepper';
+  return createHash('sha256').update(`${pepper}:${phone}`).digest('hex');
 }
 
 /**

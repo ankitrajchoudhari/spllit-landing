@@ -35,13 +35,17 @@ const googleLoginSchema = z.object({
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const data = registerSchema.parse(req.body);
+    const normalizedEmail = data.email.toLowerCase().trim();
+    const normalizedPhone = data.phone?.trim();
+    const normalizedPhoneHash = normalizedPhone ? hashPhone(normalizedPhone) : null;
     
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: data.email },
-          { phoneHash: hashPhone(data.phone) }
+          { email: normalizedEmail },
+          ...(normalizedPhoneHash ? [{ phoneHash: normalizedPhoneHash }] : []),
+          ...(normalizedPhone ? [{ phone: normalizedPhone }] : [])
         ]
       }
     });
@@ -52,13 +56,13 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // Create user
     const hashedPassword = await hashPassword(data.password);
-    const hashedPhone = data.phone ? hashPhone(data.phone) : hashPhone('+910000000000');
+    const hashedPhone = normalizedPhone ? hashPhone(normalizedPhone) : hashPhone(`placeholder:${normalizedEmail}`);
 
     const user = await prisma.user.create({
       data: {
         name: data.name,
-        email: data.email,
-        phone: data.phone || null,
+        email: normalizedEmail,
+        phone: normalizedPhone || null,
         phoneHash: hashedPhone,
         password: hashedPassword,
         college: data.college,

@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { io } from '../server.js';
 import { AdminRequest } from '../types/express.js';
+import { hashPhone } from '../utils/helpers.js';
 
 const router = express.Router();
 
@@ -227,8 +228,8 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
             }
         }
 
-        // Create phone hash (simple hash for now)
-        const phoneHash = phone ? await bcrypt.hash(phone, 10) : await bcrypt.hash(normalizedEmail, 10);
+        const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
+        const phoneHash = hashPhone(normalizedPhone || `subadmin:${normalizedEmail}`);
 
         // Create subadmin
         const subadmin = await prisma.user.create({
@@ -236,7 +237,7 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
             name: normalizedName,
             email: normalizedEmail,
                 password: hashedPassword,
-                phone: phone || '',
+                phone: normalizedPhone,
                 phoneHash,
                 college: college || 'Spllit Admin',
                 gender: gender || 'other',

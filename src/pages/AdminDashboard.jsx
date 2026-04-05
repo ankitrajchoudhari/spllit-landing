@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -67,7 +67,7 @@ const compressImageDataUrl = (dataUrl) => new Promise((resolve, reject) => {
     context.drawImage(image, 0, 0, width, height);
     try {
       resolve(canvas.toDataURL('image/jpeg', ANNOUNCEMENT_IMAGE_QUALITY));
-    } catch (error) {
+    } catch {
       resolve(dataUrl);
     }
   };
@@ -93,14 +93,14 @@ const AdminDashboard = () => {
   const isSubAdmin = admin?.role === 'subadmin' || admin?.isAdmin;
   const canManageAdmins = isMasterAdmin || isSubAdmin;
   
-  const logout = () => {
+  const logout = useCallback(() => {
     if (adminStore.isAuthenticated) {
       adminStore.logout();
     } else {
       authStore.logout();
     }
     navigate('/');
-  };
+  }, [adminStore, authStore, navigate]);
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [rides, setRides] = useState([]);
@@ -119,7 +119,6 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [notifications, setNotifications] = useState([]);
-  const [socket, setSocket] = useState(null);
   const [emergencies, setEmergencies] = useState([]);
   const [updatingEmergencyId, setUpdatingEmergencyId] = useState(null);
   const [adminAnnouncements, setAdminAnnouncements] = useState([]);
@@ -133,6 +132,16 @@ const AdminDashboard = () => {
   });
   const [announcementSubmitting, setAnnouncementSubmitting] = useState(false);
   const [lastRefreshAt, setLastRefreshAt] = useState(Date.now());
+  const [usersPage, setUsersPage] = useState(1);
+  const [ridesPage, setRidesPage] = useState(1);
+  const [matchesPage, setMatchesPage] = useState(1);
+  const [earlyAccessPage, setEarlyAccessPage] = useState(1);
+  const [usersMeta, setUsersMeta] = useState({ total: 0, pages: 1, limit: 25 });
+  const [ridesMeta, setRidesMeta] = useState({ total: 0, pages: 1, limit: 25 });
+  const [matchesMeta, setMatchesMeta] = useState({ total: 0, pages: 1, limit: 25 });
+  const [earlyAccessMeta, setEarlyAccessMeta] = useState({ total: 0, pages: 1, limit: 50 });
+  const isLoadingRef = useRef(false);
+  const queuedRefreshRef = useRef(false);
 
   const normalizeEmergency = (data) => {
     const lat = data.location?.lat ?? data.locationLat;
@@ -155,6 +164,125 @@ const AdminDashboard = () => {
     };
   };
 
+  const loadAnnouncements = useCallback(async () => {
+    try {
+      const response = await announcementsAPI.getAnnouncements();
+      const items = Array.isArray(response?.announcements) ? response.announcements : [];
+      setAdminAnnouncements(items);
+      return items;
+    } catch (error) {
+      console.error('Failed to load announcements:', error);
+      return [];
+    }
+  }, []);
+
+  const loadData = useCallback(async ({ silent = false, force = false } = {}) => {
+    if (isLoadingRef.current) {
+      if (force) {
+        queuedRefreshRef.current = true;
+      }
+      return;
+    }
+
+    isLoadingRef.current = true;
+    if (!silent) setLoading(true);
+
+    try {
+      if (activeTab === 'dashboard') {
+        const [statsResponse] = await Promise.all([
+          fetchStats(),
+          loadAnnouncements()
+        ]);
+        setStats(statsResponse.data);
+      } else if (activeTab === 'users') {
+        const response = await fetchUsers(usersPage, 25);
+        setUsers(response.data.users);
+        const pagination = response.data.pagination || {};
+        const totalPages = pagination.pages || 1;
+        if (usersPage > totalPages) {
+          setUsersPage(totalPages);
+        }
+        setUsersMeta({
+          total: pagination.total || 0,
+          pages: totalPages,
+          limit: pagination.limit || 25
+        });
+      } else if (activeTab === 'rides') {
+        const response = await fetchRides(ridesPage, 25);
+        setRides(response.data.rides);
+        const pagination = response.data.pagination || {};
+        const totalPages = pagination.pages || 1;
+        if (ridesPage > totalPages) {
+          setRidesPage(totalPages);
+        }
+        setRidesMeta({
+          total: pagination.total || 0,
+          pages: totalPages,
+          limit: pagination.limit || 25
+        });
+      } else if (activeTab === 'matches') {
+        const response = await fetchMatches(matchesPage, 25);
+        setMatches(response.data.matches);
+        const pagination = response.data.pagination || {};
+        const totalPages = pagination.pages || 1;
+        if (matchesPage > totalPages) {
+          setMatchesPage(totalPages);
+        }
+        setMatchesMeta({
+          total: pagination.total || 0,
+          pages: totalPages,
+          limit: pagination.limit || 25
+        });
+      } else if (activeTab === 'early-access') {
+        const response = await fetchEarlyAccess(earlyAccessPage, 50);
+        setEarlyAccess(response.data.registrations || []);
+        const pagination = response.data.pagination || {};
+        const totalPages = pagination.pages || 1;
+        if (earlyAccessPage > totalPages) {
+          setEarlyAccessPage(totalPages);
+        }
+        setEarlyAccessMeta({
+          total: pagination.total || 0,
+          pages: totalPages,
+          limit: pagination.limit || 50
+        });
+      } else if (activeTab === 'admins' && canManageAdmins) {
+        const response = await fetchAdmins();
+        setAdmins(response.data.subadmins || response.data.admins || []);
+      } else if (activeTab === 'emergency') {
+        const response = await emergencyAPI.getEmergencies();
+        const items = Array.isArray(response?.emergencies) ? response.emergencies : [];
+        setEmergencies(items.map(normalizeEmergency));
+      }
+
+      setLastRefreshAt(Date.now());
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      if (error.response?.status === 401) {
+        logout();
+        navigate('/admin/login');
+      }
+    } finally {
+      isLoadingRef.current = false;
+      if (!silent) setLoading(false);
+
+      if (queuedRefreshRef.current) {
+        queuedRefreshRef.current = false;
+        loadData({ silent: true, force: false });
+      }
+    }
+  }, [
+    activeTab,
+    canManageAdmins,
+    earlyAccessPage,
+    loadAnnouncements,
+    logout,
+    matchesPage,
+    navigate,
+    ridesPage,
+    usersPage
+  ]);
+
   useEffect(() => {
     if (!hasHydrated) {
       return;
@@ -164,16 +292,20 @@ const AdminDashboard = () => {
       navigate('/admin/login');
       return;
     }
-    loadData();
-  }, [hasHydrated, isAuthenticated, navigate, activeTab]);
+
+    loadData({ silent: false, force: true });
+  }, [hasHydrated, isAuthenticated, navigate, activeTab, loadData]);
 
   useEffect(() => {
     if (!autoRefresh) return;
+
+    const intervalMs = activeTab === 'emergency' ? 5000 : activeTab === 'dashboard' ? 15000 : 30000;
     const interval = setInterval(() => {
-      loadData();
-    }, 3000);
+      loadData({ silent: true });
+    }, intervalMs);
+
     return () => clearInterval(interval);
-  }, [autoRefresh, activeTab]);
+  }, [autoRefresh, activeTab, loadData]);
 
   // Socket.IO for real-time notifications
   useEffect(() => {
@@ -190,8 +322,6 @@ const AdminDashboard = () => {
       upgrade: !isLikelyMobile
     });
 
-    setSocket(newSocket);
-
     newSocket.on('connect', () => {
       console.log('Admin Socket connected');
       newSocket.emit('join-admin-room');
@@ -205,7 +335,7 @@ const AdminDashboard = () => {
         message: `${data.name} just joined from ${data.college}`,
         timestamp: Date.now()
       });
-      loadData(); // Refresh data
+      loadData({ silent: true }); // Refresh data without blocking UI
     });
 
     // Listen for new ride created
@@ -217,7 +347,7 @@ const AdminDashboard = () => {
         amount: data.fare,
         timestamp: Date.now()
       });
-      loadData();
+      loadData({ silent: true });
     });
 
     // Listen for new match
@@ -229,7 +359,7 @@ const AdminDashboard = () => {
         amount: data.splitAmount,
         timestamp: Date.now()
       });
-      loadData();
+      loadData({ silent: true });
     });
 
     // Listen for emergency SOS
@@ -266,8 +396,14 @@ const AdminDashboard = () => {
       });
       // Refresh admin list if on admins tab
       if (activeTab === 'admins') {
-        loadData();
+        loadData({ silent: true });
       }
+    });
+
+    newSocket.on('new-admin-announcement', (data) => {
+      const announcement = data?.announcement;
+      if (!announcement?.id) return;
+      setAdminAnnouncements((prev) => [announcement, ...prev.filter((item) => item.id !== announcement.id)]);
     });
 
     newSocket.on('admin-announcement-deleted', (data) => {
@@ -278,7 +414,7 @@ const AdminDashboard = () => {
     return () => {
       newSocket.disconnect();
     };
-  }, []);
+  }, [activeTab, loadData]);
 
   const addNotification = (notification) => {
     const id = Date.now() + Math.random();
@@ -308,43 +444,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const loadData = async () => {
-    try {
-      if (activeTab === 'dashboard') {
-        const response = await fetchStats();
-        setStats(response.data);
-        await loadAnnouncements();
-      } else if (activeTab === 'users') {
-        const response = await fetchUsers();
-        setUsers(response.data.users);
-      } else if (activeTab === 'rides') {
-        const response = await fetchRides();
-        setRides(response.data.rides);
-      } else if (activeTab === 'matches') {
-        const response = await fetchMatches();
-        setMatches(response.data.matches);
-      } else if (activeTab === 'early-access') {
-        const response = await fetchEarlyAccess();
-        setEarlyAccess(response.data.registrations || []);
-      } else if (activeTab === 'admins' && canManageAdmins) {
-        const response = await fetchAdmins();
-        setAdmins(response.data.subadmins || response.data.admins || []);
-      } else if (activeTab === 'emergency') {
-        const response = await emergencyAPI.getEmergencies();
-        const items = Array.isArray(response?.emergencies) ? response.emergencies : [];
-        setEmergencies(items.map(normalizeEmergency));
-      }
-      setLoading(false);
-      setLastRefreshAt(Date.now());
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      if (error.response?.status === 401) {
-        logout();
-        navigate('/admin/login');
-      }
-    }
-  };
-
   // Check if user/ride is active (within last 10 minutes)
   const isActive = (timestamp) => {
     const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
@@ -357,18 +456,6 @@ const AdminDashboard = () => {
     return matches.reduce((total, match) => {
       return total + (match.ride?.fare || 0);
     }, 0);
-  };
-
-  const loadAnnouncements = async () => {
-    try {
-      const response = await announcementsAPI.getAnnouncements();
-      const items = Array.isArray(response?.announcements) ? response.announcements : [];
-      setAdminAnnouncements(items);
-      return items;
-    } catch (error) {
-      console.error('Failed to load announcements:', error);
-      return [];
-    }
   };
 
   const setAnnouncementImage = async (file) => {
@@ -387,7 +474,7 @@ const AdminDashboard = () => {
         imageLink: '',
         imageAlt: prev.imageAlt || file.name
       }));
-    } catch (error) {
+    } catch {
       alert('Could not process the image. Please try a smaller image or use an image URL.');
     }
   };
@@ -588,6 +675,41 @@ const AdminDashboard = () => {
     setActiveTab(tabId);
     setSearchTerm('');
     setFilterStatus(nextFilter);
+
+    if (tabId === 'users') setUsersPage(1);
+    if (tabId === 'rides') setRidesPage(1);
+    if (tabId === 'matches') setMatchesPage(1);
+    if (tabId === 'early-access') setEarlyAccessPage(1);
+  };
+
+  const renderPagination = (meta, page, setPage) => {
+    if (!meta || meta.pages <= 1) return null;
+
+    return (
+      <div className="flex items-center justify-between gap-3 px-3 sm:px-4 py-3 border-t border-white/10 bg-white/5">
+        <p className="text-xs sm:text-sm text-gray-400">
+          Page {page} of {meta.pages} • {meta.total} total
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 text-xs sm:text-sm rounded-lg bg-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/20 transition-all"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.min(meta.pages, prev + 1))}
+            disabled={page >= meta.pages}
+            className="px-3 py-1.5 text-xs sm:text-sm rounded-lg bg-accent-green/20 text-accent-green disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent-green/30 transition-all"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
   };
 
   const adminSuggestions = (() => {
@@ -742,11 +864,7 @@ const AdminDashboard = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setSearchTerm('');
-                  setFilterStatus('all');
-                }}
+                onClick={() => openDataTab(tab.id, 'all')}
                 className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-3 font-semibold transition-all border-b-2 whitespace-nowrap text-[11px] sm:text-sm flex-shrink-0 ${
                   activeTab === tab.id
                     ? 'border-accent-green text-accent-green bg-accent-green/5'
@@ -913,28 +1031,28 @@ const AdminDashboard = () => {
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4">
                     <button
-                      onClick={() => setActiveTab('users')}
+                      onClick={() => openDataTab('users', 'all')}
                       className="flex flex-col items-center gap-2 p-3 sm:p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-all group"
                     >
                       <FaUsers className="text-xl sm:text-2xl text-blue-400 group-hover:scale-110 transition-transform" />
                       <span className="text-xs sm:text-sm font-medium">View Users</span>
                     </button>
                     <button
-                      onClick={() => setActiveTab('rides')}
+                      onClick={() => openDataTab('rides', 'all')}
                       className="flex flex-col items-center gap-2 p-3 sm:p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-all group"
                     >
                       <FaCar className="text-xl sm:text-2xl text-purple-400 group-hover:scale-110 transition-transform" />
                       <span className="text-xs sm:text-sm font-medium">View Rides</span>
                     </button>
                     <button
-                      onClick={() => setActiveTab('matches')}
+                      onClick={() => openDataTab('matches', 'all')}
                       className="flex flex-col items-center gap-2 p-3 sm:p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-all group"
                     >
                       <FaHandshake className="text-xl sm:text-2xl text-green-400 group-hover:scale-110 transition-transform" />
                       <span className="text-xs sm:text-sm font-medium">View Matches</span>
                     </button>
                     <button
-                      onClick={() => setActiveTab('early-access')}
+                      onClick={() => openDataTab('early-access', 'all')}
                       className="flex flex-col items-center gap-2 p-3 sm:p-4 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-all group"
                     >
                       <FaUserClock className="text-xl sm:text-2xl text-blue-300 group-hover:scale-110 transition-transform" />
@@ -1200,7 +1318,7 @@ const AdminDashboard = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl sm:text-2xl font-bold">Spllit Social Early Access</h2>
-                  <span className="text-sm text-gray-400">{earlyAccess.length} registrations</span>
+                  <span className="text-sm text-gray-400">{earlyAccessMeta.total} registrations</span>
                 </div>
 
                 <div className="bg-bg-secondary border border-white/10 rounded-xl sm:rounded-2xl overflow-hidden">
@@ -1239,6 +1357,7 @@ const AdminDashboard = () => {
                   {earlyAccess.length === 0 && (
                     <div className="text-center py-10 text-gray-400">No registrations yet.</div>
                   )}
+                  {renderPagination(earlyAccessMeta, earlyAccessPage, setEarlyAccessPage)}
                 </div>
               </div>
             )}
@@ -1349,6 +1468,7 @@ const AdminDashboard = () => {
                       <p>No users found</p>
                     </div>
                   )}
+                  {renderPagination(usersMeta, usersPage, setUsersPage)}
                 </div>
               </div>
             )}
@@ -1458,6 +1578,7 @@ const AdminDashboard = () => {
                     </div>
                   )}
                 </div>
+                {renderPagination(ridesMeta, ridesPage, setRidesPage)}
               </div>
             )}
 
@@ -1535,6 +1656,7 @@ const AdminDashboard = () => {
                       <p>No matches found</p>
                     </div>
                   )}
+                  {renderPagination(matchesMeta, matchesPage, setMatchesPage)}
                 </div>
               </div>
             )}

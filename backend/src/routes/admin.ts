@@ -7,6 +7,9 @@ import { io } from '../server.js';
 
 const router = Router();
 
+const STATS_CACHE_TTL_MS = 8000;
+let statsCache: { expiresAt: number; payload: any } | null = null;
+
 // Admin auth middleware
 const authenticateAdmin = async (req: any, res: Response, next: any) => {
   try {
@@ -244,6 +247,10 @@ router.post('/login', async (req: Request, res: Response) => {
  */
 router.get('/stats', authenticateAdmin, async (req: any, res: Response) => {
   try {
+    if (statsCache && Date.now() < statsCache.expiresAt) {
+      return res.json(statsCache.payload);
+    }
+
     const [
       totalUsers,
       totalRides,
@@ -311,7 +318,7 @@ router.get('/stats', authenticateAdmin, async (req: any, res: Response) => {
       _count: true
     });
 
-    res.json({
+    const payload = {
       stats: {
         totalUsers,
         totalRides,
@@ -326,7 +333,14 @@ router.get('/stats', authenticateAdmin, async (req: any, res: Response) => {
       recentRides,
       matchStats,
       vehicleStats
-    });
+    };
+
+    statsCache = {
+      expiresAt: Date.now() + STATS_CACHE_TTL_MS,
+      payload
+    };
+
+    res.json(payload);
   } catch (error) {
     console.error('Failed to fetch stats:', error);
     res.status(500).json({ error: 'Failed to fetch statistics' });
