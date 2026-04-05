@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaMapMarkerAlt, FaHandshake, FaCreditCard, FaCar } from 'react-icons/fa';
-import confetti from 'canvas-confetti';
 
 const steps = [
     {
@@ -34,33 +33,39 @@ const steps = [
     }
 ];
 
-const triggerConfetti = () => {
-    const duration = 2200;
-    const animationEnd = Date.now() + duration;
-    const defaults = { startVelocity: 26, spread: 280, ticks: 60, zIndex: 0 };
+const triggerConfetti = async () => {
+    try {
+        const confettiModule = await import('canvas-confetti');
+        const confetti = confettiModule.default;
+        const duration = 2200;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 26, spread: 280, ticks: 60, zIndex: 0 };
 
-    const interval = setInterval(() => {
-        const timeLeft = animationEnd - Date.now();
+        const interval = setInterval(() => {
+            const timeLeft = animationEnd - Date.now();
 
-        if (timeLeft <= 0) {
-            clearInterval(interval);
-            return;
-        }
+            if (timeLeft <= 0) {
+                clearInterval(interval);
+                return;
+            }
 
-        const particleCount = 42 * (timeLeft / duration);
+            const particleCount = 42 * (timeLeft / duration);
 
-        confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: 0.2, y: 0.25 }
-        });
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: 0.2, y: 0.25 }
+            });
 
-        confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: 0.8, y: 0.25 }
-        });
-    }, 240);
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: 0.8, y: 0.25 }
+            });
+        }, 240);
+    } catch (_error) {
+        // Ignore visual-only failures so flow remains smooth on weak networks.
+    }
 };
 
 const HowItWorks = () => {
@@ -76,6 +81,9 @@ const HowItWorks = () => {
 
     useEffect(() => {
         if (activeStep === steps.length - 1) {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                return;
+            }
             triggerConfetti();
         }
     }, [activeStep]);

@@ -20,21 +20,29 @@ const formatAnnouncementTime = (value) => {
 const AnnouncementDrops = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [open, setOpen] = useState(false);
+    const [hasLoadedAnnouncements, setHasLoadedAnnouncements] = useState(false);
+    const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
 
     const loadAnnouncements = async () => {
+        setIsLoadingAnnouncements(true);
         try {
             const response = await announcementsAPI.getPublicAnnouncements();
             const items = Array.isArray(response?.announcements) ? response.announcements : [];
             setAnnouncements(items);
+            setHasLoadedAnnouncements(true);
         } catch (error) {
-            console.error('Failed to load public announcements:', error);
             setAnnouncements([]);
+            setHasLoadedAnnouncements(true);
+        } finally {
+            setIsLoadingAnnouncements(false);
         }
     };
 
     useEffect(() => {
-        loadAnnouncements();
-    }, []);
+        if (open && !hasLoadedAnnouncements && !isLoadingAnnouncements) {
+            loadAnnouncements();
+        }
+    }, [open, hasLoadedAnnouncements, isLoadingAnnouncements]);
 
     useEffect(() => {
         if (!open) return;
@@ -112,14 +120,20 @@ const AnnouncementDrops = () => {
                             </div>
 
                             <div className="p-4 sm:p-6 space-y-4">
-                                {announcements.length === 0 && (
+                                {isLoadingAnnouncements && (
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+                                        <p className="text-white font-semibold">Loading announcements...</p>
+                                    </div>
+                                )}
+
+                                {!isLoadingAnnouncements && announcements.length === 0 && (
                                     <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
                                         <FaBullhorn className="mx-auto text-4xl text-gray-500" />
                                         <p className="mt-3 text-white font-semibold">No announcements yet</p>
                                     </div>
                                 )}
 
-                                {announcements.map((announcement) => (
+                                {!isLoadingAnnouncements && announcements.map((announcement) => (
                                     <article
                                         key={announcement.id}
                                         className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"

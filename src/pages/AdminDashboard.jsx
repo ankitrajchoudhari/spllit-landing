@@ -1510,10 +1510,13 @@ const AdminDashboard = () => {
                               <span className="text-accent-green font-bold text-xs sm:text-sm">₹{match.ride.fare}</span>
                             </td>
                             <td className="p-3 sm:p-4">
-                              <span className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full whitespace-nowrap ${
-                                match.status === 'active' ? 'bg-green-500/20 text-green-400' :
-                                match.status === 'completed' ? 'bg-blue-500/20 text-blue-400' :
-                                'bg-gray-500/20 text-gray-400'
+                              <span className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 rounded-full whitespace-nowrap font-semibold ${
+                                match.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                                match.status === 'accepted' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                                match.status === 'rejected' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                                match.status === 'active' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                match.status === 'completed' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                                'bg-gray-500/20 text-gray-300 border border-gray-500/30'
                               }`}>
                                 {match.status}
                               </span>

@@ -1,15 +1,10 @@
-import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import Layout from './components/Layout';
 
 // Core Components
 import Hero from './components/Hero';
-import HowItWorks from './components/HowItWorks';
-import Features from './components/Features';
-import Integrations from './components/Integrations';
-import Testimonials from './components/Testimonials';
-import CTA from './components/CTA';
 import SEO from './components/SEO';
 
 // Lazy Loaded Pages
@@ -26,6 +21,11 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const SpllitSocial = lazy(() => import('./pages/SpllitSocial'));
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const HomeHowItWorks = lazy(() => import('./components/HowItWorks'));
+const HomeFeatures = lazy(() => import('./components/Features'));
+const HomeIntegrations = lazy(() => import('./components/Integrations'));
+const HomeTestimonials = lazy(() => import('./components/Testimonials'));
+const HomeCTA = lazy(() => import('./components/CTA'));
 import { PrivacyPolicy, TermsOfService, CookiePolicy } from './pages/Legal';
 
 // Loading Fallback
@@ -35,6 +35,42 @@ const PageLoader = () => (
   </div>
 );
 
+const DeferredSection = ({ children, rootMargin = '300px 0px' }) => {
+  const [shouldRender, setShouldRender] = useState(false);
+  const sectionRef = useRef(null);
+
+  useEffect(() => {
+    const node = sectionRef.current;
+    if (!node || shouldRender) {
+      return;
+    }
+
+    if (!('IntersectionObserver' in window)) {
+      setShouldRender(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [rootMargin, shouldRender]);
+
+  return (
+    <div ref={sectionRef}>
+      {shouldRender ? children : <div className="min-h-[40vh]" aria-hidden="true" />}
+    </div>
+  );
+};
+
 const Home = () => (
   <>
     <SEO
@@ -42,16 +78,38 @@ const Home = () => (
       description="Join Spllit to save up to 60% on your daily commute. Safe, verified, and automated ride-sharing for students and professionals."
     />
     <Hero />
-    <HowItWorks />
-    <Features />
-    <Integrations />
-    <Testimonials />
-    <CTA />
+
+    <DeferredSection>
+      <Suspense fallback={<div className="min-h-[40vh]" aria-hidden="true" />}>
+        <HomeHowItWorks />
+      </Suspense>
+    </DeferredSection>
+
+    <DeferredSection>
+      <Suspense fallback={<div className="min-h-[40vh]" aria-hidden="true" />}>
+        <HomeFeatures />
+      </Suspense>
+    </DeferredSection>
+
+    <DeferredSection>
+      <Suspense fallback={<div className="min-h-[40vh]" aria-hidden="true" />}>
+        <HomeIntegrations />
+      </Suspense>
+    </DeferredSection>
+
+    <DeferredSection>
+      <Suspense fallback={<div className="min-h-[36vh]" aria-hidden="true" />}>
+        <HomeTestimonials />
+      </Suspense>
+    </DeferredSection>
+
+    <DeferredSection>
+      <Suspense fallback={<div className="min-h-[32vh]" aria-hidden="true" />}>
+        <HomeCTA />
+      </Suspense>
+    </DeferredSection>
   </>
 );
-
-import { useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
 
 // Scroll to Top Helper
 const ScrollToTop = () => {

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaArrowLeft, FaUserCircle, FaEnvelope, FaPhone, FaGraduationCap, FaVenusMars, FaBirthdayCake, FaSave } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
-import AnnouncementDrops from './AnnouncementDrops';
+
+const AnnouncementDrops = lazy(() => import('./AnnouncementDrops'));
 
 const Navbar = () => {
     const [scrolled, setScrolled] = useState(false);
@@ -18,6 +19,7 @@ const Navbar = () => {
         profilePhoto: ''
     });
     const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [shouldLoadAnnouncements, setShouldLoadAnnouncements] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
     const { user, isAuthenticated, logout, updateProfile, fetchProfile } = useAuthStore();
@@ -31,9 +33,34 @@ const Navbar = () => {
             }
         };
 
-        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    useEffect(() => {
+        const onIdle = () => setShouldLoadAnnouncements(true);
+
+        if (typeof window.requestIdleCallback === 'function') {
+            const idleId = window.requestIdleCallback(onIdle, { timeout: 1800 });
+            return () => window.cancelIdleCallback(idleId);
+        }
+
+        const timeoutId = window.setTimeout(onIdle, 1200);
+        return () => window.clearTimeout(timeoutId);
+    }, []);
+
+    const announcementFallback = (
+        <span
+            aria-hidden="true"
+            className="inline-flex h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/10 bg-white/5"
+        />
+    );
+
+    const announcementNode = shouldLoadAnnouncements ? (
+        <Suspense fallback={announcementFallback}>
+            <AnnouncementDrops />
+        </Suspense>
+    ) : announcementFallback;
 
     const isHome = location.pathname === '/';
     const hideBackArrowPaths = ['/dashboard', '/admin/dashboard', '/spllit-social'];
@@ -143,7 +170,7 @@ const Navbar = () => {
 
                                 {isAuthenticated && user ? (
                                     <div className="flex items-center gap-3">
-                                        <AnnouncementDrops />
+                                        {announcementNode}
                                         <button
                                             onClick={() => navigate('/spllit-social')}
                                             className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 px-4 py-2.5 rounded-xl font-semibold transition-all border border-blue-500/20"
@@ -166,7 +193,7 @@ const Navbar = () => {
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-3">
-                                        <AnnouncementDrops />
+                                        {announcementNode}
                                         <button
                                             onClick={() => navigate('/spllit-social')}
                                             className="px-4 py-2.5 rounded-xl font-semibold transition-all border border-white/15 bg-white/5 text-white/90 hover:bg-white/10"
@@ -184,7 +211,7 @@ const Navbar = () => {
                             </div>
 
                             <div className="md:hidden flex items-center gap-2">
-                                <AnnouncementDrops />
+                                {announcementNode}
                                 {/* Mobile Menu Button - Styled better for touch */}
                                 <button
                                     className="text-white w-10 h-10 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 active:bg-white/10 active:scale-95 transition-all"
