@@ -19,6 +19,8 @@ const Navbar = () => {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
+    const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+    const [activeProfileTab, setActiveProfileTab] = useState('overview');
     const [profileForm, setProfileForm] = useState({
         name: '',
         college: '',
@@ -343,7 +345,14 @@ const Navbar = () => {
     }, [user?.rating, user?.totalRides, user?.updatedAt, showProfileModal, isAuthenticated, user?.id, fetchPerformanceData]);
 
     const handleProfileClick = () => {
+        setActiveProfileTab('overview');
+        setShowAvatarPicker(false);
         setShowProfileModal(true);
+    };
+
+    const handleCloseProfileModal = () => {
+        setShowAvatarPicker(false);
+        setShowProfileModal(false);
     };
 
     const handleSaveProfile = async (e) => {
@@ -372,7 +381,7 @@ const Navbar = () => {
 
     const handleLogout = () => {
         setMobileMenuOpen(false);
-        setShowProfileModal(false);
+        handleCloseProfileModal();
         logout();
         navigate('/', { replace: true });
     };
