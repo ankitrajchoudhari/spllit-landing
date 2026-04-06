@@ -139,6 +139,7 @@ const Dashboard = () => {
     const verifiedScore = Math.min(100, Math.max(0, Math.round(((Number(user?.rating) || 0) / 5) * 100)));
     const profileProgress = Math.min(100, Math.round(((Number(user?.totalRides) || 0) * 14) + verifiedScore * 0.5));
     const profileLevel = Math.max(1, Math.min(10, Math.ceil(profileProgress / 12)));
+    const hasPerformanceData = Number(user?.totalRides || 0) > 0 || matches.length > 0 || Number(user?.rating || 0) > 0;
     const profileTabs = {
         overview: (
             <div className="space-y-3">
@@ -153,12 +154,34 @@ const Dashboard = () => {
             </div>
         ),
         performance: (
-            <div className="space-y-3">
-                <CompactBar label="Profile strength" value={profileProgress} />
-                <CompactBar label="Trust score" value={verifiedScore} />
+            <div className="space-y-3 min-h-[190px]">
+                <section className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-xs uppercase tracking-wider text-gray-400">Performance snapshot</p>
+                            <p className="text-sm text-gray-500 mt-1">Real activity from rides, matches, and rating.</p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${hasPerformanceData ? 'border-accent-green/30 bg-accent-green/10 text-accent-green' : 'border-white/10 bg-white/5 text-gray-400'}`}>
+                            {hasPerformanceData ? 'Live' : 'No activity yet'}
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                        <MiniStat label="Rides" value={Number(user?.totalRides) || 0} tone="green" />
+                        <MiniStat label="Rating" value={Number(user?.rating || 0).toFixed(1)} tone="blue" />
+                        <MiniStat label="Level" value={`Lv ${profileLevel}`} tone="purple" />
+                        <MiniStat label="Matches" value={matches.length} tone="green" />
+                    </div>
+                </section>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <CompactBar label="Profile strength" value={profileProgress} />
+                    <CompactBar label="Trust score" value={verifiedScore} />
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
-                    <MiniStat label="Messages" value={matches.length} tone="blue" />
-                    <MiniStat label="Matched" value={pendingRequests.length + matches.length} tone="purple" />
+                    <MiniStat label="Accepted + pending" value={pendingRequests.length + matches.length} tone="blue" />
+                    <MiniStat label="Verified" value={verifiedScore >= 70 ? 'Blue' : 'New'} tone="purple" />
                 </div>
             </div>
         ),
