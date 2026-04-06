@@ -109,8 +109,9 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
+const isRender = Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL || process.env.RENDER_SERVICE_ID);
+const PORT = Number(isRender ? 10000 : (process.env.PORT || 3001));
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 Socket.IO enabled`);
   console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL}`);

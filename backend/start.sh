@@ -44,23 +44,28 @@ fi
 
 echo "✅ JWT_SECRET is set"
 
-echo "📦 Syncing Prisma schema with MongoDB (best-effort)..."
-# Add short timeout so we don't block the deploy for 30 s if Atlas is unreachable
-PRISMA_DB_URL="$DATABASE_URL"
-if [[ "$DATABASE_URL" != *"serverSelectionTimeoutMS"* ]]; then
-  PRISMA_DB_URL="${DATABASE_URL}&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
-fi
-PRISMA_LOG_FILE="$(mktemp)"
-if DATABASE_URL="$PRISMA_DB_URL" npx prisma db push --skip-generate >"$PRISMA_LOG_FILE" 2>&1; then
-  echo "✅ Database schema synced successfully"
+if [ -z "$RENDER" ]; then
+  echo "📦 Syncing Prisma schema with MongoDB (best-effort)..."
+  # Add short timeout so we don't block startup for long if Atlas is unreachable
+  PRISMA_DB_URL="$DATABASE_URL"
+  if [[ "$DATABASE_URL" != *"serverSelectionTimeoutMS"* ]]; then
+    PRISMA_DB_URL="${DATABASE_URL}&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
+  fi
+  PRISMA_LOG_FILE="$(mktemp)"
+  if DATABASE_URL="$PRISMA_DB_URL" npx prisma db push --skip-generate >"$PRISMA_LOG_FILE" 2>&1; then
+    echo "✅ Database schema synced successfully"
+  else
+    echo "⚠️  Prisma db push failed - server will start anyway."
+    echo "   MongoDB creates collections automatically on first write."
+    echo "   Common cause: invalid DB credentials, Atlas IP rules, or paused cluster."
+    echo "   Showing last Prisma logs:"
+    tail -n 20 "$PRISMA_LOG_FILE"
+  fi
+  rm -f "$PRISMA_LOG_FILE"
 else
-  echo "⚠️  Prisma db push failed - server will start anyway."
-  echo "   MongoDB creates collections automatically on first write."
-  echo "   Common cause: invalid DB credentials, Atlas IP rules, or paused cluster."
-  echo "   Showing last Prisma logs:"
-  tail -n 20 "$PRISMA_LOG_FILE"
+  echo "🚀 Skipping Prisma db push on Render for faster startup"
 fi
-rm -f "$PRISMA_LOG_FILE"
 
 echo "🚀 Starting server..."
+export PORT="${PORT:-10000}"
 node dist/server.js
