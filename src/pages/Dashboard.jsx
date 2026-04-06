@@ -1534,7 +1534,7 @@ const Dashboard = () => {
 
                     {/* User Profile Card */}
                     <div className="sticky top-4 z-20 mb-5">
-                        <div className={`backdrop-blur-xl border rounded-[28px] p-4 sm:p-5 shadow-xl ${isLightMode ? 'bg-white/95 border-gray-200' : 'bg-gradient-to-br from-[#0f1815]/95 to-[#0a0d0c]/95 border-white/10'}`}>
+                        <div className={`backdrop-blur-xl border rounded-[28px] p-4 sm:p-5 shadow-xl ${isLightMode ? 'bg-gradient-to-br from-[#ffffff] via-[#f5fbff] to-[#f4fff8] border-emerald-100 shadow-[0_20px_45px_rgba(16,185,129,0.12)]' : 'bg-gradient-to-br from-[#0f1815]/95 to-[#0a0d0c]/95 border-white/10'}`}>
                             <div className="flex flex-col gap-4 sm:gap-5">
                                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                                     <button
@@ -1564,10 +1564,10 @@ const Dashboard = () => {
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <p className={`text-[11px] uppercase tracking-[0.28em] ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>Profile</p>
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/20 text-xs font-semibold">
+                                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${isLightMode ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-blue-500/15 text-blue-300 border border-blue-500/20'}`}>
                                                         <FaCheckCircle className="text-[11px]" /> Verified
                                                     </span>
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/20 text-xs font-semibold">
+                                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${isLightMode ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-accent-green/15 text-accent-green border border-accent-green/20'}`}>
                                                         Lv {profileLevel}
                                                     </span>
                                                     <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200' : 'bg-white/5 text-gray-300 border border-white/10'}`}>
@@ -1587,7 +1587,7 @@ const Dashboard = () => {
                                         <button
                                             type="button"
                                             onClick={handleRideBellClick}
-                                            className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all relative flex items-center justify-center gap-2 font-semibold ${isLightMode ? 'bg-gray-100 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 border border-white/10 hover:bg-white/10'}`}
+                                            className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all relative flex items-center justify-center gap-2 font-semibold ${isLightMode ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-800 hover:from-emerald-100 hover:to-teal-100' : 'bg-white/5 border border-white/10 hover:bg-white/10'}`}
                                         >
                                             <FaBell className="text-accent-green text-sm sm:text-base" />
                                             <span className={`text-sm ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>Alerts</span>
@@ -1727,14 +1727,14 @@ const Dashboard = () => {
                                     <button
                                         type="button"
                                         onClick={handleMessageCenterClick}
-                                        className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm ${isLightMode ? 'bg-gray-100 border border-gray-200 text-[#0d1a16] hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
+                                        className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm ${isLightMode ? 'bg-gradient-to-r from-slate-50 to-zinc-50 border border-slate-200 text-slate-700 hover:from-slate-100 hover:to-zinc-100' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
                                     >
                                         <FaComments className="text-sm" /> <span>Inbox</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => handleMatchedCenterClick('pending')}
-                                        className={`relative w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm ${isLightMode ? 'bg-gray-100 border border-gray-200 text-[#0d1a16] hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
+                                        className={`relative w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm ${isLightMode ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-700 hover:from-blue-100 hover:to-cyan-100' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
                                     >
                                         <FaCheck className="text-sm" /> <span>Matches</span>
                                         {matchedActionCount > 0 && (
@@ -1746,14 +1746,14 @@ const Dashboard = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowSOSModal(true)}
-                                        className="w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 font-semibold text-sm animate-pulse"
+                                        className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm animate-pulse ${isLightMode ? 'bg-red-50 border border-red-200 text-red-600 hover:bg-red-100' : 'bg-red-500/15 border border-red-500/30 text-red-300 hover:bg-red-500/20'}`}
                                     >
                                         <FaExclamationTriangle className="text-sm" /> <span>SOS</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setIsLightMode((prev) => !prev)}
-                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-yellow-100 border-yellow-300 text-yellow-700 hover:bg-yellow-200' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'} col-span-1 xl:w-12 xl:px-0`}
+                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'} col-span-1 xl:w-12 xl:px-0`}
                                         title={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
                                         aria-label={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
                                     >
@@ -1762,7 +1762,7 @@ const Dashboard = () => {
                                     <button
                                         type="button"
                                         onClick={handleLogout}
-                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-gray-100 border-gray-200 text-red-600 hover:bg-red-50' : 'bg-white/5 border-white/10 text-red-300 hover:bg-red-500/10'} col-span-1 xl:w-12 xl:px-0`}
+                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100' : 'bg-white/5 border-white/10 text-red-300 hover:bg-red-500/10'} col-span-1 xl:w-12 xl:px-0`}
                                         title="Logout"
                                         aria-label="Logout"
                                     >
@@ -1771,7 +1771,7 @@ const Dashboard = () => {
                                     </div>
                                 </div>
 
-                                <div className={`inline-flex flex-wrap items-center gap-2 p-1 rounded-2xl border ${isLightMode ? 'bg-gray-100 border-gray-200' : 'bg-white/[0.03] border-white/10'} xl:self-end`}>
+                                <div className={`inline-flex flex-wrap items-center gap-2 p-1 rounded-2xl border ${isLightMode ? 'bg-gradient-to-r from-emerald-50 to-blue-50 border-emerald-100' : 'bg-white/[0.03] border-white/10'} xl:self-end`}>
                                     <button
                                         type="button"
                                         onClick={() => setActiveProfileTab('overview')}
@@ -2885,9 +2885,9 @@ const MiniStat = ({ label, value, tone, isLightMode = false }) => {
     };
 
     const lightToneClasses = {
-        green: 'text-emerald-700 border-emerald-200 bg-emerald-50',
-        blue: 'text-blue-700 border-blue-200 bg-blue-50',
-        purple: 'text-purple-700 border-purple-200 bg-purple-50'
+        green: 'text-emerald-800 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50',
+        blue: 'text-blue-800 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50',
+        purple: 'text-purple-800 border-purple-200 bg-gradient-to-br from-purple-50 to-fuchsia-50'
     };
 
     return (
@@ -2899,7 +2899,7 @@ const MiniStat = ({ label, value, tone, isLightMode = false }) => {
 };
 
 const CompactBar = ({ label, value, isLightMode = false }) => (
-    <div className={`rounded-2xl border p-4 ${isLightMode ? 'border-gray-200 bg-white' : 'border-white/10 bg-black/20'}`}>
+    <div className={`rounded-2xl border p-4 ${isLightMode ? 'border-gray-200 bg-gradient-to-br from-white to-slate-50' : 'border-white/10 bg-black/20'}`}>
         <div className="flex items-center justify-between gap-3 mb-2">
             <p className={`text-xs uppercase tracking-wider ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>{label}</p>
             <p className={`text-sm font-semibold ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>{value}%</p>
@@ -2911,7 +2911,7 @@ const CompactBar = ({ label, value, isLightMode = false }) => (
 );
 
 const RewardChip = ({ label, active, isLightMode = false }) => (
-    <div className={`flex items-center justify-between rounded-2xl border px-3 py-3 ${active ? 'border-accent-green/30 bg-accent-green/10' : isLightMode ? 'border-gray-200 bg-white' : 'border-white/10 bg-black/20'}`}>
+    <div className={`flex items-center justify-between rounded-2xl border px-3 py-3 ${active ? 'border-accent-green/30 bg-accent-green/10' : isLightMode ? 'border-gray-200 bg-gradient-to-r from-white to-slate-50' : 'border-white/10 bg-black/20'}`}>
         <span className={`text-sm font-semibold ${active ? 'text-accent-green' : isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>{label}</span>
         <span className={`text-[10px] font-bold uppercase tracking-widest ${active ? 'text-accent-green' : isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>{active ? 'Unlocked' : 'Locked'}</span>
     </div>
