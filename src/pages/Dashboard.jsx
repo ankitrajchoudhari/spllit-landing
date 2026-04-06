@@ -1454,16 +1454,16 @@ const Dashboard = () => {
                     {/* User Profile Card */}
                     <div className="sticky top-4 z-20 mb-6">
                         <div className="bg-bg-secondary/96 backdrop-blur-xl border border-white/10 rounded-[28px] p-4 sm:p-5 shadow-xl">
-                            <div className="flex flex-col gap-4">
-                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                            <div className="flex flex-col gap-4 sm:gap-5">
+                                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                                     <button
                                         type="button"
                                         onClick={handleOpenStickerPicker}
                                         className="group w-full text-left active:scale-[0.99] transition-transform"
                                     >
-                                        <div className="flex items-start gap-4 min-w-0">
+                                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                                             <div className="relative shrink-0">
-                                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full p-[3px] bg-gradient-to-br from-accent-green via-cyan-400 to-blue-500 shadow-[0_0_32px_rgba(16,185,129,0.28)]">
+                                                <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full p-[3px] bg-gradient-to-br from-accent-green via-cyan-400 to-blue-500 shadow-[0_0_26px_rgba(16,185,129,0.24)]">
                                                     <div className="w-full h-full rounded-full bg-[#07110d] flex items-center justify-center overflow-hidden">
                                                         {user?.profilePhoto ? (
                                                             <img src={user.profilePhoto} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
@@ -1472,17 +1472,17 @@ const Dashboard = () => {
                                                         )}
                                                     </div>
                                                 </div>
-                                                <span className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-accent-green text-black flex items-center justify-center border-2 border-[#07110d] shadow-lg">
+                                                <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-accent-green text-black flex items-center justify-center border-2 border-[#07110d] shadow-lg">
                                                     <FaPlus className="text-xs" />
                                                 </span>
-                                                <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center border-2 border-[#07110d] shadow-lg">
+                                                <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center border-2 border-[#07110d] shadow-lg">
                                                     <FaCheckCircle className="text-xs" />
                                                 </span>
                                             </div>
 
-                                            <div className="min-w-0 pt-1">
-                                                <p className="text-gray-500 text-xs uppercase tracking-[0.28em]">Profile</p>
-                                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-gray-500 text-[11px] uppercase tracking-[0.28em]">Profile</p>
                                                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/20 text-xs font-semibold">
                                                         <FaCheckCircle className="text-[11px]" /> Verified
                                                     </span>
@@ -1493,7 +1493,7 @@ const Dashboard = () => {
                                                         {selectedStickerLabel}
                                                     </span>
                                                 </div>
-                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                <div className="mt-2 flex flex-wrap gap-2">
                                                     <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.college || 'IIT Madras BS Degree'}</span>
                                                     <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.phone || 'Add phone'}</span>
                                                 </div>
@@ -1501,14 +1501,15 @@ const Dashboard = () => {
                                         </div>
                                     </button>
 
-                                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 w-full lg:w-auto lg:pt-1">
+                                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 w-full xl:w-auto xl:pt-0">
                                     <div className="relative w-full sm:w-auto" ref={notificationBellRef}>
                                         <button
                                             type="button"
                                             onClick={handleRideBellClick}
-                                            className="w-full sm:w-auto p-2.5 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative flex items-center justify-center"
+                                            className="w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative flex items-center justify-center gap-2"
                                         >
-                                            <FaBell className="text-accent-green text-sm sm:text-xl" />
+                                            <FaBell className="text-accent-green text-sm sm:text-base" />
+                                            <span className="hidden sm:inline text-sm font-semibold text-white">Alerts</span>
                                             {(notifications.length > 0 || notificationFeedCount > 0 || unreadRideAnnouncementCount > 0) && (
                                                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center font-bold">
                                                     {Math.max(notifications.length, notificationFeedCount, unreadRideAnnouncementCount)}
@@ -1645,14 +1646,14 @@ const Dashboard = () => {
                                     <button
                                         type="button"
                                         onClick={handleMessageCenterClick}
-                                        className="w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                                        className="w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
                                     >
                                         <FaComments className="text-sm sm:text-base" /> <span>Messages</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => handleMatchedCenterClick('pending')}
-                                        className="relative w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                                        className="relative w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
                                     >
                                         <FaCheck className="text-sm sm:text-base" /> <span>Matched</span>
                                         {matchedActionCount > 0 && (
@@ -1664,32 +1665,32 @@ const Dashboard = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowSOSModal(true)}
-                                        className="w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 font-semibold text-sm sm:text-base animate-pulse"
+                                        className="w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 font-semibold text-sm sm:text-base animate-pulse"
                                     >
                                         <FaExclamationTriangle className="text-sm sm:text-base" /> <span>SOS</span>
                                     </button>
                                     </div>
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 xl:justify-end">
                                     <button
                                         type="button"
                                         onClick={() => setActiveProfileTab('overview')}
-                                        className={`px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'overview' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                                        className={`min-w-[88px] px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'overview' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
                                     >
                                         Overview
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setActiveProfileTab('performance')}
-                                        className={`px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'performance' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                                        className={`min-w-[88px] px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'performance' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
                                     >
                                         Performance
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setActiveProfileTab('rewards')}
-                                        className={`px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'rewards' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                                        className={`min-w-[88px] px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'rewards' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
                                     >
                                         Rewards
                                     </button>
