@@ -33,9 +33,24 @@ api.interceptors.response.use(
         const originalRequest = error.config;
         const refreshToken = localStorage.getItem('refreshToken');
         const isRefreshRequest = originalRequest?.url?.includes('/auth/refresh');
+        const isUnauthorized = error.response?.status === 401;
+
+        if (isUnauthorized && !refreshToken && !isRefreshRequest) {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            localStorage.removeItem('auth-storage');
+
+            const path = window.location.pathname || '';
+            if (!path.startsWith('/admin') && !path.startsWith('/login')) {
+                window.location.href = '/login';
+            }
+
+            return Promise.reject(error);
+        }
 
         // If 401 and we haven't tried to refresh yet
-        if (error.response?.status === 401 && !originalRequest?._retry && !isRefreshRequest && refreshToken) {
+        if (isUnauthorized && !originalRequest?._retry && !isRefreshRequest && refreshToken) {
             originalRequest._retry = true;
 
             try {
@@ -63,8 +78,9 @@ api.interceptors.response.use(
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
                 localStorage.removeItem('user');
+                localStorage.removeItem('auth-storage');
                 const path = window.location.pathname || '';
-                if (!path.startsWith('/admin')) {
+                if (!path.startsWith('/admin') && !path.startsWith('/login')) {
                     window.location.href = '/login';
                 }
                 return Promise.reject(refreshError);

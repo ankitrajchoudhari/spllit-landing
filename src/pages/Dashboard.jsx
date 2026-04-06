@@ -487,22 +487,40 @@ const Dashboard = () => {
             return;
         }
 
-        // Connect to Socket.IO for real-time features
-        const socketUrl = SOCKET_BASE_URL;
-        const socketToken = localStorage.getItem('accessToken');
-        const isLikelyMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const newSocket = io(socketUrl, {
-            auth: socketToken ? { token: socketToken } : undefined,
-            transports: isLikelyMobile ? ['polling'] : ['websocket', 'polling'],
-            upgrade: !isLikelyMobile,
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000
-        });
-        setSocket(newSocket);
+        const accessToken = localStorage.getItem('accessToken');
+        if (!accessToken) {
+            navigate('/login');
+            return;
+        }
 
-        newSocket.on('connect', () => {});
-        newSocket.on('connect_error', () => {});
+        let isCancelled = false;
+        let newSocket = null;
+
+        const initializeProtectedDashboard = async () => {
+            // Validate/refresh auth once before opening sockets or fetching protected data.
+            const profileResult = await fetchProfile();
+            if (!profileResult?.success || isCancelled) {
+                logout();
+                navigate('/login', { replace: true });
+                return;
+            }
+
+            // Connect to Socket.IO for real-time features
+            const socketUrl = SOCKET_BASE_URL;
+            const socketToken = localStorage.getItem('accessToken');
+            const isLikelyMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            newSocket = io(socketUrl, {
+                auth: socketToken ? { token: socketToken } : undefined,
+                transports: isLikelyMobile ? ['polling'] : ['websocket', 'polling'],
+                upgrade: !isLikelyMobile,
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000
+            });
+            setSocket(newSocket);
+
+            newSocket.on('connect', () => {});
+            newSocket.on('connect_error', () => {});
 
         // Listen for new rides (for all users)
         newSocket.on('new-ride-created', (data) => {
@@ -744,21 +762,25 @@ const Dashboard = () => {
             playNotificationSound();
         });
 
-        // Load Google Maps early so the ride modal is ready quickly
-        loadGoogleMaps();
+            // Load Google Maps early so the ride modal is ready quickly
+            loadGoogleMaps();
 
-        loadRideAnnouncements();
-        loadAdminAnnouncements();
-        loadNotificationFeed();
-        loadMatches();
+            loadRideAnnouncements();
+            loadAdminAnnouncements();
+            loadNotificationFeed();
+            loadMatches();
+        };
+
+        initializeProtectedDashboard();
 
         // Cleanup on unmount
         return () => {
+            isCancelled = true;
             if (newSocket) {
                 newSocket.disconnect();
             }
         };
-    }, [hasHydrated, isAuthenticated, user?.id, navigate]);
+    }, [hasHydrated, isAuthenticated, user?.id, navigate, fetchProfile, logout]);
 
     useEffect(() => {
         const timer = setInterval(() => {
