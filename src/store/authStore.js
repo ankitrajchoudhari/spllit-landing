@@ -96,6 +96,29 @@ const useAuthStore = create(
                 }
             },
 
+            // Login user with Firebase token (Google or email/password)
+            loginWithFirebaseToken: async (idToken) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const response = await authAPI.firebaseLogin(idToken);
+                    const { user, tokens } = response;
+                    const { accessToken, refreshToken } = tokens;
+
+                    get().setTokens(accessToken, refreshToken);
+                    set({
+                        user,
+                        isAuthenticated: true,
+                        isLoading: false,
+                    });
+
+                    return { success: true, user };
+                } catch (error) {
+                    const errorMessage = error.response?.data?.error || 'Firebase login failed';
+                    set({ error: errorMessage, isLoading: false });
+                    return { success: false, error: errorMessage };
+                }
+            },
+
             // Logout user
             logout: async () => {
                 try {

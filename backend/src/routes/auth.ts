@@ -28,6 +28,92 @@ const googleLoginSchema = z.object({
   idToken: z.string().min(1)
 });
 
+const firebaseLoginSchema = z.object({
+  idToken: z.string().min(1)
+});
+
+const syncFirebaseUser = async (idToken: string, res: Response) => {
+  if (!isFirebaseAdminConfigured()) {
+    return res.status(500).json({ error: 'Firebase sign-in is not configured on server' });
+  }
+
+  const payload = await verifyFirebaseIdToken(idToken);
+  if (!payload?.email) {
+    return res.status(401).json({ error: 'Invalid Firebase token' });
+  }
+
+  const emailVerified = Boolean(payload.email_verified || payload.emailVerified);
+  if (!emailVerified) {
+    return res.status(403).json({ error: 'Please verify your email before signing in' });
+  }
+
+  const email = payload.email.toLowerCase();
+  const name = payload.name || payload.picture?.split('/')?.slice(-1)?.[0] || email.split('@')[0];
+  const avatarUrl = payload.picture || null;
+
+  let user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user) {
+    const randomPassword = randomBytes(24).toString('hex');
+    const hashedPassword = await hashPassword(randomPassword);
+    const placeholderPhoneSeed = `+91${Math.floor(1000000000 + Math.random() * 9000000000)}-${email}`;
+
+    user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        phone: null,
+        phoneHash: hashPhone(placeholderPhoneSeed),
+        password: hashedPassword,
+        college: 'IIT Madras (BS Degree)',
+        gender: 'other',
+        emailVerified: true,
+        profilePhoto: avatarUrl
+      }
+    });
+
+    io.emit('new-user-registered', {
+      name: user.name,
+      college: user.college,
+      email: user.email,
+      timestamp: user.createdAt
+    });
+  } else {
+    if (user.role === 'subadmin' || user.role === 'admin') {
+      if (user.adminStatus === 'inactive') {
+        return res.status(403).json({ error: 'Your account has been deactivated. Please contact the administrator.' });
+      }
+      if (user.adminStatus === 'deleted') {
+        return res.status(403).json({ error: 'This account no longer exists.' });
+      }
+      if (!user.isActive) {
+        return res.status(403).json({ error: 'Your account is not active. Please contact the administrator.' });
+      }
+    }
+
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastSeen: new Date(),
+        emailVerified: true,
+        ...(avatarUrl ? { profilePhoto: avatarUrl } : {})
+      }
+    });
+  }
+
+  const accessToken = generateAccessToken(user.id, user.email);
+  const refreshToken = generateRefreshToken(user.id);
+
+  return res.json({
+    message: 'Firebase login successful',
+    user: sanitizeUser(user),
+    tokens: {
+      accessToken,
+      refreshToken
+    }
+  });
+};
+
 /**
  * POST /api/auth/register
  * Register a new user
@@ -168,87 +254,31 @@ router.post('/login', async (req: Request, res: Response) => {
  */
 router.post('/google', async (req: Request, res: Response) => {
   try {
-    if (!isFirebaseAdminConfigured()) {
-      return res.status(500).json({ error: 'Google login is not configured on server' });
-    }
-
     const { idToken } = googleLoginSchema.parse(req.body);
-    const payload = await verifyFirebaseIdToken(idToken);
-    if (!payload?.email) {
-      return res.status(401).json({ error: 'Invalid Google token' });
-    }
-
-    const email = payload.email.toLowerCase();
-    const name = payload.name || email.split('@')[0];
-    const avatarUrl = payload.picture || null;
-
-    let user = await prisma.user.findUnique({ where: { email } });
-
-    if (!user) {
-      const randomPassword = randomBytes(24).toString('hex');
-      const hashedPassword = await hashPassword(randomPassword);
-      const placeholderPhoneSeed = `+91${Math.floor(1000000000 + Math.random() * 9000000000)}-${email}`;
-
-      user = await prisma.user.create({
-        data: {
-          name,
-          email,
-          phone: null,
-          phoneHash: hashPhone(placeholderPhoneSeed),
-          password: hashedPassword,
-          college: 'IIT Madras (BS Degree)',
-          gender: 'other',
-          emailVerified: true,
-          profilePhoto: avatarUrl
-        }
-      });
-
-      io.emit('new-user-registered', {
-        name: user.name,
-        college: user.college,
-        email: user.email,
-        timestamp: user.createdAt
-      });
-    } else {
-      if (user.role === 'subadmin' || user.role === 'admin') {
-        if (user.adminStatus === 'inactive') {
-          return res.status(403).json({ error: 'Your account has been deactivated. Please contact the administrator.' });
-        }
-        if (user.adminStatus === 'deleted') {
-          return res.status(403).json({ error: 'This account no longer exists.' });
-        }
-        if (!user.isActive) {
-          return res.status(403).json({ error: 'Your account is not active. Please contact the administrator.' });
-        }
-      }
-
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          lastSeen: new Date(),
-          emailVerified: true,
-          ...(avatarUrl ? { profilePhoto: avatarUrl } : {})
-        }
-      });
-    }
-
-    const accessToken = generateAccessToken(user.id, user.email);
-    const refreshToken = generateRefreshToken(user.id);
-
-    res.json({
-      message: 'Google login successful',
-      user: sanitizeUser(user),
-      tokens: {
-        accessToken,
-        refreshToken
-      }
-    });
+    return await syncFirebaseUser(idToken, res);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
     console.error('Google login error:', error);
     res.status(401).json({ error: 'Google authentication failed' });
+  }
+});
+
+/**
+ * POST /api/auth/firebase
+ * Login/register user via Firebase email/password or Google id token
+ */
+router.post('/firebase', async (req: Request, res: Response) => {
+  try {
+    const { idToken } = firebaseLoginSchema.parse(req.body);
+    return await syncFirebaseUser(idToken, res);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Firebase login error:', error);
+    res.status(401).json({ error: 'Firebase authentication failed' });
   }
 });
 

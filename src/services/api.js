@@ -115,6 +115,12 @@ export const authAPI = {
         return response.data;
     },
 
+    // Login user with any verified Firebase id token (Google, email/password)
+    firebaseLogin: async (idToken) => {
+        const response = await api.post('/auth/firebase', { idToken });
+        return response.data;
+    },
+
     // Refresh access token
     refreshToken: async (refreshToken) => {
         const response = await api.post('/auth/refresh', { refreshToken });

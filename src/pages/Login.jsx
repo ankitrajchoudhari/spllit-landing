@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaTimes, FaLock, FaGoogle } from 'react-icons/fa';
-import { setPersistence, browserLocalPersistence, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile as updateFirebaseProfile, signOut } from 'firebase/auth';
 import useAuthStore from '../store/authStore';
 import { firebaseAuth, googleProvider } from '../config/firebase';
 
@@ -121,13 +121,17 @@ const PainPointTicker = () => (
 const Login = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { login, loginWithGoogle, isLoading, isAuthenticated, hasHydrated, user } = useAuthStore();
+    const { loginWithGoogle, loginWithFirebaseToken, isLoading, isAuthenticated, hasHydrated, user } = useAuthStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [authMethod, setAuthMethod] = useState('');
+    const [emailMode, setEmailMode] = useState('signin');
     const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
     const [isSyncingGoogleUser, setIsSyncingGoogleUser] = useState(false);
+    const [isEmailSubmitting, setIsEmailSubmitting] = useState(false);
+    const [verificationNotice, setVerificationNotice] = useState('');
 
     const [emailId, setEmailId] = useState('');
+    const [signupName, setSignupName] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
@@ -155,6 +159,7 @@ const Login = () => {
         const handleOpenSignInModal = () => {
             setIsModalOpen(true);
             setError('');
+            setVerificationNotice('');
         };
 
         window.addEventListener('spllit:open-signin-modal', handleOpenSignInModal);
@@ -173,10 +178,14 @@ const Login = () => {
                 return;
             }
 
+            if (!firebaseUser.emailVerified) {
+                return;
+            }
+
             try {
                 setIsSyncingGoogleUser(true);
                 const idToken = await firebaseUser.getIdToken(true);
-                const authResult = await loginWithGoogle(idToken);
+                const authResult = await loginWithFirebaseToken(idToken);
 
                 if (authResult.success) {
                     if (authResult.user?.role === 'subadmin' || authResult.user?.isAdmin) {
@@ -193,7 +202,7 @@ const Login = () => {
         });
 
         return () => unsubscribe();
-    }, [hasHydrated, isAuthenticated, isSyncingGoogleUser, loginWithGoogle, navigate]);
+    }, [hasHydrated, isAuthenticated, isSyncingGoogleUser, loginWithFirebaseToken, navigate]);
 
     // Stats Counter Animation
     const [count, setCount] = useState(0);
@@ -251,6 +260,7 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setVerificationNotice('');
 
         if (!authMethod) {
             setError('Please choose Sign in with Google or Sign in with Email.');
@@ -262,26 +272,70 @@ const Login = () => {
             return;
         }
 
-        try {
-            // Handle both regular users and subadmins
-            let email;
-            if (authMethod === 'google' || emailId.includes('@')) {
-                // If email already has @, use it as is (for subadmins)
-                email = emailId;
-            } else {
-                // For regular users, append @study.iitm.ac.in
-                email = `${emailId}@study.iitm.ac.in`;
+        const normalizeEmail = (value) => {
+            const trimmed = value.trim();
+            return trimmed.includes('@') ? trimmed : `${trimmed}@study.iitm.ac.in`;
+        };
+
+        const firebaseEmail = normalizeEmail(emailId);
+
+        if (emailMode === 'signup') {
+            if (!signupName.trim()) {
+                setError('Please enter your name for the new account.');
+                return;
             }
 
-            const credentials = {
-                email: email,
-                password: password
-            };
+            if (password.length < 6) {
+                setError('Password must be at least 6 characters.');
+                return;
+            }
 
-            const result = await login(credentials);
+            try {
+                setIsEmailSubmitting(true);
+                const credential = await createUserWithEmailAndPassword(firebaseAuth, firebaseEmail, password);
+                await updateFirebaseProfile(credential.user, {
+                    displayName: signupName.trim()
+                });
+
+                const continueUrl = `${window.location.origin}/login?verified=1`;
+                await sendEmailVerification(credential.user, {
+                    url: continueUrl,
+                    handleCodeInApp: true
+                });
+
+                await signOut(firebaseAuth);
+                setVerificationNotice(
+                    firebaseEmail.endsWith('testmail.app')
+                        ? `Verification email sent to ${firebaseEmail}. Open the Testmail inbox and click the link, then sign in again.`
+                        : `Verification email sent to ${firebaseEmail}. Please verify your inbox, then sign in again.`
+                );
+                return;
+            } catch (signupError) {
+                setError(mapFirebaseAuthError(signupError));
+                return;
+            } finally {
+                setIsEmailSubmitting(false);
+            }
+        }
+
+        try {
+            setIsEmailSubmitting(true);
+            const credential = await signInWithEmailAndPassword(firebaseAuth, firebaseEmail, password);
+
+            if (!credential.user.emailVerified) {
+                await sendEmailVerification(credential.user, {
+                    url: `${window.location.origin}/login?verified=1`,
+                    handleCodeInApp: true
+                });
+                await signOut(firebaseAuth);
+                setError('Please verify your email first. We sent a fresh verification link.');
+                return;
+            }
+
+            const idToken = await credential.user.getIdToken(true);
+            const result = await loginWithFirebaseToken(idToken);
 
             if (result.success) {
-                // Check if user is a subadmin and redirect accordingly
                 if (result.user?.role === 'subadmin' || result.user?.isAdmin) {
                     navigate('/admin/dashboard');
                 } else {
@@ -293,6 +347,8 @@ const Login = () => {
         } catch (error) {
             console.error('Login error:', error);
             setError('Login failed. Please try again.');
+        } finally {
+            setIsEmailSubmitting(false);
         }
     };
 
@@ -301,12 +357,6 @@ const Login = () => {
         setIsGoogleRedirecting(true);
 
         try {
-            try {
-                await setPersistence(firebaseAuth, browserLocalPersistence);
-            } catch (persistenceError) {
-                console.warn('Falling back to Firebase default auth persistence:', persistenceError);
-            }
-
             googleProvider.setCustomParameters({
                 prompt: 'select_account'
             });
@@ -568,6 +618,39 @@ const Login = () => {
                                 </button>
                             </div>
 
+                            {authMethod === 'email' && (
+                                <div className="grid grid-cols-2 gap-2 mb-5 p-1 rounded-2xl bg-white/5 border border-white/10">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEmailMode('signin');
+                                            setError('');
+                                            setVerificationNotice('');
+                                        }}
+                                        className={`px-4 py-3 rounded-xl font-semibold transition-all ${emailMode === 'signin'
+                                                ? 'bg-accent-green text-black'
+                                                : 'text-gray-300 hover:text-white'
+                                            }`}
+                                    >
+                                        Sign In
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEmailMode('signup');
+                                            setError('');
+                                            setVerificationNotice('');
+                                        }}
+                                        className={`px-4 py-3 rounded-xl font-semibold transition-all ${emailMode === 'signup'
+                                                ? 'bg-accent-green text-black'
+                                                : 'text-gray-300 hover:text-white'
+                                            }`}
+                                    >
+                                        Create Account
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Sign-in Form */}
                             <form onSubmit={handleSubmit} className="space-y-5">
                                 {authMethod === 'google' && (
@@ -578,11 +661,17 @@ const Login = () => {
                                     </div>
                                 )}
 
+                                {verificationNotice && (
+                                    <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                                        <p className="text-blue-300 text-sm leading-relaxed">{verificationNotice}</p>
+                                    </div>
+                                )}
+
                                 {/* Email Input */}
                                 {authMethod !== 'google' && (
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">
-                                        Student Email or Admin Email
+                                        {emailMode === 'signup' ? 'Email Address for Verification' : 'Student Email or Admin Email'}
                                     </label>
                                     <div className="flex flex-col sm:flex-row gap-2">
                                         <div className="relative flex-1">
@@ -605,15 +694,34 @@ const Login = () => {
                                 </div>
                                 )}
 
+                                {authMethod === 'email' && emailMode === 'signup' && (
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">Full Name</label>
+                                        <div className="relative group">
+                                            <input
+                                                required
+                                                type="text"
+                                                placeholder="Your name"
+                                                value={signupName}
+                                                onChange={(e) => setSignupName(e.target.value)}
+                                                className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
+                                            />
+                                            <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Password Input */}
                                 {authMethod !== 'google' && (
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">Password</label>
+                                    <label className="text-[10px] font-black text-accent-green ml-4 tracking-widest uppercase">
+                                        {emailMode === 'signup' ? 'Create Password' : 'Password'}
+                                    </label>
                                     <div className="relative group">
                                         <input
                                             required={authMethod !== 'google'}
                                             type="password"
-                                            placeholder="Enter your password"
+                                            placeholder={emailMode === 'signup' ? 'Create a password' : 'Enter your password'}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4 focus:border-accent-green/50 outline-none transition-all placeholder:text-gray-700 text-white"
@@ -625,11 +733,23 @@ const Login = () => {
 
                                 <button
                                     type="submit"
-                                    disabled={isLoading || isGoogleRedirecting || isSyncingGoogleUser}
+                                    disabled={isLoading || isGoogleRedirecting || isSyncingGoogleUser || isEmailSubmitting}
                                     className="w-full py-4.5 bg-gradient-to-r from-accent-green to-emerald-500 text-black font-black text-lg sm:text-xl rounded-2xl shadow-[0_15px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_25px_50px_rgba(16,185,129,0.4)] hover:-translate-y-1 active:scale-95 transition-all mt-3 uppercase tracking-tighter disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isLoading || isGoogleRedirecting || isSyncingGoogleUser ? 'SIGNING IN...' : authMethod === 'google' ? 'Continue with Google' : 'Submit'}
+                                    {isLoading || isGoogleRedirecting || isSyncingGoogleUser || isEmailSubmitting
+                                        ? 'PLEASE WAIT...'
+                                        : authMethod === 'google'
+                                            ? 'Continue with Google'
+                                            : emailMode === 'signup'
+                                                ? 'Create Account'
+                                                : 'Sign In'}
                                 </button>
+
+                                {authMethod === 'email' && emailMode === 'signup' && (
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-gray-300 leading-relaxed">
+                                        Use a <span className="text-accent-green font-semibold">Testmail</span> inbox like <span className="text-white font-semibold">user1@testmail.app</span> for testing. Firebase will send the verification email there.
+                                    </div>
+                                )}
 
                                 <div className="text-center mt-6">
                                     <p className="text-gray-500 text-sm">Use your existing account to continue.</p>

@@ -232,6 +232,12 @@ npm start
 
 # Open Prisma Studio (database GUI)
 npm run prisma:studio
+
+# Poll Testmail for a Firebase verification email
+npm run testmail:verify -- --subject verification --from firebase
+
+# Poll a specific Testmail tag inbox (recommended)
+npm run testmail:verify -- --tag signup --subject verification --from firebase
 \`\`\`
 
 ## Deployment
@@ -267,6 +273,13 @@ JWT_EXPIRES_IN=1h
 JWT_REFRESH_EXPIRES_IN=7d
 FRONTEND_URL=https://yourdomain.com
 GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
+TESTMAIL_API_KEY=your_testmail_api_key
+TESTMAIL_NAMESPACE=your_testmail_namespace
+# Optional default tag/mailbox if you omit --tag
+# TESTMAIL_MAILBOX=signup
+TESTMAIL_BASE_URL=https://api.testmail.app/api/json
+TESTMAIL_TIMEOUT_MS=120000
+TESTMAIL_POLL_INTERVAL_MS=5000
 \`\`\`
 
 ## Security Best Practices
