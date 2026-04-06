@@ -355,6 +355,15 @@ const Navbar = () => {
         setShowProfileModal(false);
     };
 
+    const handleOpenAvatarPicker = () => {
+        setShowAvatarPicker(true);
+    };
+
+    const handleSelectAvatar = (avatarUrl) => {
+        setProfileForm((current) => ({ ...current, profilePhoto: avatarUrl }));
+        setShowAvatarPicker(false);
+    };
+
     const handleSaveProfile = async (e) => {
         e.preventDefault();
         setIsSavingProfile(true);
@@ -583,216 +592,231 @@ const Navbar = () => {
                                     animate={{ y: 0, scale: 1, opacity: 1 }}
                                     exit={{ y: 24, scale: 0.96, opacity: 0 }}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="w-full max-w-2xl rounded-3xl border border-white/10 bg-bg-secondary shadow-2xl overflow-hidden"
+                                    className="w-full max-w-3xl h-[90vh] rounded-[28px] border border-white/10 bg-bg-secondary shadow-2xl overflow-hidden flex flex-col"
                                 >
-                                    <div className="relative px-5 sm:px-6 py-5 border-b border-white/10 overflow-hidden">
-                                        <div className="pointer-events-none absolute -top-10 right-8 w-40 h-40 rounded-full bg-accent-green/20 blur-3xl" />
+                                    <div className="relative px-5 sm:px-6 py-4 border-b border-white/10 overflow-hidden shrink-0">
+                                        <div className="pointer-events-none absolute -top-10 right-8 w-40 h-40 rounded-full bg-accent-green/15 blur-3xl" />
                                         <div className="pointer-events-none absolute top-10 -left-8 w-32 h-32 rounded-full bg-cyan-400/10 blur-3xl" />
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <h3 className="text-xl sm:text-2xl font-bold text-white">Profile Dashboard</h3>
+                                                <p className="text-xs sm:text-sm text-gray-400">Compact, sticky, and built around your performance</p>
+                                            </div>
+                                            <button
+                                                onClick={handleCloseProfileModal}
+                                                className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center shrink-0"
+                                            >
+                                                <FaTimes />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="px-4 sm:px-5 pt-4 shrink-0 border-b border-white/10 bg-bg-secondary/95 backdrop-blur-xl sticky top-0 z-10">
+                                        <div className="flex flex-wrap gap-2">
+                                            <ProfileTabButton label="Overview" active={activeProfileTab === 'overview'} onClick={() => setActiveProfileTab('overview')} />
+                                            <ProfileTabButton label="Performance" active={activeProfileTab === 'performance'} onClick={() => setActiveProfileTab('performance')} />
+                                            <ProfileTabButton label="Edit" active={activeProfileTab === 'edit'} onClick={() => setActiveProfileTab('edit')} />
+                                            <ProfileTabButton label="Rewards" active={activeProfileTab === 'rewards'} onClick={() => setActiveProfileTab('rewards')} />
+                                        </div>
+                                    </div>
+
+                                    <form onSubmit={handleSaveProfile} className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-4">
+                                        {activeProfileTab === 'overview' && (
+                                            <>
+                                                <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-4 sm:p-5">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleOpenAvatarPicker}
+                                                            className="relative mx-auto sm:mx-0 shrink-0 active:scale-95 transition-transform"
+                                                        >
+                                                            <div className="w-24 h-24 rounded-full p-[3px] bg-gradient-to-br from-accent-green via-cyan-400 to-emerald-300 shadow-[0_0_32px_rgba(16,185,129,0.3)]">
+                                                                <div className="w-full h-full rounded-full bg-[#07110d] flex items-center justify-center overflow-hidden">
+                                                                    {profileForm.profilePhoto ? (
+                                                                        <img src={profileForm.profilePhoto} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
+                                                                    ) : (
+                                                                        <span className="text-2xl font-black tracking-wide text-white">{profileInitials || 'SR'}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-[#07110d] bg-accent-green" />
+                                                        </button>
+
+                                                        <div className="flex-1 min-w-0 text-center sm:text-left">
+                                                            <p className="text-xl font-black text-white leading-tight">{displayName}</p>
+                                                            <p className="text-xs text-gray-400 break-all mt-1">{user.email}</p>
+                                                            <div className="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
+                                                                <span className="px-3 py-1 rounded-full text-xs font-semibold border border-accent-green/35 bg-accent-green/15 text-accent-green">Lv {profileLevel}</span>
+                                                                <span className="px-3 py-1 rounded-full text-xs font-semibold border border-amber-300/35 bg-amber-300/10 text-amber-200">{rankTier}</span>
+                                                                <span className="px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/35 bg-cyan-400/10 text-cyan-300 capitalize">{selectedFaceLabel}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </section>
+
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                    <ProfileStatCard icon={FaBolt} title="Level" value={`Lv ${profileLevel}`} tone="emerald" />
+                                                    <ProfileStatCard icon={FaTrophy} title="XP" value={`${profileXp}`} tone="sky" />
+                                                    <ProfileStatCard icon={FaFireAlt} title="Streak" value={`${streakDays}d`} tone="orange" />
+                                                    <ProfileStatCard icon={FaMedal} title="Rank" value={rankTier} tone="violet" />
+                                                </div>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <MiniProgress label="Profile Completion" value={completionPercent} tone="green" description={completionPercent >= 85 ? 'Profile looks strong.' : 'Add a few more details.'} />
+                                                    <MiniProgress label="Level Progress" value={levelProgress} tone="blue" description={xpToNextLevel === 0 ? 'Max level reached.' : `${xpToNextLevel} XP to next level`} />
+                                                </div>
+
+                                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                    <div className="flex items-center justify-between gap-3 mb-3">
+                                                        <p className="text-xs uppercase tracking-wider text-gray-400">Performance Snapshot</p>
+                                                        <p className="text-xs text-gray-500">{isLoadingPerformance ? 'Syncing...' : `Synced ${performanceSyncLabel}`}</p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                        <MetricMini label="Rides" value={performanceData.ridesCreated} />
+                                                        <MetricMini label="Accepted" value={performanceData.matchesAccepted} />
+                                                        <MetricMini label="Accept Rate" value={`${acceptanceRate}%`} />
+                                                        <MetricMini label="Rating" value={performanceData.rating > 0 ? Number(performanceData.rating).toFixed(1) : 'N/A'} />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {activeProfileTab === 'performance' && (
+                                            <div className="space-y-3">
+                                                <CompactSection title="Performance" icon={FaBullseye} description="Based on your rides and matches.">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <MiniStatRow label="Rides created" value={performanceData.ridesCreated} />
+                                                        <MiniStatRow label="Accepted matches" value={performanceData.matchesAccepted} />
+                                                        <MiniStatRow label="Completed matches" value={performanceData.matchesCompleted} />
+                                                        <MiniStatRow label="Rejected matches" value={performanceData.matchesRejected} />
+                                                    </div>
+                                                </CompactSection>
+
+                                                <CompactSection title="Missions" icon={FaBullseye} description={`${completedMissionCount}/${missions.length} done`}>
+                                                    <div className="space-y-2">
+                                                        {missions.map((mission) => (
+                                                            <MissionRow key={mission.key} mission={mission} />
+                                                        ))}
+                                                    </div>
+                                                </CompactSection>
+                                            </div>
+                                        )}
+
+                                        {activeProfileTab === 'edit' && (
+                                            <CompactSection title="Edit Profile" icon={FaUserCircle} description="Keep only the essentials here.">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <ProfileField icon={FaUserCircle} label="Name" value={profileForm.name} onChange={(value) => setProfileForm({ ...profileForm, name: value })} />
+                                                    <ProfileField icon={FaGraduationCap} label="College" value={profileForm.college} onChange={(value) => setProfileForm({ ...profileForm, college: value })} />
+                                                    <ProfileField icon={FaVenusMars} label="Gender" value={profileForm.gender} onChange={(value) => setProfileForm({ ...profileForm, gender: value })} placeholder="male / female / other" />
+                                                    <ProfileField icon={FaBirthdayCake} label="Date of Birth" type="date" value={profileForm.dateOfBirth} onChange={(value) => setProfileForm({ ...profileForm, dateOfBirth: value })} />
+                                                    <ProfileField icon={FaPhone} label="Phone" value={profileForm.phone} onChange={(value) => setProfileForm({ ...profileForm, phone: value })} placeholder="Your phone number" />
+                                                    <ProfileField icon={FaEnvelope} label="Profile Photo URL" value={profileForm.profilePhoto} onChange={(value) => setProfileForm({ ...profileForm, profilePhoto: value })} placeholder="https://..." />
+                                                </div>
+
+                                                <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs uppercase tracking-wider text-gray-400">Selected avatar</p>
+                                                        <p className="text-white font-semibold break-all text-sm">{selectedFaceLabel}</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleOpenAvatarPicker}
+                                                        className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold shrink-0"
+                                                    >
+                                                        Change Avatar
+                                                    </button>
+                                                </div>
+                                            </CompactSection>
+                                        )}
+
+                                        {activeProfileTab === 'rewards' && (
+                                            <div className="space-y-3">
+                                                <CompactSection title="Badges" icon={FaTrophy} description="Unlocked from profile and activity.">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {profileBadges.map((badge) => (
+                                                            <ProfileBadgeChip key={badge.key} label={badge.label} unlocked={badge.unlocked} />
+                                                        ))}
+                                                    </div>
+                                                </CompactSection>
+
+                                                <CompactSection title="Achievements" icon={FaGem} description="Progress-based achievements.">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                        {achievementCards.map((achievement) => (
+                                                            <AchievementCard key={achievement.key} achievement={achievement} />
+                                                        ))}
+                                                    </div>
+                                                </CompactSection>
+                                            </div>
+                                        )}
+
+                                        <div className="sticky bottom-0 z-10 -mx-4 sm:-mx-5 px-4 sm:px-5 py-3 border-t border-white/10 bg-bg-secondary/95 backdrop-blur-xl flex items-center justify-between gap-3">
+                                            <p className="text-xs text-gray-400 truncate">Tap your profile photo to open sticker avatars.</p>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCloseProfileModal}
+                                                    className="px-4 py-2 rounded-xl border border-white/10 text-white bg-white/5 hover:bg-white/10"
+                                                >
+                                                    Close
+                                                </button>
+                                                <button
+                                                    type="submit"
+                                                    disabled={isSavingProfile}
+                                                    className="px-4 py-2 rounded-xl bg-accent-green text-black font-bold hover:bg-accent-green/90 disabled:opacity-60 flex items-center justify-center gap-2"
+                                                >
+                                                    <FaSave />
+                                                    {isSavingProfile ? 'Saving...' : 'Save'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                        {showAvatarPicker && isAuthenticated && user && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-[70] bg-black/75 backdrop-blur-md flex items-center justify-center p-4"
+                                onClick={() => setShowAvatarPicker(false)}
+                            >
+                                <motion.div
+                                    initial={{ y: 18, scale: 0.98, opacity: 0 }}
+                                    animate={{ y: 0, scale: 1, opacity: 1 }}
+                                    exit={{ y: 18, scale: 0.98, opacity: 0 }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-full max-w-2xl rounded-[28px] border border-white/10 bg-[#08130f] shadow-2xl overflow-hidden"
+                                >
+                                    <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                                         <div>
-                                            <h3 className="text-xl sm:text-2xl font-bold text-white">Profile Dashboard</h3>
-                                            <p className="text-xs sm:text-sm text-gray-400">Level up your profile and unlock badges</p>
+                                            <h4 className="text-lg font-bold text-white">Pick Your Sticker Avatar</h4>
+                                            <p className="text-xs text-gray-400">Choose one and this popup closes instantly.</p>
                                         </div>
                                         <button
-                                            onClick={() => setShowProfileModal(false)}
-                                            className="absolute right-5 top-5 w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center"
+                                            type="button"
+                                            onClick={() => setShowAvatarPicker(false)}
+                                            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center"
                                         >
                                             <FaTimes />
                                         </button>
                                     </div>
 
-                                    <form onSubmit={handleSaveProfile} className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
-                                        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-4 sm:p-5">
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
-                                                <div className="relative mx-auto sm:mx-0">
-                                                    <div className="w-28 h-28 rounded-full p-[3px] bg-gradient-to-br from-accent-green via-cyan-400 to-emerald-300 shadow-[0_0_32px_rgba(16,185,129,0.3)]">
-                                                        <div className="w-full h-full rounded-full bg-[#07110d] flex items-center justify-center overflow-hidden">
-                                                            {profileForm.profilePhoto ? (
-                                                                <img
-                                                                    src={profileForm.profilePhoto}
-                                                                    alt={displayName}
-                                                                    className="w-full h-full object-cover"
-                                                                    loading="lazy"
-                                                                />
-                                                            ) : (
-                                                                <span className="text-2xl font-black tracking-wide text-white">{profileInitials || 'SR'}</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <span className="absolute bottom-2 right-2 w-4 h-4 rounded-full border-2 border-[#07110d] bg-accent-green" />
-                                                </div>
-
-                                                <div className="flex-1 text-center sm:text-left">
-                                                    <p className="text-xl font-black text-white leading-tight">{displayName}</p>
-                                                    <p className="text-xs text-gray-400 break-all mt-1">{user.email}</p>
-                                                    <div className="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
-                                                        <span className="px-3 py-1 rounded-full text-xs font-semibold border border-accent-green/35 bg-accent-green/15 text-accent-green">
-                                                            Level {profileLevel}
-                                                        </span>
-                                                        <span className="px-3 py-1 rounded-full text-xs font-semibold border border-amber-300/35 bg-amber-300/10 text-amber-200">
-                                                            {rankTier}
-                                                        </span>
-                                                        <span className="px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/35 bg-cyan-400/10 text-cyan-300 capitalize">
-                                                            {selectedFaceLabel}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                            <ProfileStatCard icon={FaBolt} title="Level" value={`Lv ${profileLevel}`} tone="emerald" />
-                                            <ProfileStatCard icon={FaTrophy} title="XP" value={`${profileXp}`} tone="sky" />
-                                            <ProfileStatCard icon={FaFireAlt} title="Streak" value={`${streakDays}d`} tone="orange" />
-                                            <ProfileStatCard icon={FaMedal} title="Rank" value={rankTier} tone="violet" />
-                                        </div>
-
-                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                            <div className="flex items-center justify-between gap-3 mb-3">
-                                                <p className="text-xs uppercase tracking-wider text-gray-400">Performance Snapshot</p>
-                                                <p className="text-xs text-gray-500">{isLoadingPerformance ? 'Syncing...' : `Synced ${performanceSyncLabel}`}</p>
-                                            </div>
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                <MetricMini label="Rides" value={performanceData.ridesCreated} />
-                                                <MetricMini label="Accepted" value={performanceData.matchesAccepted} />
-                                                <MetricMini label="Accept Rate" value={`${acceptanceRate}%`} />
-                                                <MetricMini label="Rating" value={performanceData.rating > 0 ? Number(performanceData.rating).toFixed(1) : 'N/A'} />
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                            <div className="flex items-center justify-between gap-3 mb-3">
-                                                <p className="text-xs uppercase tracking-wider text-gray-400">Level Progress</p>
-                                                <p className="text-sm font-semibold text-white">{levelProgress}%</p>
-                                            </div>
-                                            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
-                                                <div
-                                                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-400 transition-all duration-500"
-                                                    style={{ width: `${levelProgress}%` }}
+                                    <div className="p-4 sm:p-5 max-h-[72vh] overflow-y-auto">
+                                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                                            {notionFaceCards.map((avatar) => (
+                                                <AvatarStickerCard
+                                                    key={avatar.id}
+                                                    avatar={avatar}
+                                                    isSelected={profileForm.profilePhoto === avatar.url}
+                                                    onSelect={handleSelectAvatar}
                                                 />
-                                            </div>
-                                            <p className="text-xs text-gray-400 mt-3">
-                                                {xpToNextLevel === 0 ? 'Max level reached for current profile system.' : `${xpToNextLevel} XP to next level`}
-                                            </p>
+                                            ))}
                                         </div>
-
-                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                            <div className="flex items-center justify-between gap-3 mb-3">
-                                                <p className="text-xs uppercase tracking-wider text-gray-400">Profile Completion</p>
-                                                <p className="text-sm font-semibold text-white">{completionPercent}%</p>
-                                            </div>
-                                            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
-                                                <div
-                                                    className="h-full rounded-full bg-gradient-to-r from-accent-green to-cyan-400 transition-all duration-500"
-                                                    style={{ width: `${completionPercent}%` }}
-                                                />
-                                            </div>
-                                            <p className="text-xs text-gray-400 mt-3">
-                                                {completionPercent >= 85 ? 'You are profile-pro. Keep it updated!' : 'Complete a few more details to unlock Ride Ready badge.'}
-                                            </p>
-                                        </div>
-
-                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                            <div className="flex items-center justify-between gap-3 mb-3">
-                                                <div className="flex items-center gap-2">
-                                                    <FaBullseye className="text-cyan-300" />
-                                                    <p className="text-xs uppercase tracking-wider text-gray-400">Missions</p>
-                                                </div>
-                                                <p className="text-xs text-gray-400">{completedMissionCount}/{missions.length}</p>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {missions.map((mission) => (
-                                                    <MissionRow key={mission.key} mission={mission} />
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <FaTrophy className="text-amber-300" />
-                                                <p className="text-xs uppercase tracking-wider text-gray-400">Badges</p>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {profileBadges.map((badge) => (
-                                                    <ProfileBadgeChip key={badge.key} label={badge.label} unlocked={badge.unlocked} />
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <FaGem className="text-fuchsia-300" />
-                                                <p className="text-xs uppercase tracking-wider text-gray-400">Achievements</p>
-                                            </div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                {achievementCards.map((achievement) => (
-                                                    <AchievementCard key={achievement.key} achievement={achievement} />
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                            <div className="flex items-center justify-between gap-3 mb-3">
-                                                <p className="text-xs uppercase tracking-wider text-gray-400">Notion Faces</p>
-                                                <p className="text-[11px] text-gray-500">Tap to set avatar</p>
-                                            </div>
-                                            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                                                {notionFaceCards.map((avatar) => (
-                                                    <AvatarProfileCard
-                                                        key={avatar.id}
-                                                        avatar={avatar}
-                                                        isSelected={profileForm.profilePhoto === avatar.url}
-                                                        onSelect={(url) => setProfileForm({ ...profileForm, profilePhoto: url })}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <ProfileField icon={FaUserCircle} label="Name" value={profileForm.name} onChange={(value) => setProfileForm({ ...profileForm, name: value })} />
-                                            <ProfileField icon={FaGraduationCap} label="College" value={profileForm.college} onChange={(value) => setProfileForm({ ...profileForm, college: value })} />
-                                            <ProfileField icon={FaVenusMars} label="Gender" value={profileForm.gender} onChange={(value) => setProfileForm({ ...profileForm, gender: value })} placeholder="male / female / other" />
-                                            <ProfileField icon={FaBirthdayCake} label="Date of Birth" type="date" value={profileForm.dateOfBirth} onChange={(value) => setProfileForm({ ...profileForm, dateOfBirth: value })} />
-                                            <ProfileField icon={FaPhone} label="Phone" value={profileForm.phone} onChange={(value) => setProfileForm({ ...profileForm, phone: value })} placeholder="Your phone number" />
-                                            <ProfileField icon={FaEnvelope} label="Profile Photo URL" value={profileForm.profilePhoto} onChange={(value) => setProfileForm({ ...profileForm, profilePhoto: value })} placeholder="https://..." />
-                                        </div>
-
-                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-3">
-                                            <div>
-                                            <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Email</p>
-                                            <p className="text-white font-semibold break-all">{user.email}</p>
-                                            </div>
-                                            <div className="w-12 h-12 rounded-full border border-white/10 bg-black/20 flex items-center justify-center shrink-0">
-                                                {profileForm.profilePhoto ? (
-                                                    <img
-                                                        src={profileForm.profilePhoto}
-                                                        alt="Profile"
-                                                        className="w-full h-full object-cover rounded-full"
-                                                        loading="lazy"
-                                                    />
-                                                ) : (
-                                                    <FaCamera className="text-accent-green" />
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col sm:flex-row gap-3 justify-end">
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowProfileModal(false)}
-                                                className="px-5 py-3 rounded-xl border border-white/10 text-white bg-white/5 hover:bg-white/10"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                disabled={isSavingProfile}
-                                                className="px-5 py-3 rounded-xl bg-accent-green text-black font-bold hover:bg-accent-green/90 disabled:opacity-60 flex items-center justify-center gap-2"
-                                            >
-                                                <FaSave />
-                                                {isSavingProfile ? 'Saving...' : 'Save Changes'}
-                                            </button>
-                                        </div>
-                                    </form>
+                                    </div>
                                 </motion.div>
                             </motion.div>
                         )}
@@ -839,6 +863,54 @@ const ProfileStatCard = ({ icon: Icon, title, value, tone }) => {
     );
 };
 
+const ProfileTabButton = ({ label, active, onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${active
+            ? 'border-accent-green bg-accent-green/15 text-accent-green'
+            : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
+            }`}
+    >
+        {label}
+    </button>
+);
+
+const CompactSection = ({ title, icon: Icon, description, children }) => (
+    <section className="rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2 min-w-0">
+                <Icon className="text-accent-green shrink-0" />
+                <div className="min-w-0">
+                    <p className="text-xs uppercase tracking-wider text-gray-400">{title}</p>
+                    {description && <p className="text-xs text-gray-500 mt-0.5 truncate">{description}</p>}
+                </div>
+            </div>
+        </div>
+        {children}
+    </section>
+);
+
+const MiniProgress = ({ label, value, tone, description }) => {
+    const toneClasses = {
+        green: 'from-accent-green to-cyan-400',
+        blue: 'from-sky-400 to-blue-500'
+    };
+
+    return (
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="flex items-center justify-between gap-3 mb-2">
+                <p className="text-xs uppercase tracking-wider text-gray-400">{label}</p>
+                <p className="text-sm font-semibold text-white">{value}%</p>
+            </div>
+            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                <div className={`h-full rounded-full bg-gradient-to-r ${toneClasses[tone] || toneClasses.green}`} style={{ width: `${value}%` }} />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">{description}</p>
+        </div>
+    );
+};
+
 const ProfileBadgeChip = ({ label, unlocked }) => (
     <span
         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold ${unlocked
@@ -870,6 +942,30 @@ const AvatarProfileCard = ({ avatar, isSelected, onSelect }) => (
             />
         </div>
         <span className="block mt-1 text-[10px] text-gray-400 capitalize truncate group-hover:text-white">
+            {avatar.label}
+        </span>
+    </button>
+);
+
+const AvatarStickerCard = ({ avatar, isSelected, onSelect }) => (
+    <button
+        type="button"
+        onClick={() => onSelect(avatar.url)}
+        className={`group rounded-3xl p-2 border transition-all ${isSelected
+            ? 'border-accent-green bg-accent-green/15'
+            : 'border-white/10 bg-black/20 hover:border-white/30 hover:bg-white/10'
+            }`}
+        title={`Set ${avatar.label} avatar`}
+    >
+        <div className={`mx-auto w-full aspect-square rounded-full p-[2px] ${isSelected ? 'bg-gradient-to-br from-accent-green to-cyan-300' : 'bg-white/10'}`}>
+            <img
+                src={avatar.url}
+                alt={avatar.label}
+                className="w-full h-full rounded-full object-cover bg-[#08120e]"
+                loading="lazy"
+            />
+        </div>
+        <span className="block mt-1 text-[10px] text-gray-400 capitalize truncate group-hover:text-white text-center">
             {avatar.label}
         </span>
     </button>
