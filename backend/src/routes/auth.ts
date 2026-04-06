@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import prisma from '../utils/prisma.js';
-import { hashPassword, comparePassword, hashPhone, generateAccessToken, generateRefreshToken, sanitizeUser } from '../utils/helpers.js';
+import { hashPassword, comparePassword, hashPhone, generateAccessToken, generateRefreshToken, sanitizeUser, verifyRefreshToken } from '../utils/helpers.js';
 import { io } from '../server.js';
 import { isFirebaseAdminConfigured, verifyFirebaseIdToken } from '../utils/firebaseAdmin.js';
 
@@ -295,7 +295,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
     }
 
     // Verify refresh token
-    const decoded = require('../utils/helpers.js').verifyRefreshToken(refreshToken);
+    const decoded = verifyRefreshToken(refreshToken);
 
     // Get user
     const user = await prisma.user.findUnique({
