@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaTimes, FaLock, FaGoogle } from 'react-icons/fa';
+import { FaWhatsapp, FaUniversity, FaSearchLocation, FaUserCheck, FaBell, FaGraduationCap, FaEnvelope, FaTimes, FaLock, FaGoogle, FaUser } from 'react-icons/fa';
 import { signInWithPopup, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile as updateFirebaseProfile, signOut } from 'firebase/auth';
 import useAuthStore from '../store/authStore';
 import { firebaseAuth, googleProvider } from '../config/firebase';
@@ -230,6 +230,30 @@ const Login = () => {
     const mapFirebaseAuthError = (error) => {
         const code = error?.code || '';
 
+        if (code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
+            return 'Invalid email or password. Please check credentials and try again.';
+        }
+
+        if (code === 'auth/invalid-email') {
+            return 'Please enter a valid email address.';
+        }
+
+        if (code === 'auth/email-already-in-use') {
+            return 'This email is already registered. Please sign in instead.';
+        }
+
+        if (code === 'auth/user-not-found') {
+            return 'No account found for this email. Please create an account first.';
+        }
+
+        if (code === 'auth/wrong-password') {
+            return 'Incorrect password. Please try again.';
+        }
+
+        if (code === 'auth/too-many-requests') {
+            return 'Too many attempts. Please wait a minute and try again.';
+        }
+
         if (code === 'auth/unauthorized-domain') {
             return `Google sign-in is not enabled for this domain (${window.location.hostname}). Ask admin to add it in Firebase Authentication -> Settings -> Authorized domains.`;
         }
@@ -254,7 +278,7 @@ const Login = () => {
             return 'Google redirect setup is incomplete for this domain. Please verify Firebase auth domain and authorized domains.';
         }
 
-        return 'Google login failed. Please try again.';
+        return 'Authentication failed. Please try again.';
     };
     
     const handleSubmit = async (e) => {
