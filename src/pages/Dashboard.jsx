@@ -151,22 +151,22 @@ const Dashboard = () => {
         overview: (
             <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                    <MiniStat label="Rides" value={Number(user?.totalRides) || 0} tone="green" />
-                    <MiniStat label="Rating" value={Number(user?.rating || 0).toFixed(1)} tone="blue" />
+                    <MiniStat label="Rides" value={Number(user?.totalRides) || 0} tone="green" isLightMode={isLightMode} />
+                    <MiniStat label="Rating" value={Number(user?.rating || 0).toFixed(1)} tone="blue" isLightMode={isLightMode} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                    <MiniStat label="Level" value={`Lv ${profileLevel}`} tone="purple" />
-                    <MiniStat label="Verified" value={verifiedScore >= 70 ? 'Blue' : 'New'} tone="green" />
+                    <MiniStat label="Level" value={`Lv ${profileLevel}`} tone="purple" isLightMode={isLightMode} />
+                    <MiniStat label="Verified" value={verifiedScore >= 70 ? 'Blue' : 'New'} tone="green" isLightMode={isLightMode} />
                 </div>
             </div>
         ),
         performance: (
             <div className="space-y-3 min-h-[190px]">
-                <section className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
+                <section className={`rounded-2xl border p-4 sm:p-5 ${isLightMode ? 'border-gray-200 bg-white' : 'border-white/10 bg-black/20'}`}>
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <p className="text-xs uppercase tracking-wider text-gray-400">Performance snapshot</p>
-                            <p className="text-sm text-gray-500 mt-1">Real activity from rides, matches, and rating.</p>
+                            <p className={`text-xs uppercase tracking-wider ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>Performance snapshot</p>
+                            <p className={`text-sm mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-500'}`}>Real activity from rides, matches, and rating.</p>
                         </div>
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${hasPerformanceData ? 'border-accent-green/30 bg-accent-green/10 text-accent-green' : 'border-white/10 bg-white/5 text-gray-400'}`}>
                             {hasPerformanceData ? 'Live' : 'No activity yet'}
@@ -174,29 +174,29 @@ const Dashboard = () => {
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                        <MiniStat label="Rides" value={Number(user?.totalRides) || 0} tone="green" />
-                        <MiniStat label="Rating" value={Number(user?.rating || 0).toFixed(1)} tone="blue" />
-                        <MiniStat label="Level" value={`Lv ${profileLevel}`} tone="purple" />
-                        <MiniStat label="Matches" value={matches.length} tone="green" />
+                        <MiniStat label="Rides" value={Number(user?.totalRides) || 0} tone="green" isLightMode={isLightMode} />
+                        <MiniStat label="Rating" value={Number(user?.rating || 0).toFixed(1)} tone="blue" isLightMode={isLightMode} />
+                        <MiniStat label="Level" value={`Lv ${profileLevel}`} tone="purple" isLightMode={isLightMode} />
+                        <MiniStat label="Matches" value={matches.length} tone="green" isLightMode={isLightMode} />
                     </div>
                 </section>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <CompactBar label="Profile strength" value={profileProgress} />
-                    <CompactBar label="Trust score" value={verifiedScore} />
+                    <CompactBar label="Profile strength" value={profileProgress} isLightMode={isLightMode} />
+                    <CompactBar label="Trust score" value={verifiedScore} isLightMode={isLightMode} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                    <MiniStat label="Accepted + pending" value={pendingRequests.length + matches.length} tone="blue" />
-                    <MiniStat label="Verified" value={verifiedScore >= 70 ? 'Blue' : 'New'} tone="purple" />
+                    <MiniStat label="Accepted + pending" value={pendingRequests.length + matches.length} tone="blue" isLightMode={isLightMode} />
+                    <MiniStat label="Verified" value={verifiedScore >= 70 ? 'Blue' : 'New'} tone="purple" isLightMode={isLightMode} />
                 </div>
             </div>
         ),
         rewards: (
             <div className="space-y-2">
-                <RewardChip label="Starter" active={(user?.totalRides || 0) >= 1} />
-                <RewardChip label="Reliable" active={(Number(user?.rating) || 0) >= 4} />
-                <RewardChip label="Verified" active={verifiedScore >= 70} />
+                <RewardChip label="Starter" active={(user?.totalRides || 0) >= 1} isLightMode={isLightMode} />
+                <RewardChip label="Reliable" active={(Number(user?.rating) || 0) >= 4} isLightMode={isLightMode} />
+                <RewardChip label="Verified" active={verifiedScore >= 70} isLightMode={isLightMode} />
             </div>
         )
     };
@@ -1545,38 +1545,38 @@ const Dashboard = () => {
                                         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                                             <div className="relative shrink-0">
                                                 <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full p-[3px] bg-gradient-to-br from-accent-green via-cyan-400 to-blue-500 shadow-[0_0_26px_rgba(16,185,129,0.24)]">
-                                                    <div className="w-full h-full rounded-full bg-[#07110d] flex items-center justify-center overflow-hidden">
+                                                    <div className={`w-full h-full rounded-full flex items-center justify-center overflow-hidden ${isLightMode ? 'bg-white' : 'bg-[#07110d]'}`}>
                                                         {user?.profilePhoto ? (
                                                             <img src={user.profilePhoto} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
                                                         ) : (
-                                                            <span className="text-2xl font-black text-white">{profileInitials || 'SR'}</span>
+                                                            <span className={`text-2xl font-black ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>{profileInitials || 'SR'}</span>
                                                         )}
                                                     </div>
                                                 </div>
-                                                <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-accent-green text-black flex items-center justify-center border-2 border-[#07110d] shadow-lg">
+                                                <span className={`absolute -top-1 -right-1 w-6 h-6 rounded-full bg-accent-green text-black flex items-center justify-center shadow-lg ${isLightMode ? 'border-2 border-white' : 'border-2 border-[#07110d]'}`}>
                                                     <FaPlus className="text-xs" />
                                                 </span>
-                                                <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center border-2 border-[#07110d] shadow-lg">
+                                                <span className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg ${isLightMode ? 'border-2 border-white' : 'border-2 border-[#07110d]'}`}>
                                                     <FaCheckCircle className="text-xs" />
                                                 </span>
                                             </div>
 
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <p className="text-gray-500 text-[11px] uppercase tracking-[0.28em]">Profile</p>
+                                                    <p className={`text-[11px] uppercase tracking-[0.28em] ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>Profile</p>
                                                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/20 text-xs font-semibold">
                                                         <FaCheckCircle className="text-[11px]" /> Verified
                                                     </span>
                                                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/20 text-xs font-semibold">
                                                         Lv {profileLevel}
                                                     </span>
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 text-xs font-semibold">
+                                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200' : 'bg-white/5 text-gray-300 border border-white/10'}`}>
                                                         {selectedStickerLabel}
                                                     </span>
                                                 </div>
                                                 <div className="mt-2 flex flex-wrap gap-2">
-                                                    <span className="max-w-[220px] truncate px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.college || 'IIT Madras BS Degree'}</span>
-                                                    <span className="max-w-[140px] truncate px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.phone || 'Add phone'}</span>
+                                                    <span className={`max-w-[220px] truncate px-3 py-1 rounded-full text-xs font-medium ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200' : 'bg-white/5 text-gray-300 border border-white/10'}`}>{user.college || 'IIT Madras BS Degree'}</span>
+                                                    <span className={`max-w-[140px] truncate px-3 py-1 rounded-full text-xs font-medium ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200' : 'bg-white/5 text-gray-300 border border-white/10'}`}>{user.phone || 'Add phone'}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -2877,37 +2877,43 @@ const Dashboard = () => {
 
 export default Dashboard;
 
-const MiniStat = ({ label, value, tone }) => {
+const MiniStat = ({ label, value, tone, isLightMode = false }) => {
     const toneClasses = {
         green: 'text-accent-green border-accent-green/30 bg-accent-green/10',
         blue: 'text-blue-300 border-blue-400/30 bg-blue-500/10',
         purple: 'text-purple-300 border-purple-400/30 bg-purple-500/10'
     };
 
+    const lightToneClasses = {
+        green: 'text-emerald-700 border-emerald-200 bg-emerald-50',
+        blue: 'text-blue-700 border-blue-200 bg-blue-50',
+        purple: 'text-purple-700 border-purple-200 bg-purple-50'
+    };
+
     return (
-        <div className={`rounded-2xl border px-3 py-3 ${toneClasses[tone] || toneClasses.green}`}>
-            <p className="text-[10px] uppercase tracking-wider text-white/65">{label}</p>
-            <p className="text-lg font-black text-white mt-1">{value}</p>
+        <div className={`rounded-2xl border px-3 py-3 ${isLightMode ? (lightToneClasses[tone] || lightToneClasses.green) : (toneClasses[tone] || toneClasses.green)}`}>
+            <p className={`text-[10px] uppercase tracking-wider ${isLightMode ? 'text-gray-500' : 'text-white/65'}`}>{label}</p>
+            <p className={`text-lg font-black mt-1 ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>{value}</p>
         </div>
     );
 };
 
-const CompactBar = ({ label, value }) => (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+const CompactBar = ({ label, value, isLightMode = false }) => (
+    <div className={`rounded-2xl border p-4 ${isLightMode ? 'border-gray-200 bg-white' : 'border-white/10 bg-black/20'}`}>
         <div className="flex items-center justify-between gap-3 mb-2">
-            <p className="text-xs uppercase tracking-wider text-gray-400">{label}</p>
-            <p className="text-sm font-semibold text-white">{value}%</p>
+            <p className={`text-xs uppercase tracking-wider ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>{label}</p>
+            <p className={`text-sm font-semibold ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>{value}%</p>
         </div>
-        <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+        <div className={`h-2 w-full rounded-full overflow-hidden ${isLightMode ? 'bg-gray-200' : 'bg-white/10'}`}>
             <div className="h-full rounded-full bg-gradient-to-r from-accent-green to-cyan-400" style={{ width: `${value}%` }} />
         </div>
     </div>
 );
 
-const RewardChip = ({ label, active }) => (
-    <div className={`flex items-center justify-between rounded-2xl border px-3 py-3 ${active ? 'border-accent-green/30 bg-accent-green/10' : 'border-white/10 bg-black/20'}`}>
-        <span className={`text-sm font-semibold ${active ? 'text-accent-green' : 'text-gray-300'}`}>{label}</span>
-        <span className={`text-[10px] font-bold uppercase tracking-widest ${active ? 'text-accent-green' : 'text-gray-500'}`}>{active ? 'Unlocked' : 'Locked'}</span>
+const RewardChip = ({ label, active, isLightMode = false }) => (
+    <div className={`flex items-center justify-between rounded-2xl border px-3 py-3 ${active ? 'border-accent-green/30 bg-accent-green/10' : isLightMode ? 'border-gray-200 bg-white' : 'border-white/10 bg-black/20'}`}>
+        <span className={`text-sm font-semibold ${active ? 'text-accent-green' : isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>{label}</span>
+        <span className={`text-[10px] font-bold uppercase tracking-widest ${active ? 'text-accent-green' : isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>{active ? 'Unlocked' : 'Locked'}</span>
     </div>
 );
 
