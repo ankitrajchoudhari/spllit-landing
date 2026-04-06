@@ -75,6 +75,8 @@ const Dashboard = () => {
     const [showMessageCenter, setShowMessageCenter] = useState(false);
     const [showMatchedCenter, setShowMatchedCenter] = useState(false);
     const [showProfileStickerPicker, setShowProfileStickerPicker] = useState(false);
+    const [pendingProfilePhoto, setPendingProfilePhoto] = useState('');
+    const [stickerPickerOriginalPhoto, setStickerPickerOriginalPhoto] = useState('');
     const [activeProfileTab, setActiveProfileTab] = useState('overview');
     const [socket, setSocket] = useState(null);
     const [pendingRequests, setPendingRequests] = useState([]);
@@ -947,18 +949,37 @@ const Dashboard = () => {
     };
 
     const handleOpenStickerPicker = () => {
+        const currentPhoto = user?.profilePhoto || '';
+        setStickerPickerOriginalPhoto(currentPhoto);
+        setPendingProfilePhoto(currentPhoto);
         setShowProfileStickerPicker(true);
     };
 
-    const handleSelectStickerAvatar = async (avatarUrl) => {
+    const handleSelectStickerAvatar = (avatarUrl) => {
         if (!avatarUrl) return;
+
+        setPendingProfilePhoto(avatarUrl);
+    };
+
+    const handleSelectNoneSticker = () => {
+        setPendingProfilePhoto(stickerPickerOriginalPhoto || '');
+    };
+
+    const handleCancelStickerPicker = () => {
+        setPendingProfilePhoto(stickerPickerOriginalPhoto || user?.profilePhoto || '');
+        setShowProfileStickerPicker(false);
+    };
+
+    const handleApplyStickerSelection = async () => {
+        const nextPhoto = pendingProfilePhoto || '';
+        const currentPhoto = user?.profilePhoto || '';
 
         setShowProfileStickerPicker(false);
 
-        if (avatarUrl === user?.profilePhoto) return;
+        if (nextPhoto === currentPhoto) return;
 
         try {
-            await updateProfile({ profilePhoto: avatarUrl });
+            await updateProfile({ profilePhoto: nextPhoto });
             if (typeof fetchProfile === 'function') {
                 await fetchProfile();
             }
@@ -1721,11 +1742,11 @@ const Dashboard = () => {
                             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                                 <div>
                                     <h4 className="text-lg font-bold text-white">Pick Your Sticker Avatar</h4>
-                                    <p className="text-xs text-gray-400">Tap a sticker and this popup closes instantly.</p>
+                                    <p className="text-xs text-gray-400">Choose a sticker, or keep your current profile photo.</p>
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => setShowProfileStickerPicker(false)}
+                                    onClick={handleCancelStickerPicker}
                                     className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center"
                                 >
                                     <FaTimes />
@@ -1734,14 +1755,43 @@ const Dashboard = () => {
 
                             <div className="p-4 sm:p-5 max-h-[72vh] overflow-y-auto">
                                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                                    <StickerChoiceCard
+                                        label="None"
+                                        active={pendingProfilePhoto === (stickerPickerOriginalPhoto || '')}
+                                        onClick={handleSelectNoneSticker}
+                                    />
                                     {profileStickerCards.map((avatar) => (
                                         <ProfileStickerCard
                                             key={avatar.id}
                                             avatar={avatar}
-                                            isSelected={user?.profilePhoto === avatar.url}
+                                            isSelected={pendingProfilePhoto === avatar.url}
                                             onSelect={handleSelectStickerAvatar}
                                         />
                                     ))}
+                                </div>
+
+                                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleSelectNoneSticker}
+                                        className="sm:col-span-1 px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white font-semibold hover:bg-white/10 transition-all"
+                                    >
+                                        None
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelStickerPicker}
+                                        className="sm:col-span-1 px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white font-semibold hover:bg-white/10 transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleApplyStickerSelection}
+                                        className="sm:col-span-1 px-4 py-3 rounded-xl bg-accent-green text-black font-bold hover:bg-accent-green/90 transition-all"
+                                    >
+                                        Add
+                                    </button>
                                 </div>
                             </div>
                         </motion.div>
@@ -2803,6 +2853,24 @@ const ProfileStickerCard = ({ avatar, isSelected, onSelect }) => (
         </div>
         <span className="block mt-1 text-[10px] text-gray-400 capitalize truncate group-hover:text-white text-center">
             {avatar.label}
+        </span>
+    </button>
+);
+
+const StickerChoiceCard = ({ label, active, onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={`group rounded-3xl p-2 border transition-all ${active
+            ? 'border-accent-green bg-accent-green/15'
+            : 'border-white/10 bg-black/20 hover:border-white/30 hover:bg-white/10'
+            }`}
+    >
+        <div className={`mx-auto w-full aspect-square rounded-full flex items-center justify-center ${active ? 'bg-gradient-to-br from-accent-green to-cyan-300' : 'bg-white/10'}`}>
+            <span className={`text-xs font-bold uppercase tracking-widest ${active ? 'text-black' : 'text-gray-300'}`}>{label}</span>
+        </div>
+        <span className="block mt-1 text-[10px] text-gray-400 capitalize truncate group-hover:text-white text-center">
+            {label}
         </span>
     </button>
 );
