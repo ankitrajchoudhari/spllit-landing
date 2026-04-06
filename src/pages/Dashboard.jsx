@@ -1523,18 +1523,18 @@ const Dashboard = () => {
                     className="max-w-4xl mx-auto"
                 >
                     {/* Header */}
-                    <div className="mb-8 sm:mb-12">
-                        <h1 className={`text-3xl sm:text-4xl md:text-6xl font-black mb-4 tracking-tight leading-tight ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>
+                    <div className="mb-6 sm:mb-8">
+                        <h1 className={`text-3xl sm:text-4xl md:text-5xl font-black mb-3 tracking-tight leading-tight ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>
                             Welcome to <span className="text-accent-green">Spllit Lift</span>
                         </h1>
-                        <p className={`text-base sm:text-lg ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                            Your smart ride-matching dashboard is ready!
+                        <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                            Fast ride dashboard, ready to go.
                         </p>
                     </div>
 
                     {/* User Profile Card */}
-                    <div className="sticky top-4 z-20 mb-6">
-                        <div className={`backdrop-blur-xl border rounded-[28px] p-4 sm:p-5 shadow-xl ${isLightMode ? 'bg-white/95 border-gray-200' : 'bg-bg-secondary/96 border-white/10'}`}>
+                    <div className="sticky top-4 z-20 mb-5">
+                        <div className={`backdrop-blur-xl border rounded-[28px] p-4 sm:p-5 shadow-xl ${isLightMode ? 'bg-white/95 border-gray-200' : 'bg-gradient-to-br from-[#0f1815]/95 to-[#0a0d0c]/95 border-white/10'}`}>
                             <div className="flex flex-col gap-4 sm:gap-5">
                                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                                     <button
@@ -1575,22 +1575,22 @@ const Dashboard = () => {
                                                     </span>
                                                 </div>
                                                 <div className="mt-2 flex flex-wrap gap-2">
-                                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.college || 'IIT Madras BS Degree'}</span>
-                                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.phone || 'Add phone'}</span>
+                                                    <span className="max-w-[220px] truncate px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.college || 'IIT Madras BS Degree'}</span>
+                                                    <span className="max-w-[140px] truncate px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.phone || 'Add phone'}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </button>
 
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 xl:flex xl:flex-wrap xl:items-center xl:justify-end w-full xl:w-auto xl:pt-0">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 xl:flex xl:flex-wrap xl:items-center xl:justify-end w-full xl:w-auto xl:pt-0">
                                     <div className="relative w-full sm:w-auto" ref={notificationBellRef}>
                                         <button
                                             type="button"
                                             onClick={handleRideBellClick}
-                                            className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all relative flex items-center justify-center gap-2 ${isLightMode ? 'bg-gray-100 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 border border-white/10 hover:bg-white/10'}`}
+                                            className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all relative flex items-center justify-center gap-2 font-semibold ${isLightMode ? 'bg-gray-100 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 border border-white/10 hover:bg-white/10'}`}
                                         >
                                             <FaBell className="text-accent-green text-sm sm:text-base" />
-                                            <span className={`hidden sm:inline text-sm font-semibold ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>Alerts</span>
+                                            <span className={`text-sm ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>Alerts</span>
                                             {(notifications.length > 0 || notificationFeedCount > 0 || unreadRideAnnouncementCount > 0) && (
                                                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center font-bold">
                                                     {Math.max(notifications.length, notificationFeedCount, unreadRideAnnouncementCount)}
@@ -1727,16 +1727,16 @@ const Dashboard = () => {
                                     <button
                                         type="button"
                                         onClick={handleMessageCenterClick}
-                                        className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 rounded-xl transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base ${isLightMode ? 'bg-gray-100 border border-gray-200 text-[#0d1a16] hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
+                                        className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm ${isLightMode ? 'bg-gray-100 border border-gray-200 text-[#0d1a16] hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
                                     >
-                                        <FaComments className="text-sm sm:text-base" /> <span>Messages</span>
+                                        <FaComments className="text-sm" /> <span>Inbox</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => handleMatchedCenterClick('pending')}
-                                        className={`relative w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 rounded-xl transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base ${isLightMode ? 'bg-gray-100 border border-gray-200 text-[#0d1a16] hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
+                                        className={`relative w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm ${isLightMode ? 'bg-gray-100 border border-gray-200 text-[#0d1a16] hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
                                     >
-                                        <FaCheck className="text-sm sm:text-base" /> <span>Matched</span>
+                                        <FaCheck className="text-sm" /> <span>Matches</span>
                                         {matchedActionCount > 0 && (
                                             <span className="absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full bg-red-500 text-white text-[10px] sm:text-[11px] leading-4 sm:leading-5 font-bold text-center">
                                                 {matchedActionCount > 99 ? '99+' : matchedActionCount}
@@ -1746,14 +1746,14 @@ const Dashboard = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowSOSModal(true)}
-                                        className="w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 font-semibold text-sm sm:text-base animate-pulse"
+                                        className="w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 font-semibold text-sm animate-pulse"
                                     >
-                                        <FaExclamationTriangle className="text-sm sm:text-base" /> <span>SOS</span>
+                                        <FaExclamationTriangle className="text-sm" /> <span>SOS</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setIsLightMode((prev) => !prev)}
-                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-yellow-100 border-yellow-300 text-yellow-700 hover:bg-yellow-200' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'} col-span-1 sm:col-span-1 xl:w-12 xl:px-0`}
+                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-yellow-100 border-yellow-300 text-yellow-700 hover:bg-yellow-200' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'} col-span-1 xl:w-12 xl:px-0`}
                                         title={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
                                         aria-label={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
                                     >
@@ -1762,7 +1762,7 @@ const Dashboard = () => {
                                     <button
                                         type="button"
                                         onClick={handleLogout}
-                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-gray-100 border-gray-200 text-red-600 hover:bg-red-50' : 'bg-white/5 border-white/10 text-red-300 hover:bg-red-500/10'} col-span-1 sm:col-span-1 xl:w-12 xl:px-0`}
+                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-gray-100 border-gray-200 text-red-600 hover:bg-red-50' : 'bg-white/5 border-white/10 text-red-300 hover:bg-red-500/10'} col-span-1 xl:w-12 xl:px-0`}
                                         title="Logout"
                                         aria-label="Logout"
                                     >
@@ -1771,25 +1771,25 @@ const Dashboard = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 xl:justify-end">
+                                <div className={`inline-flex flex-wrap items-center gap-2 p-1 rounded-2xl border ${isLightMode ? 'bg-gray-100 border-gray-200' : 'bg-white/[0.03] border-white/10'} xl:self-end`}>
                                     <button
                                         type="button"
                                         onClick={() => setActiveProfileTab('overview')}
-                                        className={`min-w-[88px] px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'overview' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                                        className={`min-w-[88px] px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'overview' ? 'border-accent-green bg-accent-green/15 text-accent-green' : isLightMode ? 'border-gray-200 bg-white text-gray-600' : 'border-white/10 bg-white/5 text-gray-300'}`}
                                     >
                                         Overview
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setActiveProfileTab('performance')}
-                                        className={`min-w-[88px] px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'performance' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                                        className={`min-w-[88px] px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'performance' ? 'border-accent-green bg-accent-green/15 text-accent-green' : isLightMode ? 'border-gray-200 bg-white text-gray-600' : 'border-white/10 bg-white/5 text-gray-300'}`}
                                     >
                                         Performance
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setActiveProfileTab('rewards')}
-                                        className={`min-w-[88px] px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'rewards' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                                        className={`min-w-[88px] px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'rewards' ? 'border-accent-green bg-accent-green/15 text-accent-green' : isLightMode ? 'border-gray-200 bg-white text-gray-600' : 'border-white/10 bg-white/5 text-gray-300'}`}
                                     >
                                         Rewards
                                     </button>
