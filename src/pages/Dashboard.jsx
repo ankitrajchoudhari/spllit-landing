@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash, FaExclamationTriangle, FaMicrophone, FaImage, FaBullhorn, FaPlus, FaCheckCircle, FaMedal, FaTrophy } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash, FaExclamationTriangle, FaMicrophone, FaImage, FaBullhorn, FaPlus, FaCheckCircle, FaMedal, FaTrophy, FaMoon, FaSun, FaSignOutAlt } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
 import socketService from '../services/socket';
 import { ridesAPI, matchesAPI, emergencyAPI, announcementsAPI } from '../services/api';
@@ -88,6 +88,13 @@ const Dashboard = () => {
     const [showSOSModal, setShowSOSModal] = useState(false);
     const [sendingSOS, setSendingSOS] = useState(false);
     const [nowMs, setNowMs] = useState(Date.now());
+    const [isLightMode, setIsLightMode] = useState(() => {
+        try {
+            return localStorage.getItem('dashboard-light-mode') === '1';
+        } catch {
+            return false;
+        }
+    });
     
     // Form data with location coordinates
     const [rideData, setRideData] = useState({
@@ -337,6 +344,14 @@ const Dashboard = () => {
 
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('dashboard-light-mode', isLightMode ? '1' : '0');
+        } catch {
+            // Ignore localStorage write failures.
+        }
+    }, [isLightMode]);
 
     const getRideExpiryMs = (ride) => {
         if (ride?.expiresAt) {
@@ -1487,7 +1502,7 @@ const Dashboard = () => {
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-[#050505] overflow-hidden relative font-poppins">
+        <div className={`min-h-screen overflow-hidden relative font-poppins ${isLightMode ? 'bg-[#f4f7fb]' : 'bg-[#050505]'}`}>
             {/* Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-accent-green/[0.04] pointer-events-none" />
             <div className="absolute inset-0 z-0 opacity-30">
@@ -1509,17 +1524,17 @@ const Dashboard = () => {
                 >
                     {/* Header */}
                     <div className="mb-8 sm:mb-12">
-                        <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-white mb-4 tracking-tight leading-tight">
+                        <h1 className={`text-3xl sm:text-4xl md:text-6xl font-black mb-4 tracking-tight leading-tight ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>
                             Welcome to <span className="text-accent-green">Spllit Lift</span>
                         </h1>
-                        <p className="text-gray-400 text-base sm:text-lg">
+                        <p className={`text-base sm:text-lg ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
                             Your smart ride-matching dashboard is ready!
                         </p>
                     </div>
 
                     {/* User Profile Card */}
                     <div className="sticky top-4 z-20 mb-6">
-                        <div className="bg-bg-secondary/96 backdrop-blur-xl border border-white/10 rounded-[28px] p-4 sm:p-5 shadow-xl">
+                        <div className={`backdrop-blur-xl border rounded-[28px] p-4 sm:p-5 shadow-xl ${isLightMode ? 'bg-white/95 border-gray-200' : 'bg-bg-secondary/96 border-white/10'}`}>
                             <div className="flex flex-col gap-4 sm:gap-5">
                                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                                     <button
@@ -1567,15 +1582,15 @@ const Dashboard = () => {
                                         </div>
                                     </button>
 
-                                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 w-full xl:w-auto xl:pt-0">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 xl:flex xl:flex-wrap xl:items-center xl:justify-end w-full xl:w-auto xl:pt-0">
                                     <div className="relative w-full sm:w-auto" ref={notificationBellRef}>
                                         <button
                                             type="button"
                                             onClick={handleRideBellClick}
-                                            className="w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative flex items-center justify-center gap-2"
+                                            className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all relative flex items-center justify-center gap-2 ${isLightMode ? 'bg-gray-100 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 border border-white/10 hover:bg-white/10'}`}
                                         >
                                             <FaBell className="text-accent-green text-sm sm:text-base" />
-                                            <span className="hidden sm:inline text-sm font-semibold text-white">Alerts</span>
+                                            <span className={`hidden sm:inline text-sm font-semibold ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>Alerts</span>
                                             {(notifications.length > 0 || notificationFeedCount > 0 || unreadRideAnnouncementCount > 0) && (
                                                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center font-bold">
                                                     {Math.max(notifications.length, notificationFeedCount, unreadRideAnnouncementCount)}
@@ -1712,14 +1727,14 @@ const Dashboard = () => {
                                     <button
                                         type="button"
                                         onClick={handleMessageCenterClick}
-                                        className="w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                                        className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 rounded-xl transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base ${isLightMode ? 'bg-gray-100 border border-gray-200 text-[#0d1a16] hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
                                     >
                                         <FaComments className="text-sm sm:text-base" /> <span>Messages</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => handleMatchedCenterClick('pending')}
-                                        className="relative w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                                        className={`relative w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 rounded-xl transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base ${isLightMode ? 'bg-gray-100 border border-gray-200 text-[#0d1a16] hover:bg-gray-200' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
                                     >
                                         <FaCheck className="text-sm sm:text-base" /> <span>Matched</span>
                                         {matchedActionCount > 0 && (
@@ -1734,6 +1749,24 @@ const Dashboard = () => {
                                         className="w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-5 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 font-semibold text-sm sm:text-base animate-pulse"
                                     >
                                         <FaExclamationTriangle className="text-sm sm:text-base" /> <span>SOS</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsLightMode((prev) => !prev)}
+                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-yellow-100 border-yellow-300 text-yellow-700 hover:bg-yellow-200' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'} col-span-1 sm:col-span-1 xl:w-12 xl:px-0`}
+                                        title={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+                                        aria-label={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+                                    >
+                                        {isLightMode ? <FaMoon className="text-sm" /> : <FaSun className="text-sm" />}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleLogout}
+                                        className={`h-11 sm:h-12 rounded-xl border transition-all flex items-center justify-center ${isLightMode ? 'bg-gray-100 border-gray-200 text-red-600 hover:bg-red-50' : 'bg-white/5 border-white/10 text-red-300 hover:bg-red-500/10'} col-span-1 sm:col-span-1 xl:w-12 xl:px-0`}
+                                        title="Logout"
+                                        aria-label="Logout"
+                                    >
+                                        <FaSignOutAlt className="text-sm" />
                                     </button>
                                     </div>
                                 </div>
