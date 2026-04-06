@@ -30,7 +30,7 @@ const AnnouncementDrops = () => {
             const items = Array.isArray(response?.announcements) ? response.announcements : [];
             setAnnouncements(items);
             setHasLoadedAnnouncements(true);
-        } catch (error) {
+        } catch {
             setAnnouncements([]);
             setHasLoadedAnnouncements(true);
         } finally {
@@ -94,7 +94,7 @@ const AnnouncementDrops = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[130] flex items-center justify-center bg-black/90 backdrop-blur-md p-3 sm:p-6 overscroll-none"
+                        className="fixed inset-0 z-[130] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-md p-0 sm:p-6 overscroll-none"
                         onClick={() => setOpen(false)}
                     >
                         <motion.div
@@ -102,7 +102,7 @@ const AnnouncementDrops = () => {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.96, y: 20 }}
                             onClick={(event) => event.stopPropagation()}
-                            className="w-full max-w-4xl max-h-[88vh] overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-bg-secondary shadow-2xl"
+                            className="w-full max-w-4xl h-[92dvh] sm:h-auto max-h-[92dvh] sm:max-h-[88vh] overflow-y-auto overscroll-contain rounded-t-3xl sm:rounded-3xl border border-white/10 bg-bg-secondary shadow-2xl"
                         >
                             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/10 bg-bg-secondary/95 px-4 sm:px-6 py-4 backdrop-blur-xl">
                                 <div>

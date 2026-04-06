@@ -78,11 +78,15 @@ const Navbar = () => {
         />
     );
 
+    const shouldShowAnnouncements = location.pathname !== '/login';
+
     const announcementNode = shouldLoadAnnouncements ? (
         <Suspense fallback={announcementFallback}>
             <AnnouncementDrops />
         </Suspense>
     ) : announcementFallback;
+
+    const visibleAnnouncementNode = shouldShowAnnouncements ? announcementNode : null;
 
     const isHome = location.pathname === '/';
     const hideBackArrowPaths = ['/dashboard', '/admin/dashboard', '/spllit-social'];
@@ -446,7 +450,7 @@ const Navbar = () => {
 
                                 {isAuthenticated && user ? (
                                     <div className="flex items-center gap-3">
-                                        {announcementNode}
+                                        {visibleAnnouncementNode}
                                         <button
                                             onClick={() => navigate('/spllit-social')}
                                             className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 px-4 py-2.5 rounded-xl font-semibold transition-all border border-blue-500/20"
@@ -469,7 +473,7 @@ const Navbar = () => {
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-3">
-                                        {announcementNode}
+                                        {visibleAnnouncementNode}
                                         <button
                                             onClick={() => navigate('/spllit-social')}
                                             className="px-4 py-2.5 rounded-xl font-semibold transition-all border border-white/15 bg-white/5 text-white/90 hover:bg-white/10"
@@ -487,7 +491,7 @@ const Navbar = () => {
                             </div>
 
                             <div className="md:hidden flex items-center gap-2">
-                                {announcementNode}
+                                {visibleAnnouncementNode}
                                 {/* Mobile Menu Button - Styled better for touch */}
                                 <button
                                     className="text-white w-10 h-10 flex items-center justify-center rounded-xl border border-white/10 bg-white/5 active:bg-white/10 active:scale-95 transition-all"
