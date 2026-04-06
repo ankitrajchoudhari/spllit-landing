@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash, FaExclamationTriangle, FaMicrophone, FaImage, FaBullhorn } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash, FaExclamationTriangle, FaMicrophone, FaImage, FaBullhorn, FaPlus, FaCheckCircle, FaMedal, FaTrophy } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
 import socketService from '../services/socket';
 import { ridesAPI, matchesAPI, emergencyAPI, announcementsAPI } from '../services/api';
@@ -57,7 +57,7 @@ const loadGoogleMaps = (callback) => {
 
 const Dashboard = () => {
     const navigate = useNavigate();
-    const { user, isAuthenticated, hasHydrated, logout } = useAuthStore();
+    const { user, isAuthenticated, hasHydrated, logout, updateProfile, fetchProfile } = useAuthStore();
     const [showCreateRide, setShowCreateRide] = useState(false);
     const [showFindMatches, setShowFindMatches] = useState(false);
     const [showMyRides, setShowMyRides] = useState(false);
@@ -74,6 +74,8 @@ const Dashboard = () => {
     const [showAdminAnnouncements, setShowAdminAnnouncements] = useState(false);
     const [showMessageCenter, setShowMessageCenter] = useState(false);
     const [showMatchedCenter, setShowMatchedCenter] = useState(false);
+    const [showProfileStickerPicker, setShowProfileStickerPicker] = useState(false);
+    const [activeProfileTab, setActiveProfileTab] = useState('overview');
     const [socket, setSocket] = useState(null);
     const [pendingRequests, setPendingRequests] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
@@ -112,6 +114,60 @@ const Dashboard = () => {
     const originAutoDetectedRef = useRef(false);
     const notificationBellRef = useRef(null);
     const notificationPanelRef = useRef(null);
+
+    const profileStickerCards = React.useMemo(() => {
+        const baseSeed = (user?.name || user?.email || 'spllit-rider').trim().toLowerCase().replace(/\s+/g, '-');
+        const variants = ['campus', 'ride', 'study', 'weekend', 'elite', 'vibe', 'sport', 'creator'];
+
+        return variants.map((variant) => ({
+            id: `${baseSeed}-${variant}`,
+            label: variant,
+            url: `https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(`${baseSeed}-${variant}`)}`
+        }));
+    }, [user?.name, user?.email]);
+
+    const displayName = (user?.name || 'Profile').trim();
+    const profileInitials = displayName
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('');
+    const selectedStickerLabel = profileStickerCards.find((avatar) => avatar.url === user?.profilePhoto)?.label || 'Choose sticker';
+    const verifiedScore = Math.min(100, Math.max(0, Math.round(((Number(user?.rating) || 0) / 5) * 100)));
+    const profileProgress = Math.min(100, Math.round(((Number(user?.totalRides) || 0) * 14) + verifiedScore * 0.5));
+    const profileLevel = Math.max(1, Math.min(10, Math.ceil(profileProgress / 12)));
+    const profileTabs = {
+        overview: (
+            <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                    <MiniStat label="Rides" value={Number(user?.totalRides) || 0} tone="green" />
+                    <MiniStat label="Rating" value={Number(user?.rating || 0).toFixed(1)} tone="blue" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <MiniStat label="Level" value={`Lv ${profileLevel}`} tone="purple" />
+                    <MiniStat label="Verified" value={verifiedScore >= 70 ? 'Blue' : 'New'} tone="green" />
+                </div>
+            </div>
+        ),
+        performance: (
+            <div className="space-y-3">
+                <CompactBar label="Profile strength" value={profileProgress} />
+                <CompactBar label="Trust score" value={verifiedScore} />
+                <div className="grid grid-cols-2 gap-3">
+                    <MiniStat label="Messages" value={matches.length} tone="blue" />
+                    <MiniStat label="Matched" value={pendingRequests.length + matches.length} tone="purple" />
+                </div>
+            </div>
+        ),
+        rewards: (
+            <div className="space-y-2">
+                <RewardChip label="Starter" active={(user?.totalRides || 0) >= 1} />
+                <RewardChip label="Reliable" active={(Number(user?.rating) || 0) >= 4} />
+                <RewardChip label="Verified" active={verifiedScore >= 70} />
+            </div>
+        )
+    };
 
     const rideAnnouncementSeenKey = `ride-announcements-seen-${user?.id || 'guest'}`;
     const notificationFeedKey = `notification-feed-${user?.id || 'guest'}`;
@@ -890,6 +946,27 @@ const Dashboard = () => {
         navigate('/login');
     };
 
+    const handleOpenStickerPicker = () => {
+        setShowProfileStickerPicker(true);
+    };
+
+    const handleSelectStickerAvatar = async (avatarUrl) => {
+        if (!avatarUrl) return;
+
+        setShowProfileStickerPicker(false);
+
+        if (avatarUrl === user?.profilePhoto) return;
+
+        try {
+            await updateProfile({ profilePhoto: avatarUrl });
+            if (typeof fetchProfile === 'function') {
+                await fetchProfile();
+            }
+        } catch (updateError) {
+            console.error('Failed to update profile avatar:', updateError);
+        }
+    };
+
     const handleRideBellClick = async () => {
         setShowMessageCenter(false);
         setShowMatchedCenter(false);
@@ -1375,206 +1452,301 @@ const Dashboard = () => {
                     </div>
 
                     {/* User Profile Card */}
-                    <div className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 mb-6 shadow-xl">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                                <div className="w-14 h-14 sm:w-20 sm:h-20 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center flex-shrink-0">
-                                    <FaUser className="text-accent-green text-xl sm:text-3xl" />
-                                </div>
-                                <div className="min-w-0">
-                                    <h2 className="text-lg sm:text-2xl font-bold text-white break-words leading-tight">{user.name}</h2>
-                                    <p className="text-gray-500 text-xs sm:text-sm break-words">{user.college || 'IIT Madras BS Degree'}</p>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 w-full sm:w-auto">
-                                {/* Notification Bell */}
-                                <div className="relative w-full sm:w-auto" ref={notificationBellRef}>
+                    <div className="sticky top-4 z-20 mb-6">
+                        <div className="bg-bg-secondary/96 backdrop-blur-xl border border-white/10 rounded-[28px] p-4 sm:p-5 shadow-xl">
+                            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                                <div className="flex-1 min-w-0">
                                     <button
                                         type="button"
-                                        onClick={handleRideBellClick}
-                                        className="w-full sm:w-auto p-2.5 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative flex items-center justify-center"
+                                        onClick={handleOpenStickerPicker}
+                                        className="group flex items-center gap-4 min-w-0 text-left active:scale-95 transition-transform"
                                     >
-                                        <FaBell className="text-accent-green text-sm sm:text-xl" />
-                                        {(notifications.length > 0 || notificationFeedCount > 0 || unreadRideAnnouncementCount > 0) && (
-                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center font-bold">
-                                                {Math.max(notifications.length, notificationFeedCount, unreadRideAnnouncementCount)}
-                                            </span>
-                                        )}
-                                    </button>
-                                    <AnimatePresence>
-                                        {showRideAnnouncements && (
-                                            <motion.div
-                                                ref={notificationPanelRef}
-                                                initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                                                onClick={(event) => {
-                                                    if (event.target === event.currentTarget) {
-                                                        setShowRideAnnouncements(false);
-                                                    }
-                                                }}
-                                                className="fixed inset-0 z-[10001] bg-black/55 backdrop-blur-[2px] px-2 pt-[calc(env(safe-area-inset-top)+5rem)] flex justify-center pointer-events-auto lg:bg-transparent lg:backdrop-blur-0 lg:px-0 lg:pt-0 lg:block lg:absolute lg:inset-auto lg:left-auto lg:top-auto lg:right-0 lg:mt-3"
-                                            >
-                                                <div className="w-full max-w-[32rem] max-h-[calc(100dvh-6.5rem)] bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden lg:w-[28rem] lg:max-h-none lg:rounded-3xl">
-                                                <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-                                                    <div>
-                                                        <h3 className="text-white font-bold text-lg">Notifications</h3>
-                                                        <p className="text-gray-500 text-xs mt-1">
-                                                            Ride updates, matches, and chat activity
-                                                        </p>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onMouseDown={(event) => event.stopPropagation()}
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            setShowRideAnnouncements(false);
-                                                        }}
-                                                        className="w-10 h-10 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
-                                                    >
-                                                        <FaTimes />
-                                                    </button>
-                                                </div>
-                                                <div className="max-h-[24rem] overflow-y-auto">
-                                                    {notificationFeed.length === 0 ? (
-                                                        <div className="px-5 py-8 text-center text-gray-500">
-                                                            No notifications yet.
-                                                        </div>
+                                        <div className="relative shrink-0">
+                                            <div className="w-20 h-20 rounded-full p-[3px] bg-gradient-to-br from-accent-green via-cyan-400 to-blue-500 shadow-[0_0_32px_rgba(16,185,129,0.28)]">
+                                                <div className="w-full h-full rounded-full bg-[#07110d] flex items-center justify-center overflow-hidden">
+                                                    {user?.profilePhoto ? (
+                                                        <img src={user.profilePhoto} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
                                                     ) : (
-                                                        notificationFeed.map((item) => (
-                                                            <div
-                                                                key={item.id}
-                                                                className="px-5 py-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors"
-                                                            >
-                                                                <div className="flex items-start gap-3">
-                                                                    <div className="w-11 h-11 rounded-2xl bg-accent-green/15 border border-accent-green/20 flex items-center justify-center flex-shrink-0">
-                                                                        {item.type === 'ride' ? (
-                                                                            <FaCar className="text-accent-green" />
-                                                                        ) : item.type === 'match' ? (
-                                                                            <FaComments className="text-purple-400" />
-                                                                        ) : (
-                                                                            <FaBell className="text-accent-green" />
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <div className="flex items-start justify-between gap-2 sm:gap-3 mb-1">
-                                                                            <div>
-                                                                                <p className="text-white font-semibold leading-tight break-words">
-                                                                                    {item.title}
-                                                                                </p>
-                                                                                <p className="text-gray-500 text-xs mt-1">
-                                                                                    {item.type === 'ride' ? 'Ride announcement' : item.type === 'match' ? 'Match update' : 'Notification'}
-                                                                                </p>
-                                                                            </div>
-                                                                            <span className="text-[11px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10 whitespace-nowrap shrink-0">
-                                                                                {formatAnnouncementTime(item.timestamp)}
-                                                                            </span>
+                                                        <span className="text-2xl font-black text-white">{profileInitials || 'SR'}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <span className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-accent-green text-black flex items-center justify-center border-2 border-[#07110d] shadow-lg">
+                                                <FaPlus className="text-xs" />
+                                            </span>
+                                            <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center border-2 border-[#07110d] shadow-lg">
+                                                <FaCheckCircle className="text-xs" />
+                                            </span>
+                                        </div>
+
+                                        <div className="min-w-0">
+                                            <p className="text-gray-500 text-xs uppercase tracking-[0.25em]">Profile</p>
+                                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/20 text-xs font-semibold">
+                                                    <FaCheckCircle className="text-[11px]" /> Verified
+                                                </span>
+                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/20 text-xs font-semibold">
+                                                    Lv {profileLevel}
+                                                </span>
+                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 text-xs font-semibold">
+                                                    {selectedStickerLabel}
+                                                </span>
+                                            </div>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.college || 'IIT Madras BS Degree'}</span>
+                                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.phone || 'Add phone'}</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 w-full lg:w-auto">
+                                    <div className="relative w-full sm:w-auto" ref={notificationBellRef}>
+                                        <button
+                                            type="button"
+                                            onClick={handleRideBellClick}
+                                            className="w-full sm:w-auto p-2.5 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all relative flex items-center justify-center"
+                                        >
+                                            <FaBell className="text-accent-green text-sm sm:text-xl" />
+                                            {(notifications.length > 0 || notificationFeedCount > 0 || unreadRideAnnouncementCount > 0) && (
+                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center font-bold">
+                                                    {Math.max(notifications.length, notificationFeedCount, unreadRideAnnouncementCount)}
+                                                </span>
+                                            )}
+                                        </button>
+                                        <AnimatePresence>
+                                            {showRideAnnouncements && (
+                                                <motion.div
+                                                    ref={notificationPanelRef}
+                                                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                                                    onClick={(event) => {
+                                                        if (event.target === event.currentTarget) {
+                                                            setShowRideAnnouncements(false);
+                                                        }
+                                                    }}
+                                                    className="fixed inset-0 z-[10001] bg-black/55 backdrop-blur-[2px] px-2 pt-[calc(env(safe-area-inset-top)+5rem)] flex justify-center pointer-events-auto lg:bg-transparent lg:backdrop-blur-0 lg:px-0 lg:pt-0 lg:block lg:absolute lg:inset-auto lg:left-auto lg:top-auto lg:right-0 lg:mt-3"
+                                                >
+                                                    <div className="w-full max-w-[32rem] max-h-[calc(100dvh-6.5rem)] bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden lg:w-[28rem] lg:max-h-none lg:rounded-3xl">
+                                                    <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                                                        <div>
+                                                            <h3 className="text-white font-bold text-lg">Notifications</h3>
+                                                            <p className="text-gray-500 text-xs mt-1">
+                                                                Ride updates, matches, and chat activity
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={(event) => event.stopPropagation()}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                setShowRideAnnouncements(false);
+                                                            }}
+                                                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                                                        >
+                                                            <FaTimes />
+                                                        </button>
+                                                    </div>
+                                                    <div className="max-h-[24rem] overflow-y-auto">
+                                                        {notificationFeed.length === 0 ? (
+                                                            <div className="px-5 py-8 text-center text-gray-500">
+                                                                No notifications yet.
+                                                            </div>
+                                                        ) : (
+                                                            notificationFeed.map((item) => (
+                                                                <div
+                                                                    key={item.id}
+                                                                    className="px-5 py-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors"
+                                                                >
+                                                                    <div className="flex items-start gap-3">
+                                                                        <div className="w-11 h-11 rounded-2xl bg-accent-green/15 border border-accent-green/20 flex items-center justify-center flex-shrink-0">
+                                                                            {item.type === 'ride' ? (
+                                                                                <FaCar className="text-accent-green" />
+                                                                            ) : item.type === 'match' ? (
+                                                                                <FaComments className="text-purple-400" />
+                                                                            ) : (
+                                                                                <FaBell className="text-accent-green" />
+                                                                            )}
                                                                         </div>
-                                                                        <p className="text-gray-300 text-sm leading-relaxed break-words">
-                                                                            {item.message}
-                                                                        </p>
-                                                                        <div className="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs">
-                                                                            <div className="flex flex-wrap gap-2">
-                                                                                {item.type === 'ride' && item.meta?.origin && (
-                                                                                    <span className="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10">
-                                                                                        {item.meta.origin}
-                                                                                    </span>
-                                                                                )}
-                                                                                {item.type === 'ride' && item.meta?.vehicleType && (
-                                                                                    <span className="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 capitalize">
-                                                                                        {item.meta.vehicleType}
-                                                                                    </span>
-                                                                                )}
-                                                                                {item.type === 'ride' && item.meta?.fare ? (
-                                                                                    <span className="px-2.5 py-1 rounded-full bg-accent-green/10 text-accent-green border border-accent-green/20">
-                                                                                        ₹{item.meta.fare}
-                                                                                    </span>
-                                                                                ) : null}
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="flex items-start justify-between gap-2 sm:gap-3 mb-1">
+                                                                                <div>
+                                                                                    <p className="text-white font-semibold leading-tight break-words">
+                                                                                        {item.title}
+                                                                                    </p>
+                                                                                    <p className="text-gray-500 text-xs mt-1">
+                                                                                        {item.type === 'ride' ? 'Ride announcement' : item.type === 'match' ? 'Match update' : 'Notification'}
+                                                                                    </p>
+                                                                                </div>
+                                                                                <span className="text-[11px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10 whitespace-nowrap shrink-0">
+                                                                                    {formatAnnouncementTime(item.timestamp)}
+                                                                                </span>
                                                                             </div>
-                                                                            <div className="flex flex-wrap items-center justify-end gap-2">
-                                                                                {(item.matchId || item.chatRoomId) && (
+                                                                            <p className="text-gray-300 text-sm leading-relaxed break-words">
+                                                                                {item.message}
+                                                                            </p>
+                                                                            <div className="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs">
+                                                                                <div className="flex flex-wrap gap-2">
+                                                                                    {item.type === 'ride' && item.meta?.origin && (
+                                                                                        <span className="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10">
+                                                                                            {item.meta.origin}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {item.type === 'ride' && item.meta?.vehicleType && (
+                                                                                        <span className="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 capitalize">
+                                                                                            {item.meta.vehicleType}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {item.type === 'ride' && item.meta?.fare ? (
+                                                                                        <span className="px-2.5 py-1 rounded-full bg-accent-green/10 text-accent-green border border-accent-green/20">
+                                                                                            ₹{item.meta.fare}
+                                                                                        </span>
+                                                                                    ) : null}
+                                                                                </div>
+                                                                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                                                                    {(item.matchId || item.chatRoomId) && (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={(event) => {
+                                                                                                event.stopPropagation();
+                                                                                                handleNotificationItemClick(item);
+                                                                                            }}
+                                                                                            className="px-3 py-1.5 rounded-lg border border-accent-green/30 text-accent-green hover:bg-accent-green/10 transition-colors"
+                                                                                        >
+                                                                                            Open chat
+                                                                                        </button>
+                                                                                    )}
                                                                                     <button
                                                                                         type="button"
+                                                                                        onMouseDown={(event) => event.stopPropagation()}
                                                                                         onClick={(event) => {
                                                                                             event.stopPropagation();
-                                                                                            handleNotificationItemClick(item);
+                                                                                            removeNotificationFeedItem(item.id);
                                                                                         }}
-                                                                                        className="px-3 py-1.5 rounded-lg border border-accent-green/30 text-accent-green hover:bg-accent-green/10 transition-colors"
+                                                                                        className="w-8 h-8 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
                                                                                     >
-                                                                                        Open chat
+                                                                                        <FaTimes />
                                                                                     </button>
-                                                                                )}
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onMouseDown={(event) => event.stopPropagation()}
-                                                                                    onClick={(event) => {
-                                                                                        event.stopPropagation();
-                                                                                        removeNotificationFeedItem(item.id);
-                                                                                    }}
-                                                                                    className="w-8 h-8 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
-                                                                                >
-                                                                                    <FaTimes />
-                                                                                </button>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        ))
-                                                    )}
-                                                </div>
-                                                </div>
-                                            </motion.div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleMessageCenterClick}
+                                        className="w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                                    >
+                                        <FaComments className="text-sm sm:text-base" /> <span>Messages</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleMatchedCenterClick('pending')}
+                                        className="relative w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
+                                    >
+                                        <FaCheck className="text-sm sm:text-base" /> <span>Matched</span>
+                                        {matchedActionCount > 0 && (
+                                            <span className="absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full bg-red-500 text-white text-[10px] sm:text-[11px] leading-4 sm:leading-5 font-bold text-center">
+                                                {matchedActionCount > 99 ? '99+' : matchedActionCount}
+                                            </span>
                                         )}
-                                    </AnimatePresence>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSOSModal(true)}
+                                        className="w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 font-semibold text-sm sm:text-base animate-pulse"
+                                    >
+                                        <FaExclamationTriangle className="text-sm sm:text-base" /> <span>SOS</span>
+                                    </button>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={handleMessageCenterClick}
-                                    className="w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
-                                >
-                                    <FaComments className="text-sm sm:text-base" /> <span>Messages</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleMatchedCenterClick('pending')}
-                                    className="relative w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
-                                >
-                                    <FaCheck className="text-sm sm:text-base" /> <span>Matched</span>
-                                    {matchedActionCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full bg-red-500 text-white text-[10px] sm:text-[11px] leading-4 sm:leading-5 font-bold text-center">
-                                            {matchedActionCount > 99 ? '99+' : matchedActionCount}
-                                        </span>
-                                    )}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowSOSModal(true)}
-                                    className="w-full sm:w-auto px-3 sm:px-6 py-2.5 sm:py-3 bg-red-500/15 border border-red-500/30 text-red-300 rounded-xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 font-semibold text-sm sm:text-base animate-pulse"
-                                >
-                                    <FaExclamationTriangle className="text-sm sm:text-base" /> <span>SOS</span>
-                                </button>
-                            </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <FaEnvelope className="text-accent-green" />
-                                    <span className="text-xs text-gray-500 uppercase tracking-wider">Email</span>
+                                <div className="flex items-center gap-2 sm:gap-3 flex-wrap lg:justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveProfileTab('overview')}
+                                        className={`px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'overview' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                                    >
+                                        Overview
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveProfileTab('performance')}
+                                        className={`px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'performance' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                                    >
+                                        Performance
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveProfileTab('rewards')}
+                                        className={`px-3 py-2 rounded-xl border text-xs font-semibold ${activeProfileTab === 'rewards' ? 'border-accent-green bg-accent-green/15 text-accent-green' : 'border-white/10 bg-white/5 text-gray-300'}`}
+                                    >
+                                        Rewards
+                                    </button>
                                 </div>
-                                <p className="text-white font-medium">{user.email}</p>
                             </div>
 
-                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <FaPhone className="text-accent-green" />
-                                    <span className="text-xs text-gray-500 uppercase tracking-wider">Phone</span>
-                                </div>
-                                <p className="text-white font-medium">{user.phone || 'Not provided'}</p>
+                            <div className="mt-4">
+                                {profileTabs[activeProfileTab] || profileTabs.overview}
                             </div>
                         </div>
                     </div>
+
+            {/* Profile Sticker Picker */}
+            <AnimatePresence>
+                {showProfileStickerPicker && user && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[140] bg-black/75 backdrop-blur-md flex items-center justify-center p-4"
+                        onClick={() => setShowProfileStickerPicker(false)}
+                    >
+                        <motion.div
+                            initial={{ y: 18, scale: 0.98, opacity: 0 }}
+                            animate={{ y: 0, scale: 1, opacity: 1 }}
+                            exit={{ y: 18, scale: 0.98, opacity: 0 }}
+                            onClick={(event) => event.stopPropagation()}
+                            className="w-full max-w-2xl rounded-[28px] border border-white/10 bg-[#08130f] shadow-2xl overflow-hidden"
+                        >
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                                <div>
+                                    <h4 className="text-lg font-bold text-white">Pick Your Sticker Avatar</h4>
+                                    <p className="text-xs text-gray-400">Tap a sticker and this popup closes instantly.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowProfileStickerPicker(false)}
+                                    className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center"
+                                >
+                                    <FaTimes />
+                                </button>
+                            </div>
+
+                            <div className="p-4 sm:p-5 max-h-[72vh] overflow-y-auto">
+                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                                    {profileStickerCards.map((avatar) => (
+                                        <ProfileStickerCard
+                                            key={avatar.id}
+                                            avatar={avatar}
+                                            isSelected={user?.profilePhoto === avatar.url}
+                                            onSelect={handleSelectStickerAvatar}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
                     {/* Features Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
@@ -2575,3 +2747,61 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+const MiniStat = ({ label, value, tone }) => {
+    const toneClasses = {
+        green: 'text-accent-green border-accent-green/30 bg-accent-green/10',
+        blue: 'text-blue-300 border-blue-400/30 bg-blue-500/10',
+        purple: 'text-purple-300 border-purple-400/30 bg-purple-500/10'
+    };
+
+    return (
+        <div className={`rounded-2xl border px-3 py-3 ${toneClasses[tone] || toneClasses.green}`}>
+            <p className="text-[10px] uppercase tracking-wider text-white/65">{label}</p>
+            <p className="text-lg font-black text-white mt-1">{value}</p>
+        </div>
+    );
+};
+
+const CompactBar = ({ label, value }) => (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+        <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="text-xs uppercase tracking-wider text-gray-400">{label}</p>
+            <p className="text-sm font-semibold text-white">{value}%</p>
+        </div>
+        <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-accent-green to-cyan-400" style={{ width: `${value}%` }} />
+        </div>
+    </div>
+);
+
+const RewardChip = ({ label, active }) => (
+    <div className={`flex items-center justify-between rounded-2xl border px-3 py-3 ${active ? 'border-accent-green/30 bg-accent-green/10' : 'border-white/10 bg-black/20'}`}>
+        <span className={`text-sm font-semibold ${active ? 'text-accent-green' : 'text-gray-300'}`}>{label}</span>
+        <span className={`text-[10px] font-bold uppercase tracking-widest ${active ? 'text-accent-green' : 'text-gray-500'}`}>{active ? 'Unlocked' : 'Locked'}</span>
+    </div>
+);
+
+const ProfileStickerCard = ({ avatar, isSelected, onSelect }) => (
+    <button
+        type="button"
+        onClick={() => onSelect(avatar.url)}
+        className={`group rounded-3xl p-2 border transition-all ${isSelected
+            ? 'border-accent-green bg-accent-green/15'
+            : 'border-white/10 bg-black/20 hover:border-white/30 hover:bg-white/10'
+            }`}
+        title={`Set ${avatar.label} avatar`}
+    >
+        <div className={`mx-auto w-full aspect-square rounded-full p-[2px] ${isSelected ? 'bg-gradient-to-br from-accent-green to-cyan-300' : 'bg-white/10'}`}>
+            <img
+                src={avatar.url}
+                alt={avatar.label}
+                className="w-full h-full rounded-full object-cover bg-[#08120e]"
+                loading="lazy"
+            />
+        </div>
+        <span className="block mt-1 text-[10px] text-gray-400 capitalize truncate group-hover:text-white text-center">
+            {avatar.label}
+        </span>
+    </button>
+);
