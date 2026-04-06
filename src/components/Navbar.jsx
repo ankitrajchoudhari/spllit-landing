@@ -1,7 +1,7 @@
-import React, { Suspense, lazy, useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaArrowLeft, FaUserCircle, FaEnvelope, FaPhone, FaGraduationCap, FaVenusMars, FaBirthdayCake, FaSave } from 'react-icons/fa';
+import { FaBars, FaTimes, FaArrowLeft, FaUserCircle, FaEnvelope, FaPhone, FaGraduationCap, FaVenusMars, FaBirthdayCake, FaSave, FaBolt, FaTrophy, FaFireAlt, FaCheckCircle, FaCamera } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
 
 const AnnouncementDrops = lazy(() => import('./AnnouncementDrops'));
@@ -68,6 +68,52 @@ const Navbar = () => {
     const profileLabel = user?.name?.trim()?.split(' ')?.[0] || 'Profile';
     const authenticatedHomePath = user?.role === 'subadmin' || user?.isAdmin ? '/admin/dashboard' : '/dashboard';
     const logoTarget = isAuthenticated && user ? authenticatedHomePath : '/';
+
+    const profileFields = [
+        profileForm.name,
+        profileForm.college,
+        profileForm.gender,
+        profileForm.dateOfBirth,
+        profileForm.phone,
+        profileForm.profilePhoto,
+        user?.email || ''
+    ];
+    const completedFieldCount = profileFields.filter((field) => String(field || '').trim().length > 0).length;
+    const completionPercent = Math.round((completedFieldCount / profileFields.length) * 100);
+    const profileLevel = Math.max(1, Math.ceil(completionPercent / 20));
+    const profileXp = completedFieldCount * 120;
+    const streakDays = Math.min(14, Math.max(1, completedFieldCount + (user?.isOnline ? 1 : 0)));
+    const profileBadges = [
+        { key: 'starter', label: 'Starter', unlocked: completedFieldCount >= 2 },
+        { key: 'verified', label: 'Verified Vibe', unlocked: Boolean(user?.email) && completedFieldCount >= 4 },
+        { key: 'campus', label: 'Campus Connect', unlocked: String(profileForm.college || '').trim().length > 0 },
+        { key: 'ready', label: 'Ride Ready', unlocked: completionPercent >= 85 }
+    ];
+    const notionFaceCards = useMemo(() => {
+        const baseSeed = (profileForm.name || user?.email || 'spllit-user').trim().toLowerCase().replace(/\s+/g, '-');
+        const archetypes = [
+            'campus',
+            'late-night',
+            'study-mode',
+            'weekend',
+            'hustle',
+            'chill',
+            'creative',
+            'sporty'
+        ];
+        const styles = ['notionists', 'notionists-neutral'];
+
+        return styles.flatMap((style) =>
+            archetypes.map((archetype) => {
+                const seed = `${baseSeed}-${style}-${archetype}`;
+                return {
+                    id: seed,
+                    label: `${archetype.replace('-', ' ')} ${style === 'notionists' ? 'vibe' : 'alt'}`,
+                    url: `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}`
+                };
+            })
+        );
+    }, [profileForm.name, user?.email]);
 
     const isPublicNavVisible = !isAuthenticated;
 
@@ -318,20 +364,73 @@ const Navbar = () => {
                                     onClick={(e) => e.stopPropagation()}
                                     className="w-full max-w-2xl rounded-3xl border border-white/10 bg-bg-secondary shadow-2xl overflow-hidden"
                                 >
-                                    <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-white/10">
+                                    <div className="relative px-5 sm:px-6 py-5 border-b border-white/10 overflow-hidden">
+                                        <div className="pointer-events-none absolute -top-10 right-8 w-40 h-40 rounded-full bg-accent-green/20 blur-3xl" />
+                                        <div className="pointer-events-none absolute top-10 -left-8 w-32 h-32 rounded-full bg-cyan-400/10 blur-3xl" />
                                         <div>
-                                            <h3 className="text-xl sm:text-2xl font-bold text-white">Profile</h3>
-                                            <p className="text-xs sm:text-sm text-gray-400">Edit your personal details</p>
+                                            <h3 className="text-xl sm:text-2xl font-bold text-white">Profile Dashboard</h3>
+                                            <p className="text-xs sm:text-sm text-gray-400">Level up your profile and unlock badges</p>
                                         </div>
                                         <button
                                             onClick={() => setShowProfileModal(false)}
-                                            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center"
+                                            className="absolute right-5 top-5 w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center"
                                         >
                                             <FaTimes />
                                         </button>
                                     </div>
 
                                     <form onSubmit={handleSaveProfile} className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <ProfileStatCard icon={FaBolt} title="Level" value={`Lv ${profileLevel}`} tone="emerald" />
+                                            <ProfileStatCard icon={FaTrophy} title="XP" value={`${profileXp}`} tone="sky" />
+                                            <ProfileStatCard icon={FaFireAlt} title="Streak" value={`${streakDays}d`} tone="orange" />
+                                        </div>
+
+                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                            <div className="flex items-center justify-between gap-3 mb-3">
+                                                <p className="text-xs uppercase tracking-wider text-gray-400">Profile Completion</p>
+                                                <p className="text-sm font-semibold text-white">{completionPercent}%</p>
+                                            </div>
+                                            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                                                <div
+                                                    className="h-full rounded-full bg-gradient-to-r from-accent-green to-cyan-400 transition-all duration-500"
+                                                    style={{ width: `${completionPercent}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-gray-400 mt-3">
+                                                {completionPercent >= 85 ? 'You are profile-pro. Keep it updated!' : 'Complete a few more details to unlock Ride Ready badge.'}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <FaTrophy className="text-amber-300" />
+                                                <p className="text-xs uppercase tracking-wider text-gray-400">Badges</p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {profileBadges.map((badge) => (
+                                                    <ProfileBadgeChip key={badge.key} label={badge.label} unlocked={badge.unlocked} />
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                            <div className="flex items-center justify-between gap-3 mb-3">
+                                                <p className="text-xs uppercase tracking-wider text-gray-400">Notion Faces</p>
+                                                <p className="text-[11px] text-gray-500">Tap to set avatar</p>
+                                            </div>
+                                            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                                                {notionFaceCards.map((avatar) => (
+                                                    <AvatarProfileCard
+                                                        key={avatar.id}
+                                                        avatar={avatar}
+                                                        isSelected={profileForm.profilePhoto === avatar.url}
+                                                        onSelect={(url) => setProfileForm({ ...profileForm, profilePhoto: url })}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <ProfileField icon={FaUserCircle} label="Name" value={profileForm.name} onChange={(value) => setProfileForm({ ...profileForm, name: value })} />
                                             <ProfileField icon={FaGraduationCap} label="College" value={profileForm.college} onChange={(value) => setProfileForm({ ...profileForm, college: value })} />
@@ -341,9 +440,23 @@ const Navbar = () => {
                                             <ProfileField icon={FaEnvelope} label="Profile Photo URL" value={profileForm.profilePhoto} onChange={(value) => setProfileForm({ ...profileForm, profilePhoto: value })} placeholder="https://..." />
                                         </div>
 
-                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-3">
+                                            <div>
                                             <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Email</p>
                                             <p className="text-white font-semibold break-all">{user.email}</p>
+                                            </div>
+                                            <div className="w-12 h-12 rounded-full border border-white/10 bg-black/20 flex items-center justify-center shrink-0">
+                                                {profileForm.profilePhoto ? (
+                                                    <img
+                                                        src={profileForm.profilePhoto}
+                                                        alt="Profile"
+                                                        className="w-full h-full object-cover rounded-full"
+                                                        loading="lazy"
+                                                    />
+                                                ) : (
+                                                    <FaCamera className="text-accent-green" />
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="flex flex-col sm:flex-row gap-3 justify-end">
@@ -389,6 +502,58 @@ const MobileNavLink = ({ to, onClick, children }) => (
     >
         {children}
     </Link>
+);
+
+const ProfileStatCard = ({ icon: Icon, title, value, tone }) => {
+    const toneClasses = {
+        emerald: 'text-emerald-300 border-emerald-400/30 bg-emerald-500/10',
+        sky: 'text-sky-300 border-sky-400/30 bg-sky-500/10',
+        orange: 'text-orange-300 border-orange-400/30 bg-orange-500/10'
+    };
+
+    return (
+        <div className={`rounded-2xl border p-3 ${toneClasses[tone] || toneClasses.emerald}`}>
+            <div className="flex items-center justify-between">
+                <p className="text-[10px] uppercase tracking-widest text-white/70">{title}</p>
+                <Icon className="text-sm" />
+            </div>
+            <p className="text-lg font-black mt-2 text-white">{value}</p>
+        </div>
+    );
+};
+
+const ProfileBadgeChip = ({ label, unlocked }) => (
+    <span
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold ${unlocked
+            ? 'border-accent-green/40 bg-accent-green/15 text-accent-green'
+            : 'border-white/10 bg-white/5 text-gray-400'
+            }`}
+    >
+        <FaCheckCircle className={unlocked ? 'text-accent-green' : 'text-gray-500'} />
+        {label}
+    </span>
+);
+
+const AvatarProfileCard = ({ avatar, isSelected, onSelect }) => (
+    <button
+        type="button"
+        onClick={() => onSelect(avatar.url)}
+        className={`group rounded-2xl p-2 border transition-all ${isSelected
+            ? 'border-accent-green bg-accent-green/15'
+            : 'border-white/10 bg-black/20 hover:border-white/30 hover:bg-white/10'
+            }`}
+        title={`Set ${avatar.label} avatar`}
+    >
+        <img
+            src={avatar.url}
+            alt={avatar.label}
+            className="w-full aspect-square rounded-xl object-cover"
+            loading="lazy"
+        />
+        <span className="block mt-1 text-[10px] text-gray-400 capitalize truncate group-hover:text-white">
+            {avatar.label}
+        </span>
+    </button>
 );
 
 const ProfileField = ({ icon: Icon, label, value, onChange, type = 'text', placeholder = '' }) => (
