@@ -1454,53 +1454,54 @@ const Dashboard = () => {
                     {/* User Profile Card */}
                     <div className="sticky top-4 z-20 mb-6">
                         <div className="bg-bg-secondary/96 backdrop-blur-xl border border-white/10 rounded-[28px] p-4 sm:p-5 shadow-xl">
-                            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                                <div className="flex-1 min-w-0">
+                            <div className="flex flex-col gap-4">
+                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                                     <button
                                         type="button"
                                         onClick={handleOpenStickerPicker}
-                                        className="group flex items-center gap-4 min-w-0 text-left active:scale-95 transition-transform"
+                                        className="group w-full text-left active:scale-[0.99] transition-transform"
                                     >
-                                        <div className="relative shrink-0">
-                                            <div className="w-20 h-20 rounded-full p-[3px] bg-gradient-to-br from-accent-green via-cyan-400 to-blue-500 shadow-[0_0_32px_rgba(16,185,129,0.28)]">
-                                                <div className="w-full h-full rounded-full bg-[#07110d] flex items-center justify-center overflow-hidden">
-                                                    {user?.profilePhoto ? (
-                                                        <img src={user.profilePhoto} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
-                                                    ) : (
-                                                        <span className="text-2xl font-black text-white">{profileInitials || 'SR'}</span>
-                                                    )}
+                                        <div className="flex items-start gap-4 min-w-0">
+                                            <div className="relative shrink-0">
+                                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full p-[3px] bg-gradient-to-br from-accent-green via-cyan-400 to-blue-500 shadow-[0_0_32px_rgba(16,185,129,0.28)]">
+                                                    <div className="w-full h-full rounded-full bg-[#07110d] flex items-center justify-center overflow-hidden">
+                                                        {user?.profilePhoto ? (
+                                                            <img src={user.profilePhoto} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
+                                                        ) : (
+                                                            <span className="text-2xl font-black text-white">{profileInitials || 'SR'}</span>
+                                                        )}
+                                                    </div>
                                                 </div>
+                                                <span className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-accent-green text-black flex items-center justify-center border-2 border-[#07110d] shadow-lg">
+                                                    <FaPlus className="text-xs" />
+                                                </span>
+                                                <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center border-2 border-[#07110d] shadow-lg">
+                                                    <FaCheckCircle className="text-xs" />
+                                                </span>
                                             </div>
-                                            <span className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-accent-green text-black flex items-center justify-center border-2 border-[#07110d] shadow-lg">
-                                                <FaPlus className="text-xs" />
-                                            </span>
-                                            <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center border-2 border-[#07110d] shadow-lg">
-                                                <FaCheckCircle className="text-xs" />
-                                            </span>
-                                        </div>
 
-                                        <div className="min-w-0">
-                                            <p className="text-gray-500 text-xs uppercase tracking-[0.25em]">Profile</p>
-                                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/20 text-xs font-semibold">
-                                                    <FaCheckCircle className="text-[11px]" /> Verified
-                                                </span>
-                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/20 text-xs font-semibold">
-                                                    Lv {profileLevel}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 text-xs font-semibold">
-                                                    {selectedStickerLabel}
-                                                </span>
-                                            </div>
-                                            <div className="mt-3 flex flex-wrap gap-2">
-                                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.college || 'IIT Madras BS Degree'}</span>
-                                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.phone || 'Add phone'}</span>
+                                            <div className="min-w-0 pt-1">
+                                                <p className="text-gray-500 text-xs uppercase tracking-[0.28em]">Profile</p>
+                                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/20 text-xs font-semibold">
+                                                        <FaCheckCircle className="text-[11px]" /> Verified
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-accent-green/15 text-accent-green border border-accent-green/20 text-xs font-semibold">
+                                                        Lv {profileLevel}
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 text-xs font-semibold">
+                                                        {selectedStickerLabel}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.college || 'IIT Madras BS Degree'}</span>
+                                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-gray-300 border border-white/10">{user.phone || 'Add phone'}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </button>
-                                </div>
 
-                                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 w-full lg:w-auto">
+                                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 w-full lg:w-auto lg:pt-1">
                                     <div className="relative w-full sm:w-auto" ref={notificationBellRef}>
                                         <button
                                             type="button"
@@ -1667,9 +1668,10 @@ const Dashboard = () => {
                                     >
                                         <FaExclamationTriangle className="text-sm sm:text-base" /> <span>SOS</span>
                                     </button>
+                                    </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 sm:gap-3 flex-wrap lg:justify-end">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
                                     <button
                                         type="button"
                                         onClick={() => setActiveProfileTab('overview')}
@@ -1694,9 +1696,7 @@ const Dashboard = () => {
                                 </div>
                             </div>
 
-                            <div className="mt-4">
-                                {profileTabs[activeProfileTab] || profileTabs.overview}
-                            </div>
+                            <div className="mt-4">{profileTabs[activeProfileTab] || profileTabs.overview}</div>
                         </div>
                     </div>
 
