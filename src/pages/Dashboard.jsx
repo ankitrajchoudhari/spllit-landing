@@ -11,6 +11,8 @@ import SubadminManagement from '../components/SubadminManagement';
 import { io } from 'socket.io-client';
 import { SOCKET_BASE_URL } from '../config/backendUrl';
 
+/* eslint-disable react-hooks/exhaustive-deps */
+
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 // Load Google Maps script with async
@@ -440,6 +442,7 @@ const Dashboard = () => {
     }).length;
 
     const notificationFeedCount = notificationFeed.length;
+    const visibleNotificationFeed = notificationFeed.slice(0, 2);
 
     const markRideAnnouncementsSeen = (announcements = rideAnnouncements) => {
         if (!announcements.length) return;
@@ -568,7 +571,15 @@ const Dashboard = () => {
                 addNotification({
                     type: 'ride',
                     title: 'New Ride Available!',
-                    message: `${data.creator.name} is going from ${data.origin} to ${data.destination} at ${formatAnnouncementTime(data.departureTime)}`
+                    message: `${data.creator.name} is going from ${data.origin} to ${data.destination} at ${formatAnnouncementTime(data.departureTime)}`,
+                    actionLabel: 'Browse rides',
+                    onAction: async () => {
+                        setShowRideAnnouncements(false);
+                        setShowMessageCenter(false);
+                        setShowMatchedCenter(false);
+                        setShowAdminAnnouncements(false);
+                        await handleSearchRides();
+                    }
                 });
                 localStorage.removeItem(rideAnnouncementSeenKey);
                 // Add ride to available list if viewing matches
@@ -593,7 +604,14 @@ const Dashboard = () => {
                 addNotification({
                     type: data.notification.type,
                     title: data.notification.title,
-                    message: data.notification.message
+                    message: data.notification.message,
+                    actionLabel: 'Open chat',
+                    onAction: async () => {
+                        await handleAlertItemClick({
+                            matchId: data.match?.id,
+                            chatRoomId: data.notification.chatRoomId
+                        });
+                    }
                 });
                 // Play notification sound
                 playNotificationSound();
@@ -619,7 +637,16 @@ const Dashboard = () => {
             addNotification({
                 type: 'ride',
                 title: '📨 New Match Request!',
-                message: data.notification?.message || `Someone wants to join your ride!`
+                message: data.notification?.message || `Someone wants to join your ride!`,
+                actionLabel: 'Review request',
+                onAction: async () => {
+                    setShowRideAnnouncements(false);
+                    setShowMessageCenter(false);
+                    setShowAdminAnnouncements(false);
+                    setMatchStatusFilter('pending');
+                    await loadMatches();
+                    setShowMatchedCenter(true);
+                }
             });
             playNotificationSound();
             
@@ -636,7 +663,13 @@ const Dashboard = () => {
                 addNotification({
                     type: 'success',
                     title: '👀 Action Required',
-                    message: 'Go to Matched to accept or reject requests.'
+                    message: 'Go to Matched to accept or reject requests.',
+                    actionLabel: 'Review request',
+                    onAction: async () => {
+                        setMatchStatusFilter('pending');
+                        await loadMatches();
+                        setShowMatchedCenter(true);
+                    }
                 });
             }, 2000);
         });
@@ -656,7 +689,13 @@ const Dashboard = () => {
                 addNotification({
                     type: 'success',
                     title: data.notification.title,
-                    message: data.notification.message
+                    message: data.notification.message,
+                    actionLabel: 'Open matches',
+                    onAction: async () => {
+                        setMatchStatusFilter('accepted');
+                        await loadMatches();
+                        setShowMatchedCenter(true);
+                    }
                 });
             }
         });
@@ -676,18 +715,16 @@ const Dashboard = () => {
             addNotification({
                 type: 'success',
                 title: data.notification?.title || '✅ Match Accepted!',
-                message: data.notification?.message || 'Your ride match is confirmed!'
+                message: data.notification?.message || 'Your ride match is confirmed!',
+                actionLabel: 'Chat now',
+                onAction: async () => {
+                    await handleAlertItemClick({
+                        matchId: data.match?.id,
+                        chatRoomId: data.notification?.chatRoomId
+                    });
+                }
             });
             playNotificationSound();
-            
-            // Show follow-up notification to start chatting
-            setTimeout(() => {
-                addNotification({
-                    type: 'match',
-                    title: '💬 Chat Now Available!',
-                    message: 'Go to Matched to view accepted rides and chat.'
-                });
-            }, 3000);
             
             // Remove from pending requests
             if (data.match) {
@@ -713,7 +750,13 @@ const Dashboard = () => {
                 addNotification({
                     type: 'error',
                     title: data.notification.title,
-                    message: data.notification.message
+                    message: data.notification.message,
+                    actionLabel: 'View details',
+                    onAction: async () => {
+                        setShowMatchedCenter(true);
+                        setMatchStatusFilter('rejected');
+                        await loadMatches();
+                    }
                 });
             }
         });
@@ -734,7 +777,14 @@ const Dashboard = () => {
                 addNotification({
                     type: 'match',
                     title: data.notification.title,
-                    message: data.notification.message
+                    message: data.notification.message,
+                    actionLabel: 'Open chat',
+                    onAction: async () => {
+                        await handleAlertItemClick({
+                            matchId: data.notification.matchId,
+                            chatRoomId: data.notification.chatRoomId
+                        });
+                    }
                 });
                 playNotificationSound();
             }
@@ -772,7 +822,15 @@ const Dashboard = () => {
             addNotification({
                 type: 'success',
                 title: 'New announcement',
-                message: announcement.title
+                message: announcement.title,
+                actionLabel: 'View announcement',
+                onAction: async () => {
+                    setShowRideAnnouncements(false);
+                    setShowMessageCenter(false);
+                    setShowMatchedCenter(false);
+                    setShowFindMatches(false);
+                    setShowAdminAnnouncements(true);
+                }
             });
             playNotificationSound();
         });
@@ -859,7 +917,7 @@ const Dashboard = () => {
 
     const addNotification = (notification) => {
         const id = Date.now();
-        setNotifications(prev => [...prev, { ...notification, id }]);
+        setNotifications(prev => [...prev, { ...notification, id }].slice(-2));
     };
 
     const removeNotification = (id) => {
@@ -1221,17 +1279,40 @@ const Dashboard = () => {
             }
 
             setMatchStatusFilter('accepted');
-
-            if (isMatchChatActive(targetMatch)) {
-                setActiveChat(targetMatch);
-                setShowMatchedCenter(false);
-            }
+            setActiveChat(targetMatch);
+            setShowMatchedCenter(false);
         } catch (error) {
             addNotification({
                 type: 'error',
                 title: 'Unable to open match',
                 message: 'Please try again in a moment.'
             });
+        }
+    };
+
+    const handleAlertItemClick = async (item) => {
+        if (!item) return;
+
+        if (item.matchId || item.chatRoomId) {
+            await handleNotificationItemClick(item);
+            return;
+        }
+
+        if (item.type === 'ride') {
+            setShowRideAnnouncements(false);
+            setShowMessageCenter(false);
+            setShowMatchedCenter(false);
+            setShowAdminAnnouncements(false);
+            await handleSearchRides();
+            return;
+        }
+
+        if (item.type === 'info') {
+            setShowRideAnnouncements(false);
+            setShowMessageCenter(false);
+            setShowMatchedCenter(false);
+            setShowFindMatches(false);
+            setShowAdminAnnouncements(true);
         }
     };
 
@@ -1632,15 +1713,24 @@ const Dashboard = () => {
                                                         </button>
                                                     </div>
                                                     <div className="max-h-[24rem] overflow-y-auto">
-                                                        {notificationFeed.length === 0 ? (
+                                                        {visibleNotificationFeed.length === 0 ? (
                                                             <div className="px-5 py-8 text-center text-gray-500">
                                                                 No notifications yet.
                                                             </div>
                                                         ) : (
-                                                            notificationFeed.map((item) => (
+                                                            visibleNotificationFeed.map((item) => (
                                                                 <div
                                                                     key={item.id}
-                                                                    className="px-5 py-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors"
+                                                                    onClick={() => handleAlertItemClick(item)}
+                                                                    role="button"
+                                                                    tabIndex={0}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                                            event.preventDefault();
+                                                                            handleAlertItemClick(item);
+                                                                        }
+                                                                    }}
+                                                                    className="w-full text-left px-5 py-4 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors cursor-pointer focus:outline-none focus:bg-white/5"
                                                                 >
                                                                     <div className="flex items-start gap-3">
                                                                         <div className="w-11 h-11 rounded-2xl bg-accent-green/15 border border-accent-green/20 flex items-center justify-center flex-shrink-0">
@@ -1719,6 +1809,11 @@ const Dashboard = () => {
                                                             ))
                                                         )}
                                                     </div>
+                                                    {notificationFeed.length > visibleNotificationFeed.length && (
+                                                        <div className="px-5 pb-4 pt-1 text-[11px] text-gray-500">
+                                                            Showing latest 2 alerts.
+                                                        </div>
+                                                    )}
                                                     </div>
                                                 </motion.div>
                                             )}
@@ -2516,6 +2611,12 @@ const Dashboard = () => {
                     socketClient={socket}
                 />
             )}
+
+            <NotificationContainer
+                notifications={notifications}
+                onClose={removeNotification}
+                onRemove={removeNotification}
+            />
 
             {/* Message Center */}
             <AnimatePresence>

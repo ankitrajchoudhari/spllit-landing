@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaCheckCircle, FaExclamationCircle, FaInfoCircle, FaTimes, FaCar, FaUsers } from 'react-icons/fa';
 
-const UserNotification = ({ notification, onClose }) => {
+const UserNotification = ({ notification, onClose, onAction }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose(notification.id);
@@ -46,7 +46,7 @@ const UserNotification = ({ notification, onClose }) => {
       initial={{ opacity: 0, x: 300 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 300 }}
-      className={`${getBgColor()} border-l-4 p-4 rounded-lg shadow-lg max-w-sm w-full`}
+      className={`${getBgColor()} border-l-4 p-4 rounded-2xl shadow-lg w-full max-w-none sm:max-w-sm touch-manipulation`}
     >
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 mt-0.5">
@@ -59,6 +59,22 @@ const UserNotification = ({ notification, onClose }) => {
           <p className="text-gray-600 text-sm mt-1">
             {notification.message}
           </p>
+          {(notification.actionLabel || onAction) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {notification.actionLabel && onAction && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAction(notification);
+                    onClose(notification.id);
+                  }}
+                  className="px-3 py-1.5 rounded-full bg-gray-900 text-white text-xs font-semibold hover:bg-gray-800 transition-colors"
+                >
+                  {notification.actionLabel}
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <button
           onClick={() => onClose(notification.id)}
@@ -75,13 +91,14 @@ export const NotificationContainer = ({ notifications, onClose, onRemove }) => {
   const handleClose = onClose || onRemove;
 
   return (
-    <div className="fixed top-4 right-4 z-[9999] space-y-2 max-w-sm">
+    <div className="fixed top-3 left-3 right-3 z-[9999] space-y-2 sm:top-4 sm:right-4 sm:left-auto sm:max-w-sm">
       <AnimatePresence>
         {notifications.map((notification) => (
           <UserNotification
             key={notification.id}
             notification={notification}
             onClose={handleClose}
+            onAction={notification.onAction}
           />
         ))}
       </AnimatePresence>
