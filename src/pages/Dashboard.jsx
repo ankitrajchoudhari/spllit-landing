@@ -93,6 +93,10 @@ const Dashboard = () => {
     const [phoneInputError, setPhoneInputError] = useState('');
     const [savingPhone, setSavingPhone] = useState(false);
     const [activeProfileTab, setActiveProfileTab] = useState('overview');
+    const [showCollegeModal, setShowCollegeModal] = useState(false);
+    const [collegeInput, setCollegeInput] = useState('');
+    const [collegeInputError, setCollegeInputError] = useState('');
+    const [savingCollege, setSavingCollege] = useState(false);
     const [socket, setSocket] = useState(null);
     const [pendingRequests, setPendingRequests] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
@@ -1215,6 +1219,60 @@ const Dashboard = () => {
             setPhoneInputError(err.response?.data?.message || 'Failed to save phone number');
         } finally {
             setSavingPhone(false);
+
+            const handleOpenCollegeModal = (e) => {
+                if (e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+                setCollegeInputError('');
+                setCollegeInput(user?.college || '');
+                setShowCollegeModal(true);
+            };
+
+            const handleCancelCollegeModal = () => {
+                setCollegeInputError('');
+                setCollegeInput('');
+                setShowCollegeModal(false);
+            };
+
+            const handleSaveCollege = async () => {
+                const trimmedCollege = collegeInput.trim();
+
+                if (!trimmedCollege) {
+                    setCollegeInputError('College name is required');
+                    return;
+                }
+
+                if (trimmedCollege.length < 3) {
+                    setCollegeInputError('College name must be at least 3 characters');
+                    return;
+                }
+
+                if (trimmedCollege.length > 100) {
+                    setCollegeInputError('College name must be less than 100 characters');
+                    return;
+                }
+
+                setSavingCollege(true);
+                try {
+                    await updateProfile({ college: trimmedCollege });
+                    if (typeof fetchProfile === 'function') {
+                        await fetchProfile();
+                    }
+                    setShowCollegeModal(false);
+                    addNotification({
+                        type: 'success',
+                        title: 'College Updated',
+                        message: 'Your college information has been saved successfully.'
+                    });
+                } catch (err) {
+                    console.error('Failed to save college:', err);
+                    setCollegeInputError(err.response?.data?.message || 'Failed to save college');
+                } finally {
+                    setSavingCollege(false);
+                }
+            };
         }
     };
 
@@ -1791,6 +1849,13 @@ const Dashboard = () => {
                                                     </button>
                                                     <button
                                                         type="button"
+                                                        onClick={handleOpenCollegeModal}
+                                                        className={`max-w-[220px] truncate px-3 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80 ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'}`}
+                                                    >
+                                                        {user.college || 'IIT Madras BS Degree'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         onClick={handleOpenPhoneModal}
                                                         className={`max-w-[140px] truncate px-3 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80 ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'}`}
                                                     >
@@ -2218,6 +2283,90 @@ const Dashboard = () => {
                                         }`}
                                     >
                                         {savingPhone ? 'Saving...' : 'Save'}
+
+                                                {/* College Modal */}
+                                                <AnimatePresence>
+                                                    {showCollegeModal && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0 }}
+                                                            animate={{ opacity: 1 }}
+                                                            exit={{ opacity: 0 }}
+                                                            onClick={() => setShowCollegeModal(false)}
+                                                            className="fixed inset-0 z-[10002] bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4"
+                                                        >
+                                                            <motion.div
+                                                                initial={{ scale: 0.95, opacity: 0 }}
+                                                                animate={{ scale: 1, opacity: 1 }}
+                                                                exit={{ scale: 0.95, opacity: 0 }}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className={`w-full max-w-sm rounded-3xl p-6 sm:p-8 ${isLightMode ? 'bg-white shadow-xl' : 'bg-[#0f0f0f] border border-white/10 shadow-2xl'}`}
+                                                            >
+                                                                <div className="mb-6">
+                                                                    <h2 className={`text-2xl font-bold mb-2 ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>
+                                                                        Update College
+                                                                    </h2>
+                                                                    <p className={`text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                                                        Let other riders know where you study
+                                                                    </p>
+                                                                </div>
+
+                                                                <div className="space-y-4">
+                                                                    <div>
+                                                                        <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                                                            College/University Name
+                                                                        </label>
+                                                                        <textarea
+                                                                            value={collegeInput}
+                                                                            onChange={(e) => {
+                                                                                const value = e.target.value.slice(0, 100);
+                                                                                setCollegeInput(value);
+                                                                                setCollegeInputError('');
+                                                                            }}
+                                                                            placeholder="IIT Madras (BS Degree)"
+                                                                            rows="2"
+                                                                            className={`w-full px-4 py-3 rounded-xl border text-sm transition-all resize-none ${
+                                                                                collegeInputError
+                                                                                    ? isLightMode ? 'border-red-300 bg-red-50 text-red-900' : 'border-red-500/30 bg-red-500/10 text-white'
+                                                                                    : isLightMode ? 'border-gray-200 bg-white text-[#0d1a16]' : 'border-white/10 bg-white/5 text-white'
+                                                                            } focus:outline-none focus:ring-2 focus:ring-accent-green/50`}
+                                                                        />
+                                                                        <div className={`text-xs mt-1 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                                                            {collegeInput.length}/100
+                                                                        </div>
+                                                                        {collegeInputError && (
+                                                                            <p className={`text-xs mt-2 font-medium ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>
+                                                                                {collegeInputError}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-2 gap-3">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={handleCancelCollegeModal}
+                                                                            disabled={savingCollege}
+                                                                            className={`px-4 py-3 rounded-xl border font-semibold text-sm transition-all disabled:opacity-50 ${isLightMode ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50' : 'border-white/10 bg-white/5 text-white hover:bg-white/10'}`}
+                                                                        >
+                                                                            Cancel
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={handleSaveCollege}
+                                                                            disabled={savingCollege || collegeInput.length === 0}
+                                                                            className={`px-4 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${
+                                                                                savingCollege || collegeInput.length === 0
+                                                                                    ? 'bg-accent-green/50 text-black'
+                                                                                    : 'bg-accent-green text-black hover:bg-accent-green/90'
+                                                                            }`}
+                                                                        >
+                                                                            {savingCollege ? 'Saving...' : 'Save'}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </motion.div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
                                     </button>
                                 </div>
                             </div>
