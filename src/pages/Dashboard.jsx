@@ -1908,15 +1908,6 @@ const Dashboard = () => {
                                                 <div className="mt-2 flex flex-wrap gap-2">
                                                     <button
                                                         type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                        }}
-                                                        className={`max-w-[220px] truncate px-3 py-1 rounded-full text-xs font-medium cursor-default ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200' : 'bg-white/5 text-gray-300 border border-white/10'}`}
-                                                    >
-                                                        {user.college || 'IIT Madras BS Degree'}
-                                                    </button>
-                                                    <button
-                                                        type="button"
                                                         onClick={handleOpenCollegeModal}
                                                         className={`max-w-[220px] truncate px-3 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80 ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'}`}
                                                     >
