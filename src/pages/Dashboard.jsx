@@ -436,7 +436,7 @@ const Dashboard = () => {
         ...notifications.map((item) => item.id)
     ]);
     const alertBadgeCount = uniqueAlertIds.size;
-    const alertBadgeLabel = alertBadgeCount === 1 ? 'New' : `${alertBadgeCount}+`;
+    const alertBadgeLabel = alertBadgeCount === 1 ? 'New' : '2+';
 
     const markRideAnnouncementsSeen = (announcements = rideAnnouncements) => {
         if (!announcements.length) return;
