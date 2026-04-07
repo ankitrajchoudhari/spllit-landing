@@ -88,6 +88,10 @@ const Dashboard = () => {
     const [showProfileStickerPicker, setShowProfileStickerPicker] = useState(false);
     const [pendingProfilePhoto, setPendingProfilePhoto] = useState('');
     const [stickerPickerOriginalPhoto, setStickerPickerOriginalPhoto] = useState('');
+    const [showPhoneModal, setShowPhoneModal] = useState(false);
+    const [phoneInput, setPhoneInput] = useState('');
+    const [phoneInputError, setPhoneInputError] = useState('');
+    const [savingPhone, setSavingPhone] = useState(false);
     const [activeProfileTab, setActiveProfileTab] = useState('overview');
     const [socket, setSocket] = useState(null);
     const [pendingRequests, setPendingRequests] = useState([]);
@@ -1163,6 +1167,57 @@ const Dashboard = () => {
         }
     };
 
+    const handleOpenPhoneModal = (e) => {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        setPhoneInputError('');
+        setPhoneInput(user?.phone || '');
+        setShowPhoneModal(true);
+    };
+
+    const handleCancelPhoneModal = () => {
+        setPhoneInputError('');
+        setPhoneInput('');
+        setShowPhoneModal(false);
+    };
+
+    const handleSavePhone = async () => {
+        const trimmedPhone = phoneInput.trim();
+
+        if (!trimmedPhone) {
+            setPhoneInputError('Phone number is required');
+            return;
+        }
+
+        // Basic phone validation (adjust regex as needed)
+        const phoneRegex = /^[6-9]\d{9}$/; // Indian phone format
+        if (!phoneRegex.test(trimmedPhone)) {
+            setPhoneInputError('Enter a valid 10-digit Indian phone number');
+            return;
+        }
+
+        setSavingPhone(true);
+        try {
+            await updateProfile({ phone: trimmedPhone });
+            if (typeof fetchProfile === 'function') {
+                await fetchProfile();
+            }
+            setShowPhoneModal(false);
+            addNotification({
+                type: 'success',
+                title: 'Phone Updated',
+                message: 'Your phone number has been saved successfully.'
+            });
+        } catch (err) {
+            console.error('Failed to save phone:', err);
+            setPhoneInputError(err.response?.data?.message || 'Failed to save phone number');
+        } finally {
+            setSavingPhone(false);
+        }
+    };
+
     const handleRideBellClick = async () => {
         setShowMessageCenter(false);
         setShowMatchedCenter(false);
@@ -1725,8 +1780,22 @@ const Dashboard = () => {
                                                     </span>
                                                 </div>
                                                 <div className="mt-2 flex flex-wrap gap-2">
-                                                    <span className={`max-w-[220px] truncate px-3 py-1 rounded-full text-xs font-medium ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200' : 'bg-white/5 text-gray-300 border border-white/10'}`}>{user.college || 'IIT Madras BS Degree'}</span>
-                                                    <span className={`max-w-[140px] truncate px-3 py-1 rounded-full text-xs font-medium ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200' : 'bg-white/5 text-gray-300 border border-white/10'}`}>{user.phone || 'Add phone'}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                        }}
+                                                        className={`max-w-[220px] truncate px-3 py-1 rounded-full text-xs font-medium cursor-default ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200' : 'bg-white/5 text-gray-300 border border-white/10'}`}
+                                                    >
+                                                        {user.college || 'IIT Madras BS Degree'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleOpenPhoneModal}
+                                                        className={`max-w-[140px] truncate px-3 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80 ${isLightMode ? 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200' : 'bg-white/5 text-gray-300 border border-white/10 hover:bg-white/10'}`}
+                                                    >
+                                                        {user.phone || 'Add phone'}
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -2068,6 +2137,87 @@ const Dashboard = () => {
                                         className="sm:col-span-1 px-4 py-3 rounded-xl bg-accent-green text-black font-bold hover:bg-accent-green/90 transition-all"
                                     >
                                         Add
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Phone Modal */}
+            <AnimatePresence>
+                {showPhoneModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowPhoneModal(false)}
+                        className="fixed inset-0 z-[10002] bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`w-full max-w-sm rounded-3xl p-6 sm:p-8 ${isLightMode ? 'bg-white shadow-xl' : 'bg-[#0f0f0f] border border-white/10 shadow-2xl'}`}
+                        >
+                            <div className="mb-6">
+                                <h2 className={`text-2xl font-bold mb-2 ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>
+                                    Add Phone Number
+                                </h2>
+                                <p className={`text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                    Keep your profile up-to-date for better ride matches
+                                </p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                        Phone Number (India)
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        value={phoneInput}
+                                        onChange={(e) => {
+                                            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            setPhoneInput(value);
+                                            setPhoneInputError('');
+                                        }}
+                                        placeholder="9876543210"
+                                        className={`w-full px-4 py-3 rounded-xl border text-sm transition-all ${
+                                            phoneInputError
+                                                ? isLightMode ? 'border-red-300 bg-red-50 text-red-900' : 'border-red-500/30 bg-red-500/10 text-white'
+                                                : isLightMode ? 'border-gray-200 bg-white text-[#0d1a16]' : 'border-white/10 bg-white/5 text-white'
+                                        } focus:outline-none focus:ring-2 focus:ring-accent-green/50`}
+                                    />
+                                    {phoneInputError && (
+                                        <p className={`text-xs mt-2 font-medium ${isLightMode ? 'text-red-600' : 'text-red-400'}`}>
+                                            {phoneInputError}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelPhoneModal}
+                                        disabled={savingPhone}
+                                        className={`px-4 py-3 rounded-xl border font-semibold text-sm transition-all disabled:opacity-50 ${isLightMode ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50' : 'border-white/10 bg-white/5 text-white hover:bg-white/10'}`}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSavePhone}
+                                        disabled={savingPhone || phoneInput.length === 0}
+                                        className={`px-4 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${
+                                            savingPhone || phoneInput.length === 0
+                                                ? 'bg-accent-green/50 text-black'
+                                                : 'bg-accent-green text-black hover:bg-accent-green/90'
+                                        }`}
+                                    >
+                                        {savingPhone ? 'Saving...' : 'Save'}
                                     </button>
                                 </div>
                             </div>
