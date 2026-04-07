@@ -20,6 +20,9 @@ const iconScoutAlertsLottieUrl = 'https://assets4.lottiefiles.com/packages/lf20_
 const iconScoutCreateRideLottieUrl = 'https://assets9.lottiefiles.com/packages/lf20_m6j5igxb.json';
 const iconScoutFindRideLottieUrl = 'https://assets3.lottiefiles.com/packages/lf20_pwohahvd.json';
 const iconScoutMyRideLottieUrl = 'https://assets3.lottiefiles.com/packages/lf20_xlmz9xwm.json';
+const iconScoutInboxLottieUrl = 'https://assets3.lottiefiles.com/packages/lf20_jcikwtux.json';
+const iconScoutMatchLottieUrl = 'https://assets9.lottiefiles.com/packages/lf20_ydo1amjm.json';
+const iconScoutSOSLottieUrl = 'https://assets5.lottiefiles.com/packages/lf20_rwq6ciql.json';
 
 // Load Google Maps script with async
 const loadGoogleMaps = (callback) => {
@@ -127,6 +130,10 @@ const Dashboard = () => {
     const [createRideLottieData, setCreateRideLottieData] = useState(null);
     const [findRideLottieData, setFindRideLottieData] = useState(null);
     const [myRideLottieData, setMyRideLottieData] = useState(null);
+    const [inboxLottieData, setInboxLottieData] = useState(null);
+    const [matchLottieData, setMatchLottieData] = useState(null);
+    const [sosLottieData, setSosLottieData] = useState(null);
+    const [allowMotion, setAllowMotion] = useState(true);
 
     // Refs for autocomplete
     const originRef = useRef(null);
@@ -215,6 +222,20 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const updateMotion = () => setAllowMotion(!mediaQuery.matches);
+        updateMotion();
+
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', updateMotion);
+            return () => mediaQuery.removeEventListener('change', updateMotion);
+        }
+
+        mediaQuery.addListener(updateMotion);
+        return () => mediaQuery.removeListener(updateMotion);
+    }, []);
+
+    useEffect(() => {
         let isMounted = true;
 
         const loadAnimation = async (url, setter) => {
@@ -233,6 +254,9 @@ const Dashboard = () => {
         loadAnimation(iconScoutCreateRideLottieUrl, setCreateRideLottieData);
         loadAnimation(iconScoutFindRideLottieUrl, setFindRideLottieData);
         loadAnimation(iconScoutMyRideLottieUrl, setMyRideLottieData);
+        loadAnimation(iconScoutInboxLottieUrl, setInboxLottieData);
+        loadAnimation(iconScoutMatchLottieUrl, setMatchLottieData);
+        loadAnimation(iconScoutSOSLottieUrl, setSosLottieData);
 
         return () => {
             isMounted = false;
@@ -473,6 +497,9 @@ const Dashboard = () => {
     ]);
     const alertBadgeCount = uniqueAlertIds.size;
     const alertBadgeLabel = alertBadgeCount === 1 ? 'New' : '2+';
+    const lottiePlaybackProps = allowMotion
+        ? { loop: true, autoplay: true }
+        : { loop: false, autoplay: false };
 
     const markRideAnnouncementsSeen = (announcements = rideAnnouncements) => {
         if (!announcements.length) return;
@@ -1637,7 +1664,7 @@ const Dashboard = () => {
                     <div className={`mb-6 sm:mb-8 relative overflow-hidden rounded-3xl border px-5 py-6 sm:px-7 sm:py-7 ${isLightMode ? 'bg-gradient-to-br from-white via-emerald-50/40 to-cyan-50 border-emerald-100' : 'bg-gradient-to-br from-[#0d1713] via-[#0b1010] to-[#071117] border-white/10'}`}>
                         <div className="absolute -right-8 -top-10 w-40 h-40 sm:w-48 sm:h-48 opacity-80 pointer-events-none">
                             {heroLottieData ? (
-                                <Lottie animationData={heroLottieData} loop autoplay className="w-full h-full" />
+                                <Lottie animationData={heroLottieData} {...lottiePlaybackProps} className="w-full h-full" />
                             ) : (
                                 <div className="w-full h-full rounded-full bg-gradient-to-br from-accent-green/25 via-cyan-400/20 to-blue-500/20 blur-2xl" />
                             )}
@@ -1712,7 +1739,13 @@ const Dashboard = () => {
                                             onClick={handleRideBellClick}
                                             className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all relative flex items-center justify-center gap-2 font-semibold ${isLightMode ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-800 hover:from-emerald-100 hover:to-teal-100' : 'bg-white/5 border border-white/10 hover:bg-white/10'}`}
                                         >
-                                            <FaBell className="text-accent-green text-sm sm:text-base" />
+                                            <span className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
+                                                {alertsLottieData ? (
+                                                    <Lottie animationData={alertsLottieData} {...lottiePlaybackProps} className="w-full h-full" />
+                                                ) : (
+                                                    <FaBell className="text-accent-green text-sm sm:text-base" />
+                                                )}
+                                            </span>
                                             <span className={`text-sm ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>Alerts</span>
                                             {alertBadgeCount > 0 && (
                                                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center font-bold leading-none">
@@ -1759,7 +1792,7 @@ const Dashboard = () => {
                                                             <div className="px-5 py-8 text-center text-gray-500">
                                                                 <div className="mx-auto mb-3 w-24 h-24 sm:w-28 sm:h-28">
                                                                     {alertsLottieData ? (
-                                                                        <Lottie animationData={alertsLottieData} loop autoplay className="w-full h-full" />
+                                                                        <Lottie animationData={alertsLottieData} {...lottiePlaybackProps} className="w-full h-full" />
                                                                     ) : (
                                                                         <div className="w-full h-full rounded-full bg-gradient-to-br from-accent-green/20 to-blue-500/20 blur-xl" />
                                                                     )}
@@ -1874,14 +1907,28 @@ const Dashboard = () => {
                                         onClick={handleMessageCenterClick}
                                         className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm ${isLightMode ? 'bg-gradient-to-r from-slate-50 to-zinc-50 border border-slate-200 text-slate-700 hover:from-slate-100 hover:to-zinc-100' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
                                     >
-                                        <FaComments className="text-sm" /> <span>Inbox</span>
+                                        <span className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
+                                            {inboxLottieData ? (
+                                                <Lottie animationData={inboxLottieData} {...lottiePlaybackProps} className="w-full h-full" />
+                                            ) : (
+                                                <FaComments className="text-sm" />
+                                            )}
+                                        </span>
+                                        <span>Inbox</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => handleMatchedCenterClick('pending')}
                                         className={`relative w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm ${isLightMode ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-700 hover:from-blue-100 hover:to-cyan-100' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
                                     >
-                                        <FaCheck className="text-sm" /> <span>Matches</span>
+                                        <span className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
+                                            {matchLottieData ? (
+                                                <Lottie animationData={matchLottieData} {...lottiePlaybackProps} className="w-full h-full" />
+                                            ) : (
+                                                <FaCheck className="text-sm" />
+                                            )}
+                                        </span>
+                                        <span>Matches</span>
                                         {matchedActionCount > 0 && (
                                             <span className="absolute -top-1 -right-1 min-w-4 h-4 sm:min-w-5 sm:h-5 px-1 rounded-full bg-red-500 text-white text-[10px] sm:text-[11px] leading-4 sm:leading-5 font-bold text-center">
                                                 {matchedActionCount > 99 ? '99+' : matchedActionCount}
@@ -1893,7 +1940,14 @@ const Dashboard = () => {
                                         onClick={() => setShowSOSModal(true)}
                                         className={`w-full sm:w-auto h-11 sm:h-12 px-3 sm:px-4 rounded-xl transition-all flex items-center justify-center gap-2 font-semibold text-sm animate-pulse ${isLightMode ? 'bg-red-50 border border-red-200 text-red-600 hover:bg-red-100' : 'bg-red-500/15 border border-red-500/30 text-red-300 hover:bg-red-500/20'}`}
                                     >
-                                        <FaExclamationTriangle className="text-sm" /> <span>SOS</span>
+                                        <span className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
+                                            {sosLottieData ? (
+                                                <Lottie animationData={sosLottieData} {...lottiePlaybackProps} className="w-full h-full" />
+                                            ) : (
+                                                <FaExclamationTriangle className="text-sm" />
+                                            )}
+                                        </span>
+                                        <span>SOS</span>
                                     </button>
                                     <button
                                         type="button"
@@ -2032,7 +2086,7 @@ const Dashboard = () => {
                         >
                             <div className="w-14 h-14 sm:w-16 sm:h-16 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform overflow-hidden">
                                 {createRideLottieData ? (
-                                    <Lottie animationData={createRideLottieData} loop autoplay className="w-12 h-12 sm:w-14 sm:h-14" />
+                                    <Lottie animationData={createRideLottieData} {...lottiePlaybackProps} className="w-12 h-12 sm:w-14 sm:h-14" />
                                 ) : (
                                     <FaCar className="text-accent-green text-lg sm:text-2xl" />
                                 )}
@@ -2056,7 +2110,7 @@ const Dashboard = () => {
                         >
                             <div className="w-14 h-14 sm:w-16 sm:h-16 bg-purple-500/20 border-2 border-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform overflow-hidden">
                                 {findRideLottieData ? (
-                                    <Lottie animationData={findRideLottieData} loop autoplay className="w-12 h-12 sm:w-14 sm:h-14" />
+                                    <Lottie animationData={findRideLottieData} {...lottiePlaybackProps} className="w-12 h-12 sm:w-14 sm:h-14" />
                                 ) : (
                                     <FaMapMarkerAlt className="text-purple-500 text-lg sm:text-2xl" />
                                 )}
@@ -2080,7 +2134,7 @@ const Dashboard = () => {
                         >
                             <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform overflow-hidden">
                                 {myRideLottieData ? (
-                                    <Lottie animationData={myRideLottieData} loop autoplay className="w-12 h-12 sm:w-14 sm:h-14" />
+                                    <Lottie animationData={myRideLottieData} {...lottiePlaybackProps} className="w-12 h-12 sm:w-14 sm:h-14" />
                                 ) : (
                                     <FaUser className="text-blue-500 text-lg sm:text-2xl" />
                                 )}
@@ -2362,7 +2416,16 @@ const Dashboard = () => {
                                             Creating your ride...
                                         </span>
                                     ) : (
-                                        '🚀 Create Ride & Find Matches'
+                                        <span className="flex items-center justify-center gap-2">
+                                            <span className="w-6 h-6 flex items-center justify-center">
+                                                {createRideLottieData ? (
+                                                    <Lottie animationData={createRideLottieData} {...lottiePlaybackProps} className="w-full h-full" />
+                                                ) : (
+                                                    <FaCar className="text-base" />
+                                                )}
+                                            </span>
+                                            Create Ride & Find Matches
+                                        </span>
                                     )}
                                 </button>
                             </form>
@@ -2407,7 +2470,7 @@ const Dashboard = () => {
                                 <div className="text-center py-12">
                                     <div className="mx-auto mb-4 w-20 h-20">
                                         {findRideLottieData ? (
-                                            <Lottie animationData={findRideLottieData} loop autoplay className="w-full h-full" />
+                                            <Lottie animationData={findRideLottieData} {...lottiePlaybackProps} className="w-full h-full" />
                                         ) : (
                                             <FaCar className="text-gray-600 text-6xl mx-auto" />
                                         )}
@@ -2530,7 +2593,7 @@ const Dashboard = () => {
                                         <div className="text-center py-12 bg-white/5 rounded-2xl">
                                             <div className="mx-auto mb-4 w-20 h-20">
                                                 {myRideLottieData ? (
-                                                    <Lottie animationData={myRideLottieData} loop autoplay className="w-full h-full" />
+                                                    <Lottie animationData={myRideLottieData} {...lottiePlaybackProps} className="w-full h-full" />
                                                 ) : (
                                                     <FaCar className="text-gray-600 text-6xl mx-auto" />
                                                 )}
