@@ -419,17 +419,6 @@ const Dashboard = () => {
         timestamp: announcement.createdAt
     });
 
-    const seenRideAnnouncementsAt = () => {
-        const storedValue = localStorage.getItem(rideAnnouncementSeenKey);
-        const parsed = storedValue ? new Date(storedValue) : null;
-        return parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date(0);
-    };
-
-    const unreadRideAnnouncementCount = rideAnnouncements.filter((announcement) => {
-        const createdAt = new Date(announcement.createdAt || announcement.timestamp || 0);
-        return createdAt > seenRideAnnouncementsAt();
-    }).length;
-
     const seenAdminAnnouncementsAt = () => {
         const storedValue = localStorage.getItem(adminAnnouncementSeenKey);
         const parsed = storedValue ? new Date(storedValue) : null;
@@ -441,8 +430,13 @@ const Dashboard = () => {
         return createdAt > seenAdminAnnouncementsAt();
     }).length;
 
-    const notificationFeedCount = notificationFeed.length;
     const visibleNotificationFeed = notificationFeed.slice(0, 2);
+    const uniqueAlertIds = new Set([
+        ...notificationFeed.map((item) => item.id),
+        ...notifications.map((item) => item.id)
+    ]);
+    const alertBadgeCount = uniqueAlertIds.size;
+    const alertBadgeLabel = alertBadgeCount === 1 ? 'New' : `${alertBadgeCount}+`;
 
     const markRideAnnouncementsSeen = (announcements = rideAnnouncements) => {
         if (!announcements.length) return;
@@ -1672,9 +1666,9 @@ const Dashboard = () => {
                                         >
                                             <FaBell className="text-accent-green text-sm sm:text-base" />
                                             <span className={`text-sm ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>Alerts</span>
-                                            {(notifications.length > 0 || notificationFeedCount > 0 || unreadRideAnnouncementCount > 0) && (
-                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center font-bold">
-                                                    {Math.max(notifications.length, notificationFeedCount, unreadRideAnnouncementCount)}
+                                            {alertBadgeCount > 0 && (
+                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center font-bold leading-none">
+                                                    {alertBadgeLabel}
                                                 </span>
                                             )}
                                         </button>
