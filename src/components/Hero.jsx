@@ -36,6 +36,11 @@ const heroModes = [
     }
 ];
 
+const actionAnimations = {
+    primary: 'https://assets5.lottiefiles.com/packages/lf20_u4yrau.json',
+    secondary: 'https://assets9.lottiefiles.com/packages/lf20_m6j5igxb.json'
+};
+
 const trustCards = [
     { icon: FaUsers, label: 'Campus crew', value: '12k+' },
     { icon: FaStar, label: 'Trust score', value: '4.9/5' },
@@ -46,6 +51,8 @@ const Hero = () => {
     const [heroAssets, setHeroAssets] = useState({});
     const [activeMode, setActiveMode] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [primaryHover, setPrimaryHover] = useState(false);
+    const [secondaryHover, setSecondaryHover] = useState(false);
     const [allowMotion, setAllowMotion] = useState(true);
 
     const avatarUrl = useMemo(
@@ -84,6 +91,8 @@ const Hero = () => {
         };
 
         heroModes.forEach((mode) => loadAnimation(mode.lottieUrl, mode.id));
+        loadAnimation(actionAnimations.primary, 'primary-action');
+        loadAnimation(actionAnimations.secondary, 'secondary-action');
 
         return () => {
             mounted = false;
@@ -116,7 +125,7 @@ const Hero = () => {
                         transition={{ duration: 0.6 }}
                         className="max-w-3xl"
                     >
-                        <div className="inline-flex items-center gap-2 rounded-full border border-accent-green/25 bg-accent-green/10 px-4 py-2 mb-6 backdrop-blur-md">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-accent-green/25 bg-accent-green/10 px-4 py-2 mb-6 backdrop-blur-md shadow-[0_0_0_1px_rgba(16,185,129,0.08)]">
                             <span className="h-2 w-2 rounded-full bg-accent-green animate-pulse" />
                             <span className="text-[10px] sm:text-xs font-bold tracking-[0.28em] uppercase text-accent-green">
                                 Gen Z Ride Command Center
@@ -138,7 +147,7 @@ const Hero = () => {
                             {trustCards.map((card) => {
                                 const CardIcon = card.icon;
                                 return (
-                                    <div key={card.label} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl px-4 py-4">
+                                    <div key={card.label} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl px-4 py-4 shadow-[0_14px_30px_rgba(0,0,0,0.12)] transition-transform hover:-translate-y-1">
                                         <div className="flex items-center gap-2 text-accent-green text-xs font-semibold uppercase tracking-[0.2em]">
                                             <CardIcon className="text-sm" />
                                             {card.label}
@@ -152,15 +161,42 @@ const Hero = () => {
                         <div className="mt-8 flex flex-col sm:flex-row gap-4">
                             <a
                                 href="/login?signin=1"
+                                onMouseEnter={() => setPrimaryHover(true)}
+                                onMouseLeave={() => setPrimaryHover(false)}
                                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-accent-green to-accent-emerald px-7 py-4 font-bold text-black shadow-[0_16px_40px_rgba(16,185,129,0.28)] transition-transform hover:-translate-y-0.5 active:scale-95"
                             >
+                                <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-black/10">
+                                    {heroAssets['primary-action'] ? (
+                                        <Lottie
+                                            animationData={heroAssets['primary-action']}
+                                            autoplay={allowMotion && primaryHover}
+                                            loop={allowMotion}
+                                            className="h-7 w-7"
+                                        />
+                                    ) : (
+                                        <FaArrowRight />
+                                    )}
+                                </span>
                                 Start Saving Today
-                                <FaArrowRight />
                             </a>
                             <a
                                 href="#how-it-works"
+                                onMouseEnter={() => setSecondaryHover(true)}
+                                onMouseLeave={() => setSecondaryHover(false)}
                                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-7 py-4 font-semibold text-white backdrop-blur-md transition-all hover:bg-white/10 active:scale-95"
                             >
+                                <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-white/5">
+                                    {heroAssets['secondary-action'] ? (
+                                        <Lottie
+                                            animationData={heroAssets['secondary-action']}
+                                            autoplay={allowMotion && secondaryHover}
+                                            loop={allowMotion}
+                                            className="h-7 w-7"
+                                        />
+                                    ) : (
+                                        <FaArrowRight />
+                                    )}
+                                </span>
                                 See how it works
                             </a>
                         </div>
@@ -181,7 +217,8 @@ const Hero = () => {
                         onMouseLeave={() => setIsHovered(false)}
                     >
                         <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-accent-green/20 via-cyan-400/10 to-fuchsia-500/20 blur-3xl opacity-70" />
-                        <div className="relative rounded-[2rem] border border-white/10 bg-[#0b120d]/90 p-4 sm:p-5 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+                        <div className="relative rounded-[2rem] border border-white/10 bg-[#0b120d]/90 p-4 sm:p-5 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-2xl overflow-hidden">
+                            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-green/60 to-transparent" />
                             <div className="flex items-center justify-between gap-3 mb-4">
                                 <div>
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-text-muted">Live vibe</p>
@@ -198,7 +235,7 @@ const Hero = () => {
                             </div>
 
                             <div className="grid gap-4 sm:grid-cols-[1fr_140px] items-stretch">
-                                <div className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-gradient-to-br from-white/6 to-white/[0.02] p-4 sm:p-5 min-h-[300px] flex flex-col justify-between">
+                                <div className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-gradient-to-br from-white/6 to-white/[0.02] p-4 sm:p-5 min-h-[320px] flex flex-col justify-between">
                                     <div className={`absolute -right-8 -top-8 w-40 h-40 rounded-full bg-gradient-to-br ${active.accent} opacity-25 blur-3xl`} />
                                     <div className="flex items-start justify-between gap-3 relative z-10">
                                         <div className="max-w-[16rem]">
@@ -210,7 +247,7 @@ const Hero = () => {
                                             <p className="mt-3 text-sm sm:text-base leading-relaxed text-text-secondary">{active.copy}</p>
                                         </div>
 
-                                        <div className="shrink-0 rounded-2xl border border-white/10 bg-white/5 p-3 text-white/90 shadow-lg">
+                                        <div className="shrink-0 rounded-2xl border border-white/10 bg-white/5 p-3 text-white/90 shadow-lg translate-y-1 -translate-x-1">
                                             <ActiveIcon className="text-xl text-accent-green" />
                                         </div>
                                     </div>
@@ -238,7 +275,7 @@ const Hero = () => {
                                 </div>
 
                                 <div className="flex flex-col gap-4">
-                                    <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4 sm:p-5">
+                                    <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4 sm:p-5 shadow-[0_20px_40px_rgba(0,0,0,0.18)] -ml-2 sm:-ml-3 lg:-ml-4 translate-y-2">
                                         <div className="flex items-center gap-3">
                                             <div className="relative h-16 w-16 shrink-0 rounded-full border border-white/15 bg-gradient-to-br from-accent-green/25 via-cyan-400/20 to-blue-500/20 p-1 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
                                                 <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#08110d]">
@@ -253,7 +290,7 @@ const Hero = () => {
                                         </div>
                                     </div>
 
-                                    <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4 sm:p-5 flex-1">
+                                    <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4 sm:p-5 flex-1 -ml-6 sm:-ml-8 lg:-ml-10 -mt-1 shadow-[0_18px_38px_rgba(0,0,0,0.18)]">
                                         <div className="flex items-center justify-between gap-3">
                                             <div>
                                                 <p className="text-[10px] uppercase tracking-[0.24em] text-text-muted">Animation layer</p>
