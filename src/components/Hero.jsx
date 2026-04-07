@@ -114,22 +114,20 @@ const Hero = () => {
 
     return (
         <section className="relative overflow-hidden bg-bg-primary pt-24 sm:pt-28 pb-14 sm:pb-18">
-            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_15%_20%,rgba(16,185,129,0.22),transparent_24%),radial-gradient(circle_at_85%_15%,rgba(59,130,246,0.18),transparent_20%),radial-gradient(circle_at_50%_90%,rgba(168,85,247,0.16),transparent_24%)]" />
-            <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-black/10 to-black/40" />
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_15%_20%,rgba(16,185,129,0.18),transparent_24%),radial-gradient(circle_at_85%_15%,rgba(59,130,246,0.12),transparent_20%),radial-gradient(circle_at_50%_90%,rgba(168,85,247,0.10),transparent_24%)]" />
+            <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-black/10 to-black/35" />
 
             <div className="container mx-auto px-4 sm:px-6 relative z-10">
-                <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_0.85fr] xl:gap-14">
+                <div className="grid items-center gap-10 lg:grid-cols-[1fr_0.92fr] xl:gap-14">
                     <motion.div
                         initial={{ opacity: 0, y: 24 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6 }}
                         className="max-w-3xl"
                     >
-                        <div className="inline-flex items-center gap-2 rounded-full border border-accent-green/25 bg-accent-green/10 px-4 py-2 mb-6 backdrop-blur-md shadow-[0_0_0_1px_rgba(16,185,129,0.08)]">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-accent-green/25 bg-accent-green/10 px-4 py-2 mb-6 backdrop-blur-md">
                             <span className="h-2 w-2 rounded-full bg-accent-green animate-pulse" />
-                            <span className="text-[10px] sm:text-xs font-bold tracking-[0.28em] uppercase text-accent-green">
-                                Gen Z Ride Command Center
-                            </span>
+                            <span className="text-[10px] sm:text-xs font-bold tracking-[0.28em] uppercase text-accent-green">Gen Z Ride Command Center</span>
                         </div>
 
                         <h1 className="font-display text-4xl sm:text-5xl md:text-7xl font-black leading-[0.95] tracking-tight text-white">
@@ -140,14 +138,14 @@ const Hero = () => {
                         </h1>
 
                         <p className="mt-5 max-w-2xl text-base sm:text-lg md:text-xl leading-relaxed text-text-secondary">
-                            A premium campus-first ride experience with auto matching, verified profiles, and a visual language that feels fast, youthful, and sharp.
+                            A campus-first ride experience with clear matching, verified profiles, and a UI that feels fast without feeling busy.
                         </p>
 
                         <div className="mt-8 grid gap-3 sm:grid-cols-3">
                             {trustCards.map((card) => {
                                 const CardIcon = card.icon;
                                 return (
-                                    <div key={card.label} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl px-4 py-4 shadow-[0_14px_30px_rgba(0,0,0,0.12)] transition-transform hover:-translate-y-1">
+                                    <div key={card.label} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl px-4 py-4 shadow-[0_14px_30px_rgba(0,0,0,0.12)]">
                                         <div className="flex items-center gap-2 text-accent-green text-xs font-semibold uppercase tracking-[0.2em]">
                                             <CardIcon className="text-sm" />
                                             {card.label}
@@ -167,12 +165,7 @@ const Hero = () => {
                             >
                                 <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-black/10">
                                     {heroAssets['primary-action'] ? (
-                                        <Lottie
-                                            animationData={heroAssets['primary-action']}
-                                            autoplay={allowMotion && primaryHover}
-                                            loop={allowMotion}
-                                            className="h-7 w-7"
-                                        />
+                                        <Lottie animationData={heroAssets['primary-action']} autoplay={allowMotion && primaryHover} loop={allowMotion} className="h-7 w-7" />
                                     ) : (
                                         <FaArrowRight />
                                     )}
@@ -187,12 +180,7 @@ const Hero = () => {
                             >
                                 <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-white/5">
                                     {heroAssets['secondary-action'] ? (
-                                        <Lottie
-                                            animationData={heroAssets['secondary-action']}
-                                            autoplay={allowMotion && secondaryHover}
-                                            loop={allowMotion}
-                                            className="h-7 w-7"
-                                        />
+                                        <Lottie animationData={heroAssets['secondary-action']} autoplay={allowMotion && secondaryHover} loop={allowMotion} className="h-7 w-7" />
                                     ) : (
                                         <FaArrowRight />
                                     )}
@@ -209,107 +197,92 @@ const Hero = () => {
                     </motion.div>
 
                     <motion.div
-                        initial={{ opacity: 0, y: 28, scale: 0.97 }}
+                        initial={{ opacity: 0, y: 24, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         transition={{ duration: 0.65, delay: 0.1 }}
                         className="relative"
                         onMouseEnter={() => setIsHovered(true)}
                         onMouseLeave={() => setIsHovered(false)}
                     >
-                        <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-accent-green/20 via-cyan-400/10 to-fuchsia-500/20 blur-3xl opacity-70" />
-                        <div className="relative rounded-[2rem] border border-white/10 bg-[#0b120d]/90 p-4 sm:p-5 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-2xl overflow-hidden">
+                        <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-br from-accent-green/18 via-cyan-400/10 to-fuchsia-500/12 blur-3xl opacity-70" />
+                        <div className="relative rounded-[2rem] border border-white/10 bg-[#0b120d]/92 p-4 sm:p-5 shadow-[0_24px_60px_rgba(0,0,0,0.34)] backdrop-blur-2xl overflow-hidden">
                             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-green/60 to-transparent" />
+
                             <div className="flex items-center justify-between gap-3 mb-4">
                                 <div>
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-text-muted">Live vibe</p>
                                     <p className="mt-1 text-lg sm:text-xl font-bold text-white">{active.label}</p>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveMode((prev) => (prev + 1) % heroModes.length)}
-                                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-white/10"
-                                >
+                                <button type="button" onClick={() => setActiveMode((prev) => (prev + 1) % heroModes.length)} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-white/10">
                                     {allowMotion && !isHovered ? <FaPause /> : <FaPlay />}
                                     {allowMotion && !isHovered ? 'Pause' : 'Cycle'}
                                 </button>
                             </div>
 
-                            <div className="grid gap-4 sm:grid-cols-[1fr_140px] items-stretch">
-                                <div className="relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-gradient-to-br from-white/6 to-white/[0.02] p-4 sm:p-5 min-h-[320px] flex flex-col justify-between">
-                                    <div className={`absolute -right-8 -top-8 w-40 h-40 rounded-full bg-gradient-to-br ${active.accent} opacity-25 blur-3xl`} />
-                                    <div className="flex items-start justify-between gap-3 relative z-10">
-                                        <div className="max-w-[16rem]">
-                                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-text-secondary">
-                                                <span className="h-1.5 w-1.5 rounded-full bg-accent-green" />
-                                                {active.stat}
-                                            </div>
-                                            <h2 className="mt-4 text-2xl sm:text-3xl font-black leading-tight text-white">{active.headline}</h2>
-                                            <p className="mt-3 text-sm sm:text-base leading-relaxed text-text-secondary">{active.copy}</p>
+                            <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                    <div className="max-w-xl">
+                                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-text-secondary">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-accent-green" />
+                                            {active.stat}
                                         </div>
-
-                                        <div className="shrink-0 rounded-2xl border border-white/10 bg-white/5 p-3 text-white/90 shadow-lg translate-y-1 -translate-x-1">
-                                            <ActiveIcon className="text-xl text-accent-green" />
-                                        </div>
+                                        <h2 className="mt-4 text-2xl sm:text-3xl font-black leading-tight text-white">{active.headline}</h2>
+                                        <p className="mt-3 text-sm sm:text-base leading-relaxed text-text-secondary">{active.copy}</p>
                                     </div>
 
-                                    <div className="mt-6 grid grid-cols-3 gap-2 relative z-10">
-                                        {heroModes.map((mode, index) => {
-                                            const ModeIcon = mode.icon;
-                                            const isActive = index === activeMode;
-
-                                            return (
-                                                <button
-                                                    key={mode.id}
-                                                    type="button"
-                                                    onClick={() => setActiveMode(index)}
-                                                    className={`rounded-2xl border px-3 py-3 text-left transition-all ${isActive ? 'border-accent-green/40 bg-accent-green/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
-                                                >
-                                                    <ModeIcon className={`text-sm ${isActive ? 'text-accent-green' : 'text-text-secondary'}`} />
-                                                    <div className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${isActive ? 'text-white' : 'text-text-muted'}`}>
-                                                        {mode.label}
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
+                                    <div className="shrink-0 rounded-2xl border border-white/10 bg-white/5 p-3 text-white/90 shadow-lg">
+                                        <ActiveIcon className="text-xl text-accent-green" />
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col gap-4">
-                                    <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4 sm:p-5 shadow-[0_20px_40px_rgba(0,0,0,0.18)] -ml-2 sm:-ml-3 lg:-ml-4 translate-y-2">
-                                        <div className="flex items-center gap-3">
-                                            <div className="relative h-16 w-16 shrink-0 rounded-full border border-white/15 bg-gradient-to-br from-accent-green/25 via-cyan-400/20 to-blue-500/20 p-1 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-                                                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#08110d]">
-                                                    <img src={avatarUrl} alt="Spllit avatar" className="h-full w-full object-cover" loading="lazy" />
-                                                </div>
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-[10px] uppercase tracking-[0.24em] text-text-muted">Profile vibe</p>
-                                                <p className="truncate text-base font-bold text-white">Verified Gen Z rider</p>
-                                                <p className="text-xs text-text-secondary">A vector avatar that feels alive, not generic.</p>
-                                            </div>
+                                <div className="mt-6 grid gap-4 sm:grid-cols-[1.05fr_0.95fr] items-stretch">
+                                    <div className="rounded-[1.25rem] border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-3 sm:p-4 min-h-[260px] flex items-center justify-center">
+                                        <div className="mx-auto aspect-square w-full max-w-[260px]">
+                                            {heroAssets[active.id] ? (
+                                                <Lottie animationData={heroAssets[active.id]} autoplay={allowMotion} loop={allowMotion} className="h-full w-full" />
+                                            ) : (
+                                                <div className={`h-full w-full rounded-full bg-gradient-to-br ${active.accent} opacity-30 blur-2xl`} />
+                                            )}
                                         </div>
                                     </div>
 
-                                    <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-4 sm:p-5 flex-1 -ml-6 sm:-ml-8 lg:-ml-10 -mt-1 shadow-[0_18px_38px_rgba(0,0,0,0.18)]">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div>
-                                                <p className="text-[10px] uppercase tracking-[0.24em] text-text-muted">Animation layer</p>
-                                                <p className="mt-1 text-sm font-semibold text-white">Three-state motion logic</p>
+                                    <div className="grid gap-3">
+                                        <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative h-14 w-14 shrink-0 rounded-full border border-white/15 bg-gradient-to-br from-accent-green/25 via-cyan-400/20 to-blue-500/20 p-1">
+                                                    <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#08110d]">
+                                                        <img src={avatarUrl} alt="Spllit avatar" className="h-full w-full object-cover" loading="lazy" />
+                                                    </div>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] uppercase tracking-[0.24em] text-text-muted">Profile vibe</p>
+                                                    <p className="truncate text-base font-bold text-white">Verified Gen Z rider</p>
+                                                    <p className="text-xs text-text-secondary">Clean identity, easy scanning, no crowded stack.</p>
+                                                </div>
                                             </div>
-                                            <FaMapMarkerAlt className="text-accent-green" />
                                         </div>
-                                        <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-3">
-                                            <div className="mx-auto aspect-square max-w-[220px]">
-                                                {heroAssets[active.id] ? (
-                                                    <Lottie
-                                                        animationData={heroAssets[active.id]}
-                                                        autoplay={allowMotion}
-                                                        loop={allowMotion}
-                                                        className="h-full w-full"
-                                                    />
-                                                ) : (
-                                                    <div className={`h-full w-full rounded-full bg-gradient-to-br ${active.accent} opacity-35 blur-2xl`} />
-                                                )}
+
+                                        <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-4">
+                                            <p className="text-[10px] uppercase tracking-[0.24em] text-text-muted">Motion logic</p>
+                                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                                {heroModes.map((mode, index) => {
+                                                    const ModeIcon = mode.icon;
+                                                    const isActive = index === activeMode;
+
+                                                    return (
+                                                        <button
+                                                            key={mode.id}
+                                                            type="button"
+                                                            onClick={() => setActiveMode(index)}
+                                                            className={`rounded-2xl border px-3 py-3 text-left transition-all ${isActive ? 'border-accent-green/40 bg-accent-green/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                                                        >
+                                                            <ModeIcon className={`text-sm ${isActive ? 'text-accent-green' : 'text-text-secondary'}`} />
+                                                            <div className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${isActive ? 'text-white' : 'text-text-muted'}`}>
+                                                                {mode.label}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </div>
