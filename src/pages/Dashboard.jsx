@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import Lottie from 'lottie-react';
 import { FaUser, FaEnvelope, FaPhone, FaCar, FaMapMarkerAlt, FaTimes, FaCalendarAlt, FaClock, FaUsers, FaRupeeSign, FaMapPin, FaBell, FaCheck, FaTimes as FaTimesCircle, FaComments, FaEdit, FaTrash, FaExclamationTriangle, FaMicrophone, FaImage, FaBullhorn, FaPlus, FaCheckCircle, FaMedal, FaTrophy, FaMoon, FaSun, FaSignOutAlt } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
 import socketService from '../services/socket';
@@ -14,6 +15,11 @@ import { SOCKET_BASE_URL } from '../config/backendUrl';
 /* eslint-disable react-hooks/exhaustive-deps */
 
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+const iconScoutHeroLottieUrl = 'https://assets5.lottiefiles.com/packages/lf20_u4yrau.json';
+const iconScoutAlertsLottieUrl = 'https://assets4.lottiefiles.com/packages/lf20_Stt1R6.json';
+const iconScoutCreateRideLottieUrl = 'https://assets9.lottiefiles.com/packages/lf20_m6j5igxb.json';
+const iconScoutFindRideLottieUrl = 'https://assets3.lottiefiles.com/packages/lf20_pwohahvd.json';
+const iconScoutMyRideLottieUrl = 'https://assets3.lottiefiles.com/packages/lf20_xlmz9xwm.json';
 
 // Load Google Maps script with async
 const loadGoogleMaps = (callback) => {
@@ -116,6 +122,11 @@ const Dashboard = () => {
         emergencyType: 'other',
         message: ''
     });
+    const [heroLottieData, setHeroLottieData] = useState(null);
+    const [alertsLottieData, setAlertsLottieData] = useState(null);
+    const [createRideLottieData, setCreateRideLottieData] = useState(null);
+    const [findRideLottieData, setFindRideLottieData] = useState(null);
+    const [myRideLottieData, setMyRideLottieData] = useState(null);
 
     // Refs for autocomplete
     const originRef = useRef(null);
@@ -202,6 +213,31 @@ const Dashboard = () => {
             </div>
         )
     };
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadAnimation = async (url, setter) => {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) return;
+                const data = await response.json();
+                if (isMounted) setter(data);
+            } catch {
+                // Keep fallback UI when Lottie files are unavailable.
+            }
+        };
+
+        loadAnimation(iconScoutHeroLottieUrl, setHeroLottieData);
+        loadAnimation(iconScoutAlertsLottieUrl, setAlertsLottieData);
+        loadAnimation(iconScoutCreateRideLottieUrl, setCreateRideLottieData);
+        loadAnimation(iconScoutFindRideLottieUrl, setFindRideLottieData);
+        loadAnimation(iconScoutMyRideLottieUrl, setMyRideLottieData);
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const rideAnnouncementSeenKey = `ride-announcements-seen-${user?.id || 'guest'}`;
     const notificationFeedKey = `notification-feed-${user?.id || 'guest'}`;
@@ -1598,13 +1634,25 @@ const Dashboard = () => {
                     className="max-w-4xl mx-auto"
                 >
                     {/* Header */}
-                    <div className="mb-6 sm:mb-8">
-                        <h1 className={`text-3xl sm:text-4xl md:text-5xl font-black mb-3 tracking-tight leading-tight ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>
-                            Welcome to <span className="text-accent-green">Spllit Lift</span>
-                        </h1>
-                        <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                            Fast ride dashboard, ready to go.
-                        </p>
+                    <div className={`mb-6 sm:mb-8 relative overflow-hidden rounded-3xl border px-5 py-6 sm:px-7 sm:py-7 ${isLightMode ? 'bg-gradient-to-br from-white via-emerald-50/40 to-cyan-50 border-emerald-100' : 'bg-gradient-to-br from-[#0d1713] via-[#0b1010] to-[#071117] border-white/10'}`}>
+                        <div className="absolute -right-8 -top-10 w-40 h-40 sm:w-48 sm:h-48 opacity-80 pointer-events-none">
+                            {heroLottieData ? (
+                                <Lottie animationData={heroLottieData} loop autoplay className="w-full h-full" />
+                            ) : (
+                                <div className="w-full h-full rounded-full bg-gradient-to-br from-accent-green/25 via-cyan-400/20 to-blue-500/20 blur-2xl" />
+                            )}
+                        </div>
+                        <div className="relative z-10 max-w-2xl">
+                            <p className={`text-[11px] uppercase tracking-[0.32em] mb-2 ${isLightMode ? 'text-emerald-700' : 'text-accent-green/80'}`}>
+                                Gen Z Ride Command Center
+                            </p>
+                            <h1 className={`text-3xl sm:text-4xl md:text-5xl font-black mb-3 tracking-tight leading-tight ${isLightMode ? 'text-[#0d1a16]' : 'text-white'}`}>
+                                Welcome to <span className="text-accent-green">Spllit Lift</span>
+                            </h1>
+                            <p className={`text-sm sm:text-base ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                Fast ride dashboard, ready to go.
+                            </p>
+                        </div>
                     </div>
 
                     {/* User Profile Card */}
@@ -1709,7 +1757,15 @@ const Dashboard = () => {
                                                     <div className="max-h-[24rem] overflow-y-auto">
                                                         {visibleNotificationFeed.length === 0 ? (
                                                             <div className="px-5 py-8 text-center text-gray-500">
-                                                                No notifications yet.
+                                                                <div className="mx-auto mb-3 w-24 h-24 sm:w-28 sm:h-28">
+                                                                    {alertsLottieData ? (
+                                                                        <Lottie animationData={alertsLottieData} loop autoplay className="w-full h-full" />
+                                                                    ) : (
+                                                                        <div className="w-full h-full rounded-full bg-gradient-to-br from-accent-green/20 to-blue-500/20 blur-xl" />
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-sm font-semibold text-gray-300">No notifications yet</p>
+                                                                <p className="text-xs mt-1 text-gray-500">Fresh alerts and chat updates will drop here.</p>
                                                             </div>
                                                         ) : (
                                                             visibleNotificationFeed.map((item) => (
@@ -1974,8 +2030,12 @@ const Dashboard = () => {
                             onClick={() => setShowCreateRide(true)}
                             className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <FaCar className="text-accent-green text-lg sm:text-2xl" />
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-accent-green/20 border-2 border-accent-green rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform overflow-hidden">
+                                {createRideLottieData ? (
+                                    <Lottie animationData={createRideLottieData} loop autoplay className="w-12 h-12 sm:w-14 sm:h-14" />
+                                ) : (
+                                    <FaCar className="text-accent-green text-lg sm:text-2xl" />
+                                )}
                             </div>
                             <h3 className="text-lg sm:text-2xl font-bold text-white mb-2">Create Ride</h3>
                             <p className="text-gray-400 text-sm leading-relaxed">
@@ -1994,8 +2054,12 @@ const Dashboard = () => {
                             onClick={() => { setShowFindMatches(true); handleSearchRides(); }}
                             className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-purple-500/20 border-2 border-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <FaMapMarkerAlt className="text-purple-500 text-lg sm:text-2xl" />
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-purple-500/20 border-2 border-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform overflow-hidden">
+                                {findRideLottieData ? (
+                                    <Lottie animationData={findRideLottieData} loop autoplay className="w-12 h-12 sm:w-14 sm:h-14" />
+                                ) : (
+                                    <FaMapMarkerAlt className="text-purple-500 text-lg sm:text-2xl" />
+                                )}
                             </div>
                             <h3 className="text-lg sm:text-2xl font-bold text-white mb-2">Find Matches</h3>
                             <p className="text-gray-400 text-sm leading-relaxed">
@@ -2014,8 +2078,12 @@ const Dashboard = () => {
                             onClick={handleGetMyRides}
                             className="bg-bg-secondary border border-white/10 rounded-3xl p-5 sm:p-8 cursor-pointer hover:border-accent-green/30 transition-all group"
                         >
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-500/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <FaUser className="text-blue-500 text-lg sm:text-2xl" />
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform overflow-hidden">
+                                {myRideLottieData ? (
+                                    <Lottie animationData={myRideLottieData} loop autoplay className="w-12 h-12 sm:w-14 sm:h-14" />
+                                ) : (
+                                    <FaUser className="text-blue-500 text-lg sm:text-2xl" />
+                                )}
                             </div>
                             <h3 className="text-lg sm:text-2xl font-bold text-white mb-2">My Rides</h3>
                             <p className="text-gray-400 text-sm leading-relaxed">
@@ -2337,7 +2405,13 @@ const Dashboard = () => {
                                 </div>
                             ) : rides.filter((ride) => getRideRemainingMs(ride) > 0).length === 0 ? (
                                 <div className="text-center py-12">
-                                    <FaCar className="text-gray-600 text-6xl mx-auto mb-4" />
+                                    <div className="mx-auto mb-4 w-20 h-20">
+                                        {findRideLottieData ? (
+                                            <Lottie animationData={findRideLottieData} loop autoplay className="w-full h-full" />
+                                        ) : (
+                                            <FaCar className="text-gray-600 text-6xl mx-auto" />
+                                        )}
+                                    </div>
                                     <p className="text-gray-400 text-lg">No rides available at the moment</p>
                                     <p className="text-gray-500 text-sm mt-2">Create a ride to get started!</p>
                                 </div>
@@ -2454,7 +2528,13 @@ const Dashboard = () => {
                                     <h3 className="text-xl font-bold text-white mb-4">My Created Rides</h3>
                                     {myRides.length === 0 ? (
                                         <div className="text-center py-12 bg-white/5 rounded-2xl">
-                                            <FaCar className="text-gray-600 text-6xl mx-auto mb-4" />
+                                            <div className="mx-auto mb-4 w-20 h-20">
+                                                {myRideLottieData ? (
+                                                    <Lottie animationData={myRideLottieData} loop autoplay className="w-full h-full" />
+                                                ) : (
+                                                    <FaCar className="text-gray-600 text-6xl mx-auto" />
+                                                )}
+                                            </div>
                                             <p className="text-gray-400 text-lg">You haven't created any rides yet</p>
                                             <p className="text-gray-500 text-sm mt-2">Click "Create Ride" to get started!</p>
                                             <button
