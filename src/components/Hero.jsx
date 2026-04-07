@@ -42,7 +42,7 @@ const actionAnimations = {
 };
 
 const trustCards = [
-    { icon: FaUsers, label: 'Campus crew', value: '12k+' },
+    { icon: FaUsers, label: 'Early riders', value: '100+' },
     { icon: FaStar, label: 'Trust score', value: '4.9/5' },
     { icon: FaCheckCircle, label: 'Safety first', value: 'Verified' }
 ];
@@ -138,7 +138,7 @@ const Hero = () => {
                         </h1>
 
                         <p className="mt-5 max-w-2xl text-base sm:text-lg md:text-xl leading-relaxed text-text-secondary">
-                            A campus-first ride experience with clear matching, verified profiles, and a UI that feels fast without feeling busy.
+                            A campus-first ride experience with clear matching, verified profiles, and a UI that feels fast, simple, and trustworthy.
                         </p>
 
                         <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -190,7 +190,7 @@ const Hero = () => {
                         </div>
 
                         <div className="mt-8 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2">Verified students</span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2">100+ early riders</span>
                             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2">Auto split fares</span>
                             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-2">UPI-ready flow</span>
                         </div>
