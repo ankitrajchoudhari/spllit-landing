@@ -1895,9 +1895,6 @@ const Dashboard = () => {
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <p className={`text-[11px] uppercase tracking-[0.28em] ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>Profile</p>
-                                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${isLightMode ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-blue-500/15 text-blue-300 border border-blue-500/20'}`}>
-                                                        <FaCheckCircle className="text-[11px]" /> Verified
-                                                    </span>
                                                     <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${isLightMode ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-accent-green/15 text-accent-green border border-accent-green/20'}`}>
                                                         Lv {profileLevel}
                                                     </span>
