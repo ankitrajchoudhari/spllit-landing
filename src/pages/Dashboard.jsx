@@ -142,6 +142,7 @@ const Dashboard = () => {
     const [matchLottieData, setMatchLottieData] = useState(null);
     const [sosLottieData, setSosLottieData] = useState(null);
     const [allowMotion, setAllowMotion] = useState(true);
+    const [detectingOriginLocation, setDetectingOriginLocation] = useState(false);
 
     // Refs for autocomplete
     const originRef = useRef(null);
@@ -270,6 +271,58 @@ const Dashboard = () => {
             isMounted = false;
         };
     }, []);
+
+    const resolveOriginLabel = async (latitude, longitude) => {
+        let originLabel = '';
+
+        try {
+            if (window.google?.maps?.Geocoder) {
+                const geocoder = new window.google.maps.Geocoder();
+                const reverseGeocode = await new Promise((resolve, reject) => {
+                    geocoder.geocode(
+                        { location: { lat: latitude, lng: longitude } },
+                        (results, status) => {
+                            if (status === 'OK' && results?.[0]) {
+                                resolve(results[0]);
+                            } else {
+                                reject(new Error(status || 'Geocoder failed'));
+                            }
+                        }
+                    );
+                });
+
+                originLabel = reverseGeocode.formatted_address || reverseGeocode.name || '';
+            }
+        } catch {
+            originLabel = '';
+        }
+
+        if (!originLabel) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+                    {
+                        headers: {
+                            Accept: 'application/json'
+                        }
+                    }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    originLabel = data.display_name || '';
+                }
+            } catch {
+                originLabel = '';
+            }
+        }
+
+        if (!originLabel) {
+            originLabel = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        }
+
+        return originLabel;
+    };
 
     const rideAnnouncementSeenKey = `ride-announcements-seen-${user?.id || 'guest'}`;
     const notificationFeedKey = `notification-feed-${user?.id || 'guest'}`;
@@ -1057,38 +1110,18 @@ const Dashboard = () => {
             }
         };
 
-        const autoDetectOrigin = () => {
+        const autoDetectOrigin = async () => {
             if (originAutoDetectedRef.current || !navigator.geolocation) {
                 return;
             }
+
+            setDetectingOriginLocation(true);
 
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     const latitude = position.coords.latitude;
                     const longitude = position.coords.longitude;
-                    let originLabel = 'Current location';
-
-                    try {
-                        if (window.google?.maps?.Geocoder) {
-                            const geocoder = new window.google.maps.Geocoder();
-                            const reverseGeocode = await new Promise((resolve, reject) => {
-                                geocoder.geocode(
-                                    { location: { lat: latitude, lng: longitude } },
-                                    (results, status) => {
-                                        if (status === 'OK' && results?.[0]) {
-                                            resolve(results[0]);
-                                        } else {
-                                            reject(new Error(status || 'Geocoder failed'));
-                                        }
-                                    }
-                                );
-                            });
-
-                            originLabel = reverseGeocode.formatted_address || reverseGeocode.name || originLabel;
-                        }
-                    } catch (error) {
-                        originLabel = 'Current location';
-                    }
+                    const originLabel = await resolveOriginLabel(latitude, longitude);
 
                     originAutoDetectedRef.current = true;
                     setRideData(prev => ({
@@ -1097,9 +1130,10 @@ const Dashboard = () => {
                         originLat: latitude,
                         originLng: longitude
                     }));
+                    setDetectingOriginLocation(false);
                 },
                 () => {
-                    originAutoDetectedRef.current = true;
+                    setDetectingOriginLocation(false);
                 },
                 { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
             );
@@ -1219,61 +1253,95 @@ const Dashboard = () => {
             setPhoneInputError(err.response?.data?.message || 'Failed to save phone number');
         } finally {
             setSavingPhone(false);
-
-            const handleOpenCollegeModal = (e) => {
-                if (e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                }
-                setCollegeInputError('');
-                setCollegeInput(user?.college || '');
-                setShowCollegeModal(true);
-            };
-
-            const handleCancelCollegeModal = () => {
-                setCollegeInputError('');
-                setCollegeInput('');
-                setShowCollegeModal(false);
-            };
-
-            const handleSaveCollege = async () => {
-                const trimmedCollege = collegeInput.trim();
-
-                if (!trimmedCollege) {
-                    setCollegeInputError('College name is required');
-                    return;
-                }
-
-                if (trimmedCollege.length < 3) {
-                    setCollegeInputError('College name must be at least 3 characters');
-                    return;
-                }
-
-                if (trimmedCollege.length > 100) {
-                    setCollegeInputError('College name must be less than 100 characters');
-                    return;
-                }
-
-                setSavingCollege(true);
-                try {
-                    await updateProfile({ college: trimmedCollege });
-                    if (typeof fetchProfile === 'function') {
-                        await fetchProfile();
-                    }
-                    setShowCollegeModal(false);
-                    addNotification({
-                        type: 'success',
-                        title: 'College Updated',
-                        message: 'Your college information has been saved successfully.'
-                    });
-                } catch (err) {
-                    console.error('Failed to save college:', err);
-                    setCollegeInputError(err.response?.data?.message || 'Failed to save college');
-                } finally {
-                    setSavingCollege(false);
-                }
-            };
         }
+    };
+
+    const handleOpenCollegeModal = (e) => {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        setCollegeInputError('');
+        setCollegeInput(user?.college || '');
+        setShowCollegeModal(true);
+    };
+
+    const handleCancelCollegeModal = () => {
+        setCollegeInputError('');
+        setCollegeInput('');
+        setShowCollegeModal(false);
+    };
+
+    const handleSaveCollege = async () => {
+        const trimmedCollege = collegeInput.trim();
+
+        if (!trimmedCollege) {
+            setCollegeInputError('College name is required');
+            return;
+        }
+
+        if (trimmedCollege.length < 3) {
+            setCollegeInputError('College name must be at least 3 characters');
+            return;
+        }
+
+        if (trimmedCollege.length > 100) {
+            setCollegeInputError('College name must be less than 100 characters');
+            return;
+        }
+
+        setSavingCollege(true);
+        try {
+            await updateProfile({ college: trimmedCollege });
+            if (typeof fetchProfile === 'function') {
+                await fetchProfile();
+            }
+            setShowCollegeModal(false);
+            addNotification({
+                type: 'success',
+                title: 'College Updated',
+                message: 'Your college information has been saved successfully.'
+            });
+        } catch (err) {
+            console.error('Failed to save college:', err);
+            setCollegeInputError(err.response?.data?.message || 'Failed to save college');
+        } finally {
+            setSavingCollege(false);
+        }
+    };
+
+    const isCurrentLocationQuery = (value = '') => /^(current location|current|my current location|my location|use current location|locate me)$/i.test(value.trim());
+
+    const handleUseCurrentLocation = async () => {
+        if (!navigator.geolocation) {
+            setError('Location access is not available in this browser.');
+            return;
+        }
+
+        setDetectingOriginLocation(true);
+        setError('');
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                const originLabel = await resolveOriginLabel(latitude, longitude);
+
+                originAutoDetectedRef.current = true;
+                setRideData(prev => ({
+                    ...prev,
+                    origin: originLabel,
+                    originLat: latitude,
+                    originLng: longitude
+                }));
+                setDetectingOriginLocation(false);
+            },
+            () => {
+                setDetectingOriginLocation(false);
+                setError('Unable to detect your current location. Please allow location access or type your pickup point.');
+            },
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
+        );
     };
 
     const handleRideBellClick = async () => {
@@ -2537,12 +2605,33 @@ const Dashboard = () => {
                                             ref={originRef}
                                             type="text"
                                             value={rideData.origin}
-                                            onChange={(e) => setRideData({...rideData, origin: e.target.value})}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setRideData(prev => ({ ...prev, origin: value }));
+                                                if (!isCurrentLocationQuery(value)) {
+                                                    originAutoDetectedRef.current = false;
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                if (isCurrentLocationQuery(rideData.origin) && !originAutoDetectedRef.current) {
+                                                    handleUseCurrentLocation();
+                                                }
+                                            }}
                                             required
-                                            placeholder="e.g., Velachery, IIT Madras..."
+                                            placeholder="e.g., Velachery, IIT Madras... or type current location"
                                             className="w-full px-4 py-3.5 bg-white/5 border border-white/10 hover:border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-green focus:bg-white/8 focus:ring-2 focus:ring-accent-green/20 transition-all"
                                         />
-                                        <p className="text-xs text-gray-400 mt-2">Start typing to see Google Maps suggestions</p>
+                                        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                            <p className="text-xs text-gray-400">Start typing to see Google Maps suggestions or use your real-time location</p>
+                                            <button
+                                                type="button"
+                                                onClick={handleUseCurrentLocation}
+                                                disabled={detectingOriginLocation}
+                                                className="inline-flex items-center justify-center rounded-lg border border-accent-green/30 bg-accent-green/10 px-3 py-1.5 text-xs font-semibold text-accent-green transition-all hover:bg-accent-green/15 disabled:opacity-60"
+                                            >
+                                                {detectingOriginLocation ? 'Detecting...' : 'Use current location'}
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div>
