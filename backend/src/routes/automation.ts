@@ -6,8 +6,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import prisma from '../utils/prisma.js';
 import { generateMessageFromPrompt } from '../services/aiService.js';
-import { sendBulkEmails, testMailConnection } from '../services/emailService.js';
-import { parseCSVFile } from '../services/csvService.js';
+import { sendBulkEmails, sendSingleEmail, testMailConnection, renderMailPreview } from '../services/emailService.js';
+import { parseCSVRecipients } from '../services/csvService.js';
 
 const router = Router();
 const db = prisma as any;
@@ -168,10 +168,19 @@ router.post('/send-bulk', authenticateAdmin, upload.single('csvFile'), async (re
   let csvFilePath: string | null = null;
 
   try {
-    const { prompt, providerId, subject } = req.body;
+    const { prompt, message, providerId, subject, aiMode } = req.body;
     const file = (req as any).file;
-    if (!prompt || !providerId || !subject || !file) {
-      return res.status(400).json({ error: 'Missing required fields: prompt, providerId, subject, csvFile' });
+    const useAI = String(aiMode || 'yes') === 'yes';
+    if (!providerId || !subject || !file) {
+      return res.status(400).json({ error: 'Missing required fields: providerId, subject, csvFile' });
+    }
+
+    if (useAI && !prompt) {
+      return res.status(400).json({ error: 'Prompt is required when AI mode is enabled' });
+    }
+
+    if (!useAI && !message) {
+      return res.status(400).json({ error: 'Message is required when AI mode is disabled' });
     }
 
     csvFilePath = file.path;
@@ -192,7 +201,7 @@ router.post('/send-bulk', authenticateAdmin, upload.single('csvFile'), async (re
         adminId,
         providerName: provider.name,
         subject,
-        prompt,
+        prompt: useAI ? prompt : '',
         generatedMessage: 'Generating...',
         recipientCount: 0,
         status: 'processing',
@@ -201,17 +210,19 @@ router.post('/send-bulk', authenticateAdmin, upload.single('csvFile'), async (re
     });
 
     // Parse CSV
-    const emails = parseCSVFile(csvFilePath);
-    if (emails.length === 0) {
+    const recipients = parseCSVRecipients(csvFilePath);
+    if (recipients.length === 0) {
       throw new Error('No valid emails found in CSV');
     }
 
-    // Generate message from prompt using AI
-    const generatedMessage = await generateMessageFromPrompt(prompt);
+    // Generate message from prompt using AI or use manual message
+    const generatedMessage = useAI
+      ? await generateMessageFromPrompt(prompt)
+      : String(message);
 
     // Send bulk emails
     const { successCount, failureCount, errors } = await sendBulkEmails(
-      emails,
+      recipients,
       {
         provider: provider.name,
         recipientEmail: provider.recipientEmail,
@@ -230,7 +241,7 @@ router.post('/send-bulk', authenticateAdmin, upload.single('csvFile'), async (re
       where: { id: campaign.id },
       data: {
         generatedMessage,
-        recipientCount: emails.length,
+        recipientCount: recipients.length,
         successCount,
         failureCount,
         status: failureCount === 0 ? 'completed' : 'completed',
@@ -243,7 +254,7 @@ router.post('/send-bulk', authenticateAdmin, upload.single('csvFile'), async (re
       message: 'Email campaign sent',
       campaign: updatedCampaign,
       summary: {
-        total: emails.length,
+        total: recipients.length,
         successCount,
         failureCount,
         errorCount: errors.length,
@@ -269,6 +280,109 @@ router.post('/send-bulk', authenticateAdmin, upload.single('csvFile'), async (re
     res.status(500).json({
       error: error instanceof Error ? error.message : 'Failed to send bulk emails',
     });
+  }
+});
+
+// Preview generated email content (AI/manual) for a target recipient
+router.post('/preview', authenticateAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const { prompt, message, aiMode, recipientEmail, recipientName, subject, providerId } = req.body;
+    const useAI = String(aiMode || 'yes') === 'yes';
+
+    if (!providerId || !subject) {
+      return res.status(400).json({ error: 'Missing required fields: providerId, subject' });
+    }
+
+    if (useAI && !prompt) {
+      return res.status(400).json({ error: 'Prompt is required when AI mode is enabled' });
+    }
+
+    if (!useAI && !message) {
+      return res.status(400).json({ error: 'Message is required when AI mode is disabled' });
+    }
+
+    const provider = await db.mailProvider.findUnique({ where: { id: providerId } });
+    if (!provider) {
+      return res.status(404).json({ error: 'Mail provider not found' });
+    }
+
+    const baseContent = useAI ? await generateMessageFromPrompt(prompt) : String(message);
+    const previewRecipient = {
+      email: String(recipientEmail || 'sample.user@example.com'),
+      name: recipientName ? String(recipientName) : 'Sample User',
+    };
+
+    const previewHtml = renderMailPreview(baseContent, previewRecipient);
+    return res.json({
+      preview: {
+        from: provider.recipientEmail,
+        to: previewRecipient.email,
+        subject,
+        body: previewHtml,
+      },
+      generatedMessage: baseContent,
+    });
+  } catch (error) {
+    console.error('Error creating preview:', error);
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to generate preview' });
+  }
+});
+
+// Send single automation email
+router.post('/send-single', authenticateAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const { prompt, message, providerId, subject, recipientEmail, recipientName, aiMode } = req.body;
+    const useAI = String(aiMode || 'yes') === 'yes';
+
+    if (!providerId || !subject || !recipientEmail) {
+      return res.status(400).json({ error: 'Missing required fields: providerId, subject, recipientEmail' });
+    }
+
+    if (useAI && !prompt) {
+      return res.status(400).json({ error: 'Prompt is required when AI mode is enabled' });
+    }
+
+    if (!useAI && !message) {
+      return res.status(400).json({ error: 'Message is required when AI mode is disabled' });
+    }
+
+    const provider = await db.mailProvider.findUnique({ where: { id: providerId } });
+    if (!provider) {
+      return res.status(404).json({ error: 'Mail provider not found' });
+    }
+
+    const generatedMessage = useAI ? await generateMessageFromPrompt(prompt) : String(message);
+    const recipient = {
+      email: String(recipientEmail).trim(),
+      name: recipientName ? String(recipientName).trim() : undefined,
+    };
+
+    await sendSingleEmail(
+      recipient,
+      {
+        provider: provider.name,
+        recipientEmail: provider.recipientEmail,
+        refreshToken: provider.refreshToken || undefined,
+        apiKey: provider.apiKey || undefined,
+        password: provider.password || undefined,
+        smtp: provider.smtp,
+        port: provider.port,
+      },
+      subject,
+      generatedMessage
+    );
+
+    return res.json({
+      message: 'Single email sent successfully',
+      summary: {
+        to: recipient.email,
+        from: provider.recipientEmail,
+        subject,
+      },
+    });
+  } catch (error) {
+    console.error('Error sending single email:', error);
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to send single email' });
   }
 });
 

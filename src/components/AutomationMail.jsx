@@ -24,10 +24,17 @@ const AutomationMail = () => {
   // Mail sending form
   const [mailForm, setMailForm] = useState({
     prompt: '',
+    message: '',
+    aiMode: 'yes',
+    sendMode: 'bulk',
     providerId: '',
     subject: '',
+    recipientEmail: '',
+    recipientName: '',
     csvFile: null,
   });
+  const [previewData, setPreviewData] = useState(null);
+  const [csvMeta, setCsvMeta] = useState({ totalRows: 0, validEmails: 0, firstEmail: '' });
 
   const fetchProviders = async () => {
     try {
@@ -108,28 +115,78 @@ const AutomationMail = () => {
   };
 
   // Handle send bulk mail
-  const handleSendBulkMail = async (e) => {
+  const handleSendMail = async (e) => {
     e.preventDefault();
-    if (!mailForm.prompt || !mailForm.providerId || !mailForm.subject || !mailForm.csvFile) {
-      setMessage({ type: 'error', text: 'Please fill all fields and upload CSV' });
+    const usingAI = mailForm.aiMode === 'yes';
+    const isBulk = mailForm.sendMode === 'bulk';
+
+    if (!mailForm.providerId || !mailForm.subject) {
+      setMessage({ type: 'error', text: 'Please select provider and subject' });
+      return;
+    }
+
+    if (usingAI && !mailForm.prompt) {
+      setMessage({ type: 'error', text: 'Please enter AI prompt' });
+      return;
+    }
+
+    if (!usingAI && !mailForm.message) {
+      setMessage({ type: 'error', text: 'Please enter message content' });
+      return;
+    }
+
+    if (isBulk && !mailForm.csvFile) {
+      setMessage({ type: 'error', text: 'Please upload CSV file for bulk mode' });
+      return;
+    }
+
+    if (!isBulk && !mailForm.recipientEmail) {
+      setMessage({ type: 'error', text: 'Please enter recipient email for single mode' });
       return;
     }
 
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('prompt', mailForm.prompt);
-      formData.append('providerId', mailForm.providerId);
-      formData.append('subject', mailForm.subject);
-      formData.append('csvFile', mailForm.csvFile);
+      if (isBulk) {
+        const formData = new FormData();
+        formData.append('prompt', mailForm.prompt);
+        formData.append('message', mailForm.message);
+        formData.append('aiMode', mailForm.aiMode);
+        formData.append('providerId', mailForm.providerId);
+        formData.append('subject', mailForm.subject);
+        formData.append('csvFile', mailForm.csvFile);
 
-      const response = await automationAPI.sendBulkMail(formData);
-      setMessage({
-        type: 'success',
-        text: `Campaign sent: ${response.summary.successCount}/${response.summary.total} emails delivered`,
+        const response = await automationAPI.sendBulkMail(formData);
+        setMessage({
+          type: 'success',
+          text: `Campaign sent: ${response.summary.successCount}/${response.summary.total} emails delivered`,
+        });
+      } else {
+        const response = await automationAPI.sendSingleMail({
+          prompt: mailForm.prompt,
+          message: mailForm.message,
+          aiMode: mailForm.aiMode,
+          providerId: mailForm.providerId,
+          subject: mailForm.subject,
+          recipientEmail: mailForm.recipientEmail,
+          recipientName: mailForm.recipientName,
+        });
+        setMessage({ type: 'success', text: `Email sent to ${response.summary.to}` });
+      }
+
+      setMailForm({
+        prompt: '',
+        message: '',
+        aiMode: 'yes',
+        sendMode: mailForm.sendMode,
+        providerId: '',
+        subject: '',
+        recipientEmail: '',
+        recipientName: '',
+        csvFile: null,
       });
-
-      setMailForm({ prompt: '', providerId: '', subject: '', csvFile: null });
+      setPreviewData(null);
+      setCsvMeta({ totalRows: 0, validEmails: 0, firstEmail: '' });
       const nextCampaigns = await fetchCampaigns();
       setCampaigns(nextCampaigns);
       setTimeout(() => setMessage(''), 5000);
@@ -137,6 +194,65 @@ const AutomationMail = () => {
       setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to send emails' });
     }
     setLoading(false);
+  };
+
+  const handlePreview = async () => {
+    const usingAI = mailForm.aiMode === 'yes';
+    if (!mailForm.providerId || !mailForm.subject) {
+      setMessage({ type: 'error', text: 'Select provider and subject before preview' });
+      return;
+    }
+    if (usingAI && !mailForm.prompt) {
+      setMessage({ type: 'error', text: 'Enter prompt to preview AI result' });
+      return;
+    }
+    if (!usingAI && !mailForm.message) {
+      setMessage({ type: 'error', text: 'Enter message to preview final result' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const preview = await automationAPI.previewMessage({
+        prompt: mailForm.prompt,
+        message: mailForm.message,
+        aiMode: mailForm.aiMode,
+        providerId: mailForm.providerId,
+        subject: mailForm.subject,
+        recipientEmail:
+          mailForm.sendMode === 'single'
+            ? mailForm.recipientEmail
+            : csvMeta.firstEmail || 'sample.user@example.com',
+        recipientName: mailForm.sendMode === 'single' ? mailForm.recipientName : 'CSV Recipient',
+      });
+      setPreviewData(preview.preview);
+    } catch (error) {
+      setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to generate preview' });
+    }
+    setLoading(false);
+  };
+
+  const handleCsvUpload = async (file) => {
+    if (!file) {
+      setCsvMeta({ totalRows: 0, validEmails: 0, firstEmail: '' });
+      return;
+    }
+
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((line) => line.trim());
+    const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+    let validEmails = 0;
+    let firstEmail = '';
+
+    for (const line of lines) {
+      const match = line.match(emailRegex);
+      if (match?.[0]) {
+        validEmails += 1;
+        if (!firstEmail) firstEmail = match[0];
+      }
+    }
+
+    setCsvMeta({ totalRows: lines.length, validEmails, firstEmail });
   };
 
   return (
@@ -319,9 +435,46 @@ const AutomationMail = () => {
         {activeTab === 'send' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             <div className="bg-white/5 border border-white/10 p-6 rounded-lg">
-              <h3 className="text-lg font-semibold mb-4">Send Bulk Mail</h3>
+              <h3 className="text-lg font-semibold mb-4">Send Automation Mail</h3>
 
-              <form onSubmit={handleSendBulkMail} className="space-y-4">
+              <form onSubmit={handleSendMail} className="space-y-4">
+                {/* Send mode checkboxes */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-300">Send Mode</label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-sm text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={mailForm.sendMode === 'single'}
+                        onChange={() => setMailForm({ ...mailForm, sendMode: 'single' })}
+                        className="accent-accent-green"
+                      />
+                      Single Mail
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={mailForm.sendMode === 'bulk'}
+                        onChange={() => setMailForm({ ...mailForm, sendMode: 'bulk' })}
+                        className="accent-accent-green"
+                      />
+                      Bulk Mail
+                    </label>
+                  </div>
+                </div>
+
+                {/* AI mode dropdown */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-300">Content Mode</label>
+                  <select
+                    value={mailForm.aiMode}
+                    onChange={(e) => setMailForm({ ...mailForm, aiMode: e.target.value })}
+                    className="w-full px-3 py-2 bg-bg-secondary border border-white/15 rounded-lg text-white focus:outline-none focus:border-accent-green"
+                  >
+                    <option value="yes">Use AI from Prompt</option>
+                    <option value="no">Manual Message</option>
+                  </select>
+                </div>
                 {/* Provider Select */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-300">Select Provider</label>
@@ -353,42 +506,112 @@ const AutomationMail = () => {
                   />
                 </div>
 
-                {/* AI Prompt */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-300">AI Prompt (Convert to Email)</label>
-                  <textarea
-                    value={mailForm.prompt}
-                    onChange={(e) => setMailForm({ ...mailForm, prompt: e.target.value })}
-                    className="w-full px-3 py-2 bg-bg-secondary border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-green h-24 resize-none"
-                    placeholder="e.g., Write a professional email inviting users to join our new ride-sharing feature..."
-                    required
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Your prompt will be converted to a professional email message using AI
-                  </p>
+                {/* AI prompt or manual message */}
+                {mailForm.aiMode === 'yes' ? (
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">AI Prompt (Convert to Email)</label>
+                    <textarea
+                      value={mailForm.prompt}
+                      onChange={(e) => setMailForm({ ...mailForm, prompt: e.target.value })}
+                      className="w-full px-3 py-2 bg-bg-secondary border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-green h-24 resize-none"
+                      placeholder="Write the exact intent. Example: welcome users to Spllit and ask them to join next ride week."
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Tip: Use {'{{name}}'} or {'{{email}}'} placeholders in prompt context if needed.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">Manual Message Body</label>
+                    <textarea
+                      value={mailForm.message}
+                      onChange={(e) => setMailForm({ ...mailForm, message: e.target.value })}
+                      className="w-full px-3 py-2 bg-bg-secondary border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-green h-28 resize-none"
+                      placeholder="Enter final mail HTML/text. You can use {{name}} and {{email}} placeholders."
+                    />
+                  </div>
+                )}
+
+                {/* Single recipient */}
+                {mailForm.sendMode === 'single' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-300">Recipient Email</label>
+                      <input
+                        type="email"
+                        value={mailForm.recipientEmail}
+                        onChange={(e) => setMailForm({ ...mailForm, recipientEmail: e.target.value })}
+                        className="w-full px-3 py-2 bg-bg-secondary border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-green"
+                        placeholder="user@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-300">Recipient Name (optional)</label>
+                      <input
+                        type="text"
+                        value={mailForm.recipientName}
+                        onChange={(e) => setMailForm({ ...mailForm, recipientName: e.target.value })}
+                        className="w-full px-3 py-2 bg-bg-secondary border border-white/15 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-green"
+                        placeholder="Ankit"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* CSV Upload for bulk */}
+                {mailForm.sendMode === 'bulk' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">Upload CSV File (Email List)</label>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={async (e) => {
+                        const nextFile = e.target.files?.[0] || null;
+                        setMailForm({ ...mailForm, csvFile: nextFile });
+                        await handleCsvUpload(nextFile);
+                      }}
+                      className="w-full px-3 py-2 bg-bg-secondary border border-white/15 rounded-lg text-white file:text-white focus:outline-none focus:border-accent-green"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Works with `email,name` header or plain rows like `user@example.com,Ankit`.
+                    </p>
+                    {mailForm.csvFile && (
+                      <div className="mt-2 text-xs text-gray-300 space-y-1">
+                        <p>File: {mailForm.csvFile.name}</p>
+                        <p>Rows: {csvMeta.totalRows} | Valid emails found: {csvMeta.validEmails}</p>
+                        {csvMeta.firstEmail && <p>Preview target: {csvMeta.firstEmail}</p>}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Final preview button and output */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handlePreview}
+                    disabled={loading}
+                    className="px-4 py-2 border border-accent-green text-accent-green rounded-lg hover:bg-accent-green/10 transition disabled:opacity-50"
+                  >
+                    Preview Final Result
+                  </button>
+                  <span className="text-xs text-gray-400">
+                    Shows exactly who receives and how the final message looks.
+                  </span>
                 </div>
 
-                {/* CSV Upload */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-300">Upload CSV File (Email List)</label>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => setMailForm({ ...mailForm, csvFile: e.target.files?.[0] || null })}
-                    className="w-full px-3 py-2 bg-bg-secondary border border-white/15 rounded-lg text-white file:text-white focus:outline-none focus:border-accent-green"
-                    required
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    CSV should have an 'email' column. Example: email,name
-                  </p>
-                </div>
-
-                {/* File preview */}
-                {mailForm.csvFile && (
-                  <p className="text-sm text-green-600 flex items-center gap-2">
-                    <FaCheckCircle size={14} />
-                    {mailForm.csvFile.name}
-                  </p>
+                {previewData && (
+                  <div className="bg-bg-secondary border border-white/15 rounded-lg p-4 text-sm space-y-2">
+                    <p><span className="text-gray-400">From:</span> {previewData.from}</p>
+                    <p><span className="text-gray-400">To:</span> {previewData.to}</p>
+                    <p><span className="text-gray-400">Subject:</span> {previewData.subject}</p>
+                    <div>
+                      <p className="text-gray-400 mb-1">Body Preview:</p>
+                      <div className="bg-black/20 border border-white/10 rounded p-3 whitespace-pre-wrap text-gray-200 max-h-48 overflow-auto">
+                        {previewData.body}
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 <button
@@ -398,7 +621,7 @@ const AutomationMail = () => {
                 >
                   {loading ? 'Sending...' : <>
                     <FaPaperPlane size={14} />
-                    Send Bulk Mail
+                    {mailForm.sendMode === 'bulk' ? 'Send Bulk Mail' : 'Send Single Mail'}
                   </>}
                 </button>
               </form>

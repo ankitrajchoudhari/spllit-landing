@@ -374,6 +374,18 @@ export const automationAPI = {
         return response.data;
     },
 
+    // Send a single email
+    sendSingleMail: async (data) => {
+        const response = await api.post('/automation/send-single', data);
+        return response.data;
+    },
+
+    // Generate final preview before sending
+    previewMessage: async (data) => {
+        const response = await api.post('/automation/preview', data);
+        return response.data;
+    },
+
     // Get campaign history
     getCampaigns: async () => {
         const response = await api.get('/automation/campaigns');

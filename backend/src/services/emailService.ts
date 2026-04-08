@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import type { CsvRecipient } from './csvService.js';
 
 export interface MailConfig {
   provider: string;
@@ -9,6 +10,16 @@ export interface MailConfig {
   smtp: string;
   port: number;
 }
+
+const applyTemplate = (content: string, recipient: CsvRecipient): string => {
+  const safeName = recipient.name?.trim() || 'there';
+  const safeEmail = recipient.email.trim();
+  return content
+    .replaceAll('{{name}}', safeName)
+    .replaceAll('{{email}}', safeEmail)
+    .replaceAll('{name}', safeName)
+    .replaceAll('{email}', safeEmail);
+};
 
 export const getMailTransporter = (config: MailConfig) => {
   if (config.provider === 'gmail') {
@@ -46,7 +57,7 @@ export const getMailTransporter = (config: MailConfig) => {
 };
 
 export const sendBulkEmails = async (
-  emailList: string[],
+  recipients: CsvRecipient[],
   config: MailConfig,
   subject: string,
   htmlContent: string
@@ -57,13 +68,13 @@ export const sendBulkEmails = async (
   let failureCount = 0;
 
   // Light batch processing - send emails sequentially to avoid rate limits
-  for (const email of emailList) {
+  for (const recipient of recipients) {
     try {
       await transporter.sendMail({
         from: config.recipientEmail,
-        to: email,
+        to: recipient.email,
         subject,
-        html: htmlContent,
+        html: applyTemplate(htmlContent, recipient),
         headers: {
           'X-Priority': '3',
           'X-MSMail-Priority': 'Normal',
@@ -73,12 +84,35 @@ export const sendBulkEmails = async (
     } catch (error) {
       failureCount++;
       const errorMsg = error instanceof Error ? error.message : String(error);
-      errors.push(`${email}: ${errorMsg}`);
+      errors.push(`${recipient.email}: ${errorMsg}`);
       // Continue with next email
     }
   }
 
   return { successCount, failureCount, errors };
+};
+
+export const sendSingleEmail = async (
+  recipient: CsvRecipient,
+  config: MailConfig,
+  subject: string,
+  htmlContent: string
+): Promise<void> => {
+  const transporter = getMailTransporter(config);
+  await transporter.sendMail({
+    from: config.recipientEmail,
+    to: recipient.email,
+    subject,
+    html: applyTemplate(htmlContent, recipient),
+    headers: {
+      'X-Priority': '3',
+      'X-MSMail-Priority': 'Normal',
+    },
+  });
+};
+
+export const renderMailPreview = (content: string, recipient: CsvRecipient): string => {
+  return applyTemplate(content, recipient);
 };
 
 export const testMailConnection = async (config: MailConfig): Promise<boolean> => {
