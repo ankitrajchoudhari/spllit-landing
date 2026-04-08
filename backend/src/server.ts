@@ -26,12 +26,11 @@ const io = new Server(httpServer, {
       'http://localhost:3000',
       'https://spllit.app',
       'https://www.spllit.app',
+      'https://spllit-landing.onrender.com',
       'https://spllit-landing.vercel.app',
-      'https://spllit-landing-git-main-25f3003058-afks-projects.vercel.app',
-      /\.vercel\.app$/,
-      /\.onrender\.com$/
+      'https://spllit-landing-git-main-25f3003058-afks-projects.vercel.app'
     ],
-    methods: ['GET', 'POST', 'PATCH'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['*']
   }
@@ -39,16 +38,24 @@ const io = new Server(httpServer, {
 
 // Middleware
 const corsOptions = {
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://spllit.app',
-    'https://www.spllit.app',
-    'https://spllit-landing.vercel.app',
-    'https://spllit-landing-git-main-25f3003058-afks-projects.vercel.app',
-    /\.vercel\.app$/,
-    /\.onrender\.com$/
-  ],
+  origin: (origin: any, callback: any) => {
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'https://spllit.app',
+      'https://www.spllit.app',
+      'https://spllit-landing.onrender.com',
+      'https://spllit-landing.vercel.app',
+      'https://spllit-landing-git-main-25f3003058-afks-projects.vercel.app'
+    ];
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin) || origin?.endsWith('.vercel.app') || origin?.endsWith('.onrender.com')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['*'],

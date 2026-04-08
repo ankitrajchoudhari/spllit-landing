@@ -142,6 +142,12 @@ export const authAPI = {
         const response = await api.post('/auth/refresh', { refreshToken });
         return response.data;
     },
+
+    // Admin login
+    adminLogin: async (credentials) => {
+        const response = await api.post('/admin/login', credentials);
+        return response.data;
+    },
 };
 
 // ============ USER API ============

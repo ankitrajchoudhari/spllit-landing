@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import { authAPI } from '../services/api';
 import { API_BASE_URL } from '../config/backendUrl';
 
 const API_URL = API_BASE_URL;
@@ -15,8 +15,8 @@ const useAdminStore = create((set) => ({
   login: async (credentials) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/admin/login`, credentials);
-      const { admin, token } = response.data;
+      const response = await authAPI.adminLogin(credentials);
+      const { admin, token } = response;
       
       localStorage.setItem('adminToken', token);
       // Also set as accessToken for compatibility with user routes (for subadmins)
