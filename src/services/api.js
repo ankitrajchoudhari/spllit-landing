@@ -343,4 +343,42 @@ export const announcementsAPI = {
     }
 };
 
+// ============ AUTOMATION MAIL API ============
+
+export const automationAPI = {
+    // Get mail providers
+    getProviders: async () => {
+        const response = await api.get('/automation/providers');
+        return response.data;
+    },
+
+    // Save mail provider
+    saveProvider: async (data) => {
+        const response = await api.post('/automation/providers', data);
+        return response.data;
+    },
+
+    // Test mail provider connection
+    testProvider: async (providerId) => {
+        const response = await api.post(`/automation/providers/${providerId}/test`);
+        return response.data;
+    },
+
+    // Send bulk emails with AI-generated content
+    sendBulkMail: async (formData) => {
+        const response = await api.post('/automation/send-bulk', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    },
+
+    // Get campaign history
+    getCampaigns: async () => {
+        const response = await api.get('/automation/campaigns');
+        return response.data;
+    }
+};
+
 export default api;

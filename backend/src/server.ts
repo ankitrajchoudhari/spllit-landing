@@ -12,6 +12,7 @@ import emergencyRoutes from './routes/emergency.js';
 import announcementRoutes from './routes/announcements.js';
 import subadminRoutes from './routes/subadmin.js';
 import earlyAccessRoutes from './routes/earlyAccess.js';
+import automationRoutes from './routes/automation.js';
 import { setupSocketHandlers } from './services/socket.js';
 import { perfMiddleware } from './middleware/perf.js';
 
@@ -100,6 +101,7 @@ app.use('/api/emergency', emergencyRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/subadmin', subadminRoutes);
 app.use('/api/early-access', earlyAccessRoutes);
+app.use('/api/automation', automationRoutes);
 
 // Setup Socket.IO handlers
 setupSocketHandlers(io);

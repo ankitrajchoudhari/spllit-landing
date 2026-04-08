@@ -249,3 +249,43 @@ model EarlyAccess {
 
   @@index([createdAt])
 }
+
+// Mail provider configuration for automation
+model MailProvider {
+  id              String    @id @default(cuid()) @map("_id")
+  name            String    // gmail/zoho
+  recipientEmail  String    @unique // team@spllit or any email
+  refreshToken    String    // For Gmail OAuth
+  apiKey          String?   // For Zoho
+  password        String?   // For Zoho SMTP
+  smtp            String    // e.g., smtp.zoho.com
+  port            Int       @default(587)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isActive])
+}
+
+// Automation mail campaign logs
+model AutomationMail {
+  id              String    @id @default(cuid()) @map("_id")
+  adminId         String    // Admin who created this
+  providerName    String    // mail provider used
+  subject         String
+  prompt          String    // Original AI prompt
+  generatedMessage String   // AI-generated message
+  recipientCount  Int
+  successCount    Int       @default(0)
+  failureCount    Int       @default(0)
+  status          String    @default("pending") // pending/processing/completed/failed
+  errorLog        String?   // Error details if failed
+  csvFilePath     String?   // Path to uploaded CSV
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  completedAt     DateTime?
+
+  @@index([adminId])
+  @@index([status])
+  @@index([createdAt])
+}

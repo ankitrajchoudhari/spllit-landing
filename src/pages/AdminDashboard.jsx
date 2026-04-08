@@ -13,6 +13,7 @@ import useAuthStore from '../store/authStore';
 import { fetchStats, fetchUsers, fetchRides, fetchMatches, fetchEarlyAccess, fetchAdmins, createAdmin, deactivateAdmin, activateAdmin, resetAdminPassword, deleteAdmin } from '../services/adminAPI';
 import { emergencyAPI, announcementsAPI } from '../services/api';
 import NotificationContainer from '../components/NotificationToast';
+import AutomationMail from '../components/AutomationMail';
 import io from 'socket.io-client';
 import { SOCKET_BASE_URL } from '../config/backendUrl';
 
@@ -860,7 +861,8 @@ const AdminDashboard = () => {
               { id: 'matches', label: 'Matches', icon: FaHandshake },
               { id: 'early-access', label: 'Early Access', icon: FaUserClock },
               { id: 'emergency', label: 'Emergency', icon: FaExclamationTriangle },
-              ...(canManageAdmins ? [{ id: 'admins', label: 'Admins', icon: FaUserShield }] : [])
+              ...(canManageAdmins ? [{ id: 'admins', label: 'Admins', icon: FaUserShield }] : []),
+              { id: 'automation', label: 'Automation', icon: FaEnvelope },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1970,6 +1972,13 @@ const AdminDashboard = () => {
                   );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Automation Mail Tab */}
+            {activeTab === 'automation' && (
+              <div className="space-y-4 sm:space-y-6">
+                <AutomationMail />
               </div>
             )}
           </>
