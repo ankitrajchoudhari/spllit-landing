@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Token values, matching the main app's palette.
+ *
+ * The console defaults to dark. That is not a style preference — it is used
+ * for long sittings next to production dashboards, and it is the one surface
+ * where a bright flash at 2am is a real cost. Light is still fully defined so
+ * an admin who prefers it is not fighting a half-built theme.
+ */
+:root {
+  color-scheme: dark;
+
+  --brand: #00c853;
+  --brand-hover: #00b048;
+  --brand-muted: rgba(0, 200, 83, 0.18);
+  --brand-fg: #062b14;
+  --accent: #2979ff;
+  --accent-muted: rgba(41, 121, 255, 0.2);
+
+  --canvas: #0a0c0b;
+  --surface: #161918;
+  --surface-raised: #1d211f;
+  --surface-sunken: #101312;
+
+  --ink: #f5f7f6;
+  --ink-muted: #a8afab;
+  --ink-subtle: #757c78;
+
+  --line: rgba(255, 255, 255, 0.11);
+  --line-strong: rgba(255, 255, 255, 0.2);
+
+  --danger: #ff6369;
+  --danger-muted: rgba(229, 72, 77, 0.18);
+  --warning: #f5a524;
+  --warning-muted: rgba(245, 165, 36, 0.18);
+
+  --font-body: ui-sans-serif, system-ui, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
+}
+
+/* Opt-in light theme, applied by adding `light` to <html>. */
+:root.light {
+  color-scheme: light;
+
+  --brand-muted: rgba(0, 200, 83, 0.14);
+  --brand-fg: #ffffff;
+  --accent-muted: rgba(41, 121, 255, 0.12);
+
+  --canvas: #eaece7;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #dee1da;
+
+  --ink: #101211;
+  --ink-muted: #4e544f;
+  --ink-subtle: #7b817c;
+
+  --line: rgba(16, 20, 17, 0.13);
+  --line-strong: rgba(16, 20, 17, 0.22);
+
+  --danger: #e5484d;
+  --danger-muted: rgba(229, 72, 77, 0.12);
+  --warning-muted: rgba(245, 165, 36, 0.14);
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /**
+   * Digits in a console are almost always compared down a column — counts,
+   * latencies, timestamps. Proportional figures make that comparison require
+   * reading rather than glancing.
+   */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--brand-muted);
+  }
+}
+
+@layer utilities {
+  /* Wide tables scroll inside their own container, never the page body. */
+  .scroll-x {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

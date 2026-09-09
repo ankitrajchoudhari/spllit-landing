@@ -46,6 +46,11 @@
   ],
   "exclude": [
     "node_modules",
-    "backend"
+    "backend",
+    // The admin console is its own Next.js app with its own tsconfig and its
+    // own dependencies. Without this it would be pulled into the main app's
+    // typecheck — the one the frontend deploy workflow runs — and fail it on
+    // imports that only resolve inside admin/.
+    "admin"
   ]
 }

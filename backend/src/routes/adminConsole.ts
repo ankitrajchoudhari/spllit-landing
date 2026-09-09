@@ -1,0 +1,807 @@
+import { Router, Response } from 'express';
+
+import prisma from '../utils/prisma.js';
+import { identify } from '../middleware/identity.js';
+import {
+  AdminRequest,
+  requireConsoleAdmin,
+  requirePermission,
+} from '../middleware/adminConsole.js';
+import {
+  ADMIN_ROLES,
+  ROLE_LABELS,
+  canManageRole,
+  isAdminRole,
+  permissionsFor,
+  resolveAdminRole,
+} from '../config/adminRoles.js';
+import { ok, fail } from '../utils/respond.js';
+import * as audit from '../services/auditLog.js';
+
+/**
+ * The admin console API — admin.spllit.app.
+ *
+ * Mounted at /api/admin-console. Deliberately a new namespace rather than an
+ * extension of /api/admin-panel: that router is what the shipped in-app admin
+ * page calls, and changing its shapes would break a surface that is live.
+ *
+ * Two things hold for every handler below:
+ *   - authorisation is enforced here, in middleware, never in the client;
+ *   - every mutation writes an audit row, including the ones that fail.
+ */
+
+const router = Router();
+
+// Applied once at the router level so a new handler cannot ship ungated by
+// someone forgetting to repeat it.
+router.use(identify, requireConsoleAdmin);
+
+const USER_ROW = {
+  id: true,
+  name: true,
+  username: true,
+  email: true,
+  phone: true,
+  college: true,
+  profilePhoto: true,
+  role: true,
+  adminRole: true,
+  isAdmin: true,
+  adminStatus: true,
+  isActive: true,
+  onboarded: true,
+  emailVerified: true,
+  phoneVerified: true,
+  instituteVerified: true,
+  rating: true,
+  totalRides: true,
+  createdAt: true,
+  lastSeen: true,
+} as const;
+
+function escapeRegex(term: string): string {
+  return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Page size, clamped so a caller cannot ask for the whole collection. */
+function pagination(query: Record<string, unknown>) {
+  const page = Math.max(Number(query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(query.limit) || 25, 1), 100);
+  return { page, limit, skip: (page - 1) * limit };
+}
+
+// ---------------------------------------------------------------------------
+// Session
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/admin-console/me
+ *
+ * What the console calls on load to decide whether to render at all, and which
+ * navigation the signed-in admin should see. The permission list is sent so the
+ * client can hide what it cannot do — hiding is a courtesy, the gate is server
+ * side either way.
+ */
+router.get('/me', async (req: AdminRequest, res: Response) => {
+  const admin = req.admin!;
+  return ok(res, {
+    userId: admin.userId,
+    email: admin.email,
+    name: admin.name,
+    role: admin.role,
+    roleLabel: ROLE_LABELS[admin.role],
+    permissions: admin.permissions,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Dashboard
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/admin-console/overview
+ *
+ * Counts for the founder dashboard, in one round trip.
+ *
+ * These are live `count()` calls, which is honest but not the end state: the
+ * plan replaces them with pre-aggregated rollups before the realtime phase,
+ * because forty counters on a three-second refresh is tens of thousands of
+ * collection scans an hour. Until that lands the console polls this slowly
+ * rather than pretending to be realtime.
+ */
+router.get(
+  '/overview',
+  requirePermission('dashboard.view'),
+  async (_req: AdminRequest, res: Response) => {
+    try {
+      const now = new Date();
+      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const [
+        totalUsers,
+        newToday,
+        newWeek,
+        newMonth,
+        activeUsers,
+        suspendedUsers,
+        onboardedUsers,
+        totalRides,
+        activeRides,
+        completedRides,
+        cancelledRides,
+        totalSquads,
+        activeSquads,
+        upcomingEvents,
+        totalEvents,
+        communities,
+        messages24h,
+        threads,
+        openEmergencies,
+        waitlist,
+        notifications24h,
+      ] = await Promise.all([
+        prisma.user.count(),
+        prisma.user.count({ where: { createdAt: { gte: dayAgo } } }),
+        prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
+        prisma.user.count({ where: { createdAt: { gte: monthAgo } } }),
+        // "Active" here means seen in the last 24h — stated rather than
+        // implied, because DAU computed from `lastSeen` is an approximation
+        // until real event tracking exists.
+        prisma.user.count({ where: { lastSeen: { gte: dayAgo } } }),
+        prisma.user.count({ where: { isActive: false } }),
+        prisma.user.count({ where: { onboarded: true } }),
+        prisma.ride.count(),
+        prisma.ride.count({
+          where: {
+            status: {
+              in: ['requested', 'pending', 'accepted', 'matched', 'arriving', 'in_progress'],
+            },
+          },
+        }),
+        prisma.ride.count({ where: { status: 'completed' } }),
+        prisma.ride.count({ where: { status: 'cancelled' } }),
+        prisma.squad.count(),
+        prisma.squad.count({ where: { isActive: true } }),
+        prisma.event.count({ where: { status: 'published', startsAt: { gte: now } } }),
+        prisma.event.count(),
+        prisma.community.count(),
+        prisma.threadMessage.count({ where: { createdAt: { gte: dayAgo } } }),
+        prisma.chatThread.count(),
+        prisma.emergency.count({ where: { status: 'active' } }),
+        prisma.waitlist.count(),
+        prisma.notification.count({ where: { createdAt: { gte: dayAgo } } }),
+      ]);
+
+      return ok(res, {
+        generatedAt: now.toISOString(),
+        users: {
+          total: totalUsers,
+          newToday,
+          newWeek,
+          newMonth,
+          activeToday: activeUsers,
+          suspended: suspendedUsers,
+          onboarded: onboardedUsers,
+        },
+        rides: {
+          total: totalRides,
+          active: activeRides,
+          completed: completedRides,
+          cancelled: cancelledRides,
+        },
+        squads: { total: totalSquads, active: activeSquads },
+        events: { total: totalEvents, upcoming: upcomingEvents },
+        communities: { total: communities },
+        chat: { messages24h, threads },
+        emergencies: { open: openEmergencies },
+        waitlist: { total: waitlist },
+        notifications: { sent24h: notifications24h },
+
+        /**
+         * Surfaces the brief asks for that Spllit has no data model behind.
+         * Sent explicitly so the console can render "not available" instead of
+         * a zero, which would read as a real measurement of nothing happening.
+         */
+        unavailable: [
+          { key: 'reports', reason: 'No reporting feature exists in Spllit yet.' },
+          { key: 'posts', reason: 'Spllit has no posts or comments.' },
+          { key: 'analytics', reason: 'Event tracking is not implemented yet.' },
+        ],
+      });
+    } catch (error) {
+      console.error('[admin-console/overview]', error);
+      return fail(res, 500, 'Failed to load overview');
+    }
+  },
+);
+
+/**
+ * GET /api/admin-console/signups?days=30
+ * Signup counts bucketed by day, aggregated server-side.
+ */
+router.get(
+  '/signups',
+  requirePermission('dashboard.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const days = Math.min(Math.max(Number(req.query.days) || 30, 7), 90);
+      const now = new Date();
+      const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+      // Only the timestamp is selected: bucketing needs nothing else, and
+      // pulling whole user rows to count them is how this gets slow.
+      const rows = await prisma.user.findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdAt: true },
+      });
+
+      const buckets = new Map<string, number>();
+      for (let i = days - 1; i >= 0; i -= 1) {
+        const day = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        buckets.set(day.toISOString().slice(0, 10), 0);
+      }
+      for (const row of rows) {
+        const key = row.createdAt.toISOString().slice(0, 10);
+        if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+      }
+
+      return ok(res, {
+        days,
+        series: [...buckets.entries()].map(([date, count]) => ({ date, count })),
+      });
+    } catch (error) {
+      console.error('[admin-console/signups]', error);
+      return fail(res, 500, 'Failed to load signup trend');
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Users
+// ---------------------------------------------------------------------------
+
+/** GET /api/admin-console/users?q=&status=&page=&limit= */
+router.get(
+  '/users',
+  requirePermission('users.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const q = String(req.query.q ?? '').trim();
+      const status = String(req.query.status ?? '').trim();
+      const { page, limit, skip } = pagination(req.query);
+
+      const where: Record<string, unknown> = {};
+
+      if (q) {
+        const term = escapeRegex(q);
+        where.OR = [
+          { name: { contains: term, mode: 'insensitive' } },
+          { email: { contains: term, mode: 'insensitive' } },
+          { username: { contains: term, mode: 'insensitive' } },
+          { college: { contains: term, mode: 'insensitive' } },
+        ];
+      }
+
+      if (status === 'active') where.isActive = true;
+      if (status === 'suspended') where.isActive = false;
+      if (status === 'onboarded') where.onboarded = true;
+      if (status === 'admins') {
+        where.OR = [{ role: { in: ['admin', 'subadmin'] } }, { isAdmin: true }];
+      }
+
+      const [rows, total] = await Promise.all([
+        prisma.user.findMany({
+          where,
+          select: USER_ROW,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.user.count({ where }),
+      ]);
+
+      return ok(res, {
+        rows: rows.map((u) => ({ ...u, consoleRole: resolveAdminRole(u) })),
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      });
+    } catch (error) {
+      console.error('[admin-console/users]', error);
+      return fail(res, 500, 'Failed to load users');
+    }
+  },
+);
+
+/**
+ * GET /api/admin-console/users/:id
+ *
+ * The 360° view the brief asks for, assembled from what Spllit actually has.
+ * Counts rather than full lists for the heavy relations: this is a summary
+ * page, and the tabs fetch their own pages when opened.
+ */
+router.get(
+  '/users/:id',
+  requirePermission('users.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const id = String(req.params.id);
+
+      const user = await prisma.user.findUnique({ where: { id }, select: USER_ROW });
+      if (!user) return fail(res, 404, 'User not found');
+
+      const [
+        rides,
+        squadMemberships,
+        events,
+        emergencies,
+        notifications,
+        blocks,
+        communities,
+        recentRides,
+        squadRows,
+        eventRows,
+        communityRows,
+      ] = await Promise.all([
+        prisma.ride.count({ where: { userId: id } }),
+        prisma.squadMember.count({ where: { userId: id } }),
+        prisma.eventAttendee.count({ where: { userId: id } }),
+        prisma.emergency.count({ where: { userId: id } }),
+        prisma.notification.count({ where: { userId: id } }),
+        prisma.block.count({ where: { blockedId: id } }),
+        prisma.communityMember.count({ where: { userId: id } }),
+        prisma.ride.findMany({
+          where: { userId: id },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+            origin: true,
+            destination: true,
+            departureTime: true,
+          },
+        }),
+        prisma.squadMember.findMany({
+          where: { userId: id },
+          orderBy: { joinedAt: 'desc' },
+          take: 10,
+          select: { id: true, squadId: true, role: true, status: true, joinedAt: true },
+        }),
+        prisma.eventAttendee.findMany({
+          where: { userId: id },
+          orderBy: { joinedAt: 'desc' },
+          take: 10,
+          select: { id: true, eventId: true, status: true, joinedAt: true },
+        }),
+        prisma.communityMember.findMany({
+          where: { userId: id },
+          orderBy: { joinedAt: 'desc' },
+          take: 10,
+          select: { id: true, communityId: true, role: true, joinedAt: true },
+        }),
+      ]);
+
+      // Names for the ids above, batched. Three lookups rather than thirty.
+      const [squadNames, eventNames, communityNames] = await Promise.all([
+        prisma.squad.findMany({
+          where: { id: { in: squadRows.map((row) => row.squadId) } },
+          select: { id: true, name: true, status: true },
+        }),
+        prisma.event.findMany({
+          where: { id: { in: eventRows.map((row) => row.eventId) } },
+          select: { id: true, title: true, startsAt: true, status: true },
+        }),
+        prisma.community.findMany({
+          where: { id: { in: communityRows.map((row) => row.communityId) } },
+          select: { id: true, name: true, slug: true },
+        }),
+      ]);
+
+      const squadById = new Map(squadNames.map((squad) => [squad.id, squad]));
+      const eventById = new Map(eventNames.map((event) => [event.id, event]));
+      const communityById = new Map(communityNames.map((community) => [community.id, community]));
+
+      /**
+       * Two distinct trails, deliberately separated.
+       *
+       * `auditTrail` is what admins did *to* this account. `actedTrail` is what
+       * this account did as an admin. Merging them into one list reads as if a
+       * suspended user suspended somebody, which is the opposite of what
+       * happened.
+       */
+      const [auditTrail, actedTrail] = await Promise.all([
+        prisma.auditLog.findMany({
+          where: { targetType: 'user', targetId: id },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+        prisma.auditLog.findMany({
+          where: { actorId: id },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        }),
+      ]);
+
+      return ok(res, {
+        user: { ...user, consoleRole: resolveAdminRole(user) },
+        counts: {
+          rides,
+          squads: squadMemberships,
+          events,
+          communities,
+          emergencies,
+          notifications,
+          blockedBy: blocks,
+        },
+        recentRides,
+        squads: squadRows.map((row) => ({ ...row, squad: squadById.get(row.squadId) ?? null })),
+        events: eventRows.map((row) => ({ ...row, event: eventById.get(row.eventId) ?? null })),
+        communities: communityRows.map((row) => ({
+          ...row,
+          community: communityById.get(row.communityId) ?? null,
+        })),
+        auditTrail,
+        actedTrail,
+        unavailable: [
+          { key: 'posts', reason: 'Spllit has no posts or comments.' },
+          { key: 'reports', reason: 'No reporting feature exists in Spllit yet.' },
+        ],
+      });
+    } catch (error) {
+      console.error('[admin-console/users/:id]', error);
+      return fail(res, 500, 'Failed to load user');
+    }
+  },
+);
+
+/**
+ * PATCH /api/admin-console/users/:id/status
+ * Suspend or restore an account. Body: { isActive, reason }
+ */
+router.patch(
+  '/users/:id/status',
+  requirePermission('users.suspend'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const admin = req.admin!;
+      const id = String(req.params.id);
+      const isActive = Boolean(req.body?.isActive);
+      const reason = String(req.body?.reason ?? '').trim();
+
+      if (!reason || reason.length < 4) {
+        return fail(res, 400, 'A reason is required, so the audit log explains itself later.');
+      }
+
+      const target = await prisma.user.findUnique({
+        where: { id },
+        select: { id: true, name: true, email: true, isActive: true, role: true, adminRole: true },
+      });
+      if (!target) return fail(res, 404, 'User not found');
+
+      // An admin suspending themselves locks the console behind an account
+      // that can no longer sign in to undo it.
+      if (target.id === admin.userId) {
+        return fail(res, 400, 'You cannot change your own account status.');
+      }
+
+      // Rank check: a moderator must not be able to suspend a super admin.
+      const targetRole = resolveAdminRole({
+        adminRole: target.adminRole,
+        role: target.role,
+        isAdmin: false,
+        adminStatus: 'active',
+        isActive: true,
+      });
+      if (targetRole && !canManageRole(admin.role, targetRole)) {
+        return fail(res, 403, 'You cannot act on an account of equal or higher privilege.');
+      }
+
+      const updated = await audit.recorded(
+        admin,
+        {
+          action: isActive ? 'user.restore' : 'user.suspend',
+          targetType: 'user',
+          targetId: id,
+          targetLabel: target.email,
+          ...audit.diff({ isActive: target.isActive }, { isActive }),
+          reason,
+        },
+        req,
+        () =>
+          prisma.user.update({
+            where: { id },
+            data: { isActive },
+            select: USER_ROW,
+          }),
+      );
+
+      return ok(res, updated);
+    } catch (error) {
+      console.error('[admin-console/users/status]', error);
+      return fail(res, 500, 'Failed to update account status');
+    }
+  },
+);
+
+/**
+ * PATCH /api/admin-console/users/:id/role
+ * Assign a console role. Body: { adminRole: AdminRole | null, reason }
+ */
+router.patch(
+  '/users/:id/role',
+  requirePermission('admins.manage'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const admin = req.admin!;
+      const id = String(req.params.id);
+      const next = req.body?.adminRole ?? null;
+      const reason = String(req.body?.reason ?? '').trim();
+
+      if (next !== null && !isAdminRole(next)) {
+        return fail(res, 400, `Role must be null or one of: ${ADMIN_ROLES.join(', ')}`);
+      }
+      if (!reason || reason.length < 4) {
+        return fail(res, 400, 'A reason is required for a role change.');
+      }
+
+      // Self-edit is what turns any admin account into a super admin in one
+      // request, so it is refused outright rather than rank-checked.
+      if (id === admin.userId) {
+        return fail(res, 400, 'You cannot change your own role.');
+      }
+
+      const target = await prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          adminRole: true,
+          role: true,
+          isAdmin: true,
+          adminStatus: true,
+          isActive: true,
+        },
+      });
+      if (!target) return fail(res, 404, 'User not found');
+
+      const currentRole = resolveAdminRole(target);
+
+      // Both directions are checked: you must outrank what they are now, and
+      // you must outrank what you are trying to make them. Without the second
+      // check an admin could mint a super admin and be promoted back by them.
+      if (currentRole && !canManageRole(admin.role, currentRole)) {
+        return fail(res, 403, 'You cannot change the role of an equal or higher admin.');
+      }
+      if (next && !canManageRole(admin.role, next)) {
+        return fail(res, 403, 'You cannot grant a role equal to or above your own.');
+      }
+
+      const updated = await audit.recorded(
+        admin,
+        {
+          action: next ? 'admin.role_grant' : 'admin.role_revoke',
+          targetType: 'admin',
+          targetId: id,
+          targetLabel: target.email,
+          ...audit.diff({ adminRole: target.adminRole }, { adminRole: next }),
+          reason,
+        },
+        req,
+        () =>
+          prisma.user.update({
+            where: { id },
+            data: { adminRole: next },
+            select: USER_ROW,
+          }),
+      );
+
+      return ok(res, { ...updated, consoleRole: resolveAdminRole(updated) });
+    } catch (error) {
+      console.error('[admin-console/users/role]', error);
+      return fail(res, 500, 'Failed to update role');
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Admins
+// ---------------------------------------------------------------------------
+
+/** GET /api/admin-console/admins — everyone who can reach the console. */
+router.get(
+  '/admins',
+  requirePermission('admins.manage'),
+  async (_req: AdminRequest, res: Response) => {
+    try {
+      const rows = await prisma.user.findMany({
+        where: {
+          OR: [
+            { adminRole: { not: null } },
+            { role: { in: ['admin', 'subadmin'] } },
+            { isAdmin: true },
+          ],
+        },
+        select: USER_ROW,
+        orderBy: { createdAt: 'asc' },
+      });
+
+      return ok(res, {
+        rows: rows
+          .map((u) => ({ ...u, consoleRole: resolveAdminRole(u) }))
+          // Rows whose legacy fields no longer resolve to a role are dropped:
+          // listing a deactivated admin as an admin is how one gets forgotten
+          // about and quietly reactivated later.
+          .filter((u) => u.consoleRole !== null),
+        roles: ADMIN_ROLES.map((role) => ({
+          value: role,
+          label: ROLE_LABELS[role],
+          permissions: permissionsFor(role),
+        })),
+      });
+    } catch (error) {
+      console.error('[admin-console/admins]', error);
+      return fail(res, 500, 'Failed to load admins');
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+/** GET /api/admin-console/audit?actor=&action=&targetType=&page= */
+router.get(
+  '/audit',
+  requirePermission('audit.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { page, limit, skip } = pagination(req.query);
+      const where: Record<string, unknown> = {};
+
+      const actor = String(req.query.actor ?? '').trim();
+      const action = String(req.query.action ?? '').trim();
+      const targetType = String(req.query.targetType ?? '').trim();
+
+      if (actor) where.actorEmail = { contains: escapeRegex(actor), mode: 'insensitive' };
+      if (action) where.action = action;
+      if (targetType) where.targetType = targetType;
+
+      const [rows, total] = await Promise.all([
+        prisma.auditLog.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.auditLog.count({ where }),
+      ]);
+
+      return ok(res, { rows, page, limit, total, pages: Math.ceil(total / limit) });
+    } catch (error) {
+      console.error('[admin-console/audit]', error);
+      return fail(res, 500, 'Failed to load audit log');
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Feature flags
+// ---------------------------------------------------------------------------
+
+/** GET /api/admin-console/flags */
+router.get(
+  '/flags',
+  requirePermission('settings.view'),
+  async (_req: AdminRequest, res: Response) => {
+    try {
+      const rows = await prisma.featureFlag.findMany({ orderBy: { key: 'asc' } });
+      return ok(res, { rows });
+    } catch (error) {
+      console.error('[admin-console/flags]', error);
+      return fail(res, 500, 'Failed to load feature flags');
+    }
+  },
+);
+
+/** PATCH /api/admin-console/flags/:key — { enabled?, rolloutPercentage?, reason } */
+router.patch(
+  '/flags/:key',
+  requirePermission('flags.edit'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const admin = req.admin!;
+      const key = String(req.params.key);
+      const reason = String(req.body?.reason ?? '').trim();
+
+      const existing = await prisma.featureFlag.findUnique({ where: { key } });
+      if (!existing) return fail(res, 404, 'Feature flag not found');
+
+      const data: Record<string, unknown> = { updatedBy: admin.userId };
+
+      if (typeof req.body?.enabled === 'boolean') data.enabled = req.body.enabled;
+      if (req.body?.rolloutPercentage !== undefined) {
+        const pct = Number(req.body.rolloutPercentage);
+        if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+          return fail(res, 400, 'Rollout percentage must be between 0 and 100.');
+        }
+        data.rolloutPercentage = Math.round(pct);
+      }
+
+      const updated = await audit.recorded(
+        admin,
+        {
+          action: 'flag.update',
+          targetType: 'flag',
+          targetId: existing.id,
+          targetLabel: key,
+          ...audit.diff(
+            { enabled: existing.enabled, rolloutPercentage: existing.rolloutPercentage },
+            {
+              enabled: data.enabled ?? existing.enabled,
+              rolloutPercentage: data.rolloutPercentage ?? existing.rolloutPercentage,
+            },
+          ),
+          reason: reason || null,
+        },
+        req,
+        () => prisma.featureFlag.update({ where: { key }, data }),
+      );
+
+      return ok(res, updated);
+    } catch (error) {
+      console.error('[admin-console/flags/:key]', error);
+      return fail(res, 500, 'Failed to update feature flag');
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// System health
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/admin-console/system
+ *
+ * Only what can actually be measured from inside the process. Latency is a
+ * real round trip to Mongo, not an estimate; anything the runtime cannot see
+ * is reported as unavailable rather than invented.
+ */
+router.get(
+  '/system',
+  requirePermission('system.view'),
+  async (_req: AdminRequest, res: Response) => {
+    const startedAt = Date.now();
+    let databaseOk = false;
+    let databaseLatencyMs: number | null = null;
+
+    try {
+      await prisma.user.count({ where: { id: '__healthcheck__' } });
+      databaseOk = true;
+      databaseLatencyMs = Date.now() - startedAt;
+    } catch (error) {
+      console.error('[admin-console/system] database check failed', error);
+    }
+
+    return ok(res, {
+      checkedAt: new Date().toISOString(),
+      api: { ok: true, uptimeSeconds: Math.round(process.uptime()) },
+      database: { ok: databaseOk, latencyMs: databaseLatencyMs },
+      memory: {
+        heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      },
+      node: process.version,
+      unavailable: [
+        { key: 'errorRate', reason: 'No error aggregation service is wired up.' },
+        { key: 'queues', reason: 'Spllit has no background job queue.' },
+      ],
+    });
+  },
+);
+
+export default router;

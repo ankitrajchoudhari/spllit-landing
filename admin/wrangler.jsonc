@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // A separate Worker from `spllit-landing`. That separation is the point: an
+  // admin deploy cannot take down spllit.app, and the console's bundle never
+  // ships to a user's phone.
+  "name": "spllit-admin",
+
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-07",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  "observability": {
+    "enabled": true
+  },
+
+  /**
+   * NEXT_PUBLIC_* values are inlined into the browser bundle at build time, so
+   * they belong in the Cloudflare dashboard's *build-time* environment
+   * variables. Setting them here does nothing — the bundle is already built.
+   *
+   * Nothing runtime-secret belongs in this Worker at all: it holds no database
+   * URL, no Firebase Admin credentials, no API keys. Every privileged read
+   * goes through the authenticated backend.
+   */
+  "vars": {}
+}

@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.open-next/
+.wrangler/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Real credentials never get committed; .env.example is the template.
+.env
+.env.local
+.env.production

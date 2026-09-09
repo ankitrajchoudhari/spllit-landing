@@ -22,6 +22,8 @@ import communityRoutes from './routes/communities.js';
 import searchRoutes from './routes/search.js';
 import pickupRoutes from './routes/pickup.js';
 import adminPlatformRoutes from './routes/adminPlatform.js';
+import adminConsoleRoutes from './routes/adminConsole.js';
+import adminConsoleOpsRoutes from './routes/adminConsoleOps.js';
 import squadRoutes from './routes/squads.js';
 import squadPaymentRoutes from './routes/squadPayments.js';
 import squadMemberRoutes from './routes/squadsMembers.js';
@@ -48,7 +50,12 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://spllit.app',
   'https://www.spllit.app',
+  // Admin console. Runs on its own origin, so without this every console
+  // request fails preflight before it reaches an auth check.
+  'https://admin.spllit.app',
+  'http://localhost:3100',
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/$/, '')] : []),
+  ...(process.env.ADMIN_URL ? [process.env.ADMIN_URL.replace(/\/$/, '')] : []),
 ];
 
 function isAllowedOrigin(origin?: string): boolean {
@@ -227,6 +234,13 @@ app.use('/api/communities', communityRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/pickup', pickupRoutes);
 app.use('/api/admin-panel', adminPlatformRoutes);
+// Admin console (admin.spllit.app). A separate namespace from /api/admin-panel
+// above, which the in-app admin page still calls — its shapes must not change.
+app.use('/api/admin-console', adminConsoleRoutes);
+// Operational surfaces (rides, squads, events, communities, search). Same
+// mount path, non-overlapping prefixes, so ordering between the two is not
+// load bearing.
+app.use('/api/admin-console', adminConsoleOpsRoutes);
 app.use('/api/ai', aiRoutes);
 
 // Setup Socket.IO handlers

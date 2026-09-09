@@ -14,6 +14,8 @@ const config = [
      */
     ignores: [
       'backend/**',
+      // Own app, own config, own lint run — see tsconfig.json's exclude.
+      'admin/**',
       '.next/**',
       '.open-next/**',
       '.wrangler/**',

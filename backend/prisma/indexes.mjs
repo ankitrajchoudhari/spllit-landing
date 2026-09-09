@@ -1,6 +1,18 @@
 /**
  * Sparse unique indexes that Prisma cannot express for MongoDB.
  *
+ * NOTE (admin console): ordinary performance indexes are NOT declared here —
+ * they are `@@index` entries in schema.prisma, so `prisma db push` creates and
+ * maintains them. This file is only for indexes Prisma's schema language
+ * cannot express, which today means partial/sparse unique ones.
+ *
+ * One thing deliberately left un-indexed: the console's search boxes use
+ * case-insensitive `contains`, which Prisma compiles to an unanchored regex.
+ * An unanchored regex cannot use a B-tree index, so adding one for `User.name`
+ * or `Squad.name` would cost write throughput and buy nothing. If search
+ * becomes slow, the fix is a MongoDB text index and a `$text` query — a
+ * different query shape, not another index on the same one.
+ *
  * `User.firebaseUid` and `User.username` are both optional and must be unique
  * *when present*. A plain `@unique` in the Prisma schema creates a standard
  * unique index, and MongoDB treats every missing/null value as the same key —

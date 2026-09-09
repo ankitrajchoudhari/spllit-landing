@@ -71,6 +71,16 @@ model User {
   role              String    @default("user") // user, admin, subadmin
   isAdmin           Boolean   @default(false)
   adminStatus       String    @default("active") // active, inactive, deleted
+  /// Fine-grained console role: super_admin | admin | moderator | support
+  /// | analyst. Added for admin.spllit.app.
+  ///
+  /// Deliberately a *separate* field rather than new values in `role` above.
+  /// `role` is read all over the user-facing app and the legacy admin routes,
+  /// and widening its vocabulary would change what those reads mean. Null here
+  /// means "not set", and the console falls back to deriving a console role
+  /// from the legacy fields — so every admin who works today keeps working
+  /// without a migration having to run first.
+  adminRole         String?
   createdBy         String?   // ID of master admin who created this subadmin
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -94,6 +104,15 @@ model User {
   @@index([firebaseUid])
   @@index([username])
   @@index([referredBy])
+  /// Admin console. The dashboard counts signups in 24h/7d/30d windows and the
+  /// signup chart scans a 30-day range; the Users table also sorts on this by
+  /// default. Without it each of those is a full collection scan, and there are
+  /// four of them on one dashboard load.
+  @@index([createdAt])
+  /// Admin console. "Seen today" counts `lastSeen >= 24h ago` on every
+  /// dashboard load. Same reasoning as createdAt — a range predicate on an
+  /// unindexed field scans everything.
+  @@index([lastSeen])
 }
 
 // Ride model for ride creation and searching
@@ -137,6 +156,11 @@ model Ride {
   @@index([departureTime])
   @@index([status])
   @@index([createdAt])
+  /// Admin console. The Rides table filters on status and sorts by createdAt in
+  /// the same query. The two single-field indexes above cannot both be used, so
+  /// Mongo picks one and sorts the rest in memory — which fails outright once
+  /// the intermediate set passes the 32MB sort limit.
+  @@index([status, createdAt])
 }
 
 /// A rider's published intent: "I want to get from A to B around T".
@@ -735,6 +759,8 @@ model Community {
 
   @@index([college])
   @@index([visibility])
+  /// Admin console. Default sort for the Communities table.
+  @@index([createdAt])
 }
 
 model CommunityMember {
@@ -812,6 +838,11 @@ model ThreadMessage {
 
   @@index([threadId, createdAt])
   @@index([senderId])
+  /// Admin console. "Messages in the last 24h" on the dashboard counts across
+  /// every thread; the compound index above leads with threadId and so cannot
+  /// serve it. This is the highest-volume collection in Spllit, which makes it
+  /// the one where a scan hurts soonest.
+  @@index([createdAt])
 }
 
 /// Per-user read position. Kept separate from the thread so a read receipt
@@ -847,6 +878,14 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
+  /// Admin console. Both existing indexes lead with userId, so neither serves
+  /// the console's cross-user queries: the notifications table sorts by
+  /// createdAt over everyone, and the dashboard counts the last 24 hours the
+  /// same way.
+  @@index([createdAt])
+  /// Admin console. The notifications table filters by type and sorts by
+  /// createdAt together.
+  @@index([type, createdAt])
 }
 
 /// Waitlist capture for Phase 2 surfaces (Rentals, Bills, Marketplace).
@@ -932,4 +971,114 @@ model Transaction {
   @@index([payerId])
   @@index([context, contextId])
   @@index([status])
+}
+
+// ===========================================================================
+// Admin console (admin.spllit.app)
+//
+// Everything below is additive. No existing model or field was changed, so the
+// user-facing app reads and writes exactly what it did before these were added.
+// MongoDB creates a collection on first write, so nothing here needs a
+// migration step — `prisma db push` is enough to refresh the client.
+// ===========================================================================
+
+/**
+ * One row per privileged action taken in the admin console.
+ *
+ * Append-only by convention: there is no update or delete path in the console,
+ * because a log an admin can edit is not evidence of anything. `before`/`after`
+ * hold the changed subset of the target, not the whole document — a full copy
+ * would silently accumulate personal data in a collection that is kept far
+ * longer than the record it describes.
+ *
+ * Failures are recorded too. A refused attempt to ban a user is exactly the
+ * kind of thing worth being able to look up later, and it only exists here if
+ * the write happens whether or not the action succeeded.
+ */
+model AuditLog {
+  id           String   @id @default(cuid()) @map("_id")
+  /// User.id of the admin who acted. Not a relation: audit rows outlive the
+  /// accounts they refer to, and a cascade would delete the evidence along
+  /// with the admin.
+  actorId      String
+  /// Denormalised so the log stays readable after the account is gone.
+  actorEmail   String
+  actorRole    String
+  /// Dotted verb, e.g. user.suspend | flag.update | setting.change
+  action       String
+  /// user | squad | ride | event | community | flag | setting | admin
+  targetType   String
+  targetId     String?
+  /// Human label for the target at the time of the action.
+  targetLabel  String?
+  /// Changed fields only, never the whole document.
+  before       Json?
+  after        Json?
+  /// Required by the console for anything destructive.
+  reason       String?
+  success      Boolean  @default(true)
+  /// Populated on failure so a denied action explains itself.
+  errorMessage String?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+/**
+ * Runtime feature flags, so turning something off does not need a deploy.
+ *
+ * `rolloutPercentage` is resolved against a stable hash of the user id rather
+ * than a random draw, so a user who is inside a 20% rollout stays inside it on
+ * the next request instead of flickering between variants.
+ */
+model FeatureFlag {
+  id                String   @id @default(cuid()) @map("_id")
+  /// Stable machine key, e.g. rides.new_map
+  key               String   @unique
+  label             String
+  description       String?
+  enabled           Boolean  @default(false)
+  /// 0–100. Ignored when `enabled` is false: off means off for everyone.
+  rolloutPercentage Int      @default(100)
+  /// User.ids always inside the flag regardless of percentage.
+  targetUserIds     String[]
+  /// Empty means every environment.
+  environments      String[]
+  updatedBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([enabled])
+}
+
+/**
+ * Key/value platform settings edited from the console.
+ *
+ * `requiresConfirmation` travels with the setting rather than living in the UI,
+ * so a dangerous switch cannot become a one-click toggle by being rendered
+ * somewhere new.
+ */
+model PlatformSetting {
+  id                   String   @id @default(cuid()) @map("_id")
+  /// Dotted key, e.g. moderation.auto_suspend_threshold
+  key                  String   @unique
+  /// general | auth | users | communities | chat | events | rides | maps
+  /// | notifications | moderation | security | api | payments | system
+  category             String
+  label                String
+  description          String?
+  /// string | number | boolean | json
+  valueType            String   @default("string")
+  value                Json
+  requiresConfirmation Boolean  @default(false)
+  updatedBy            String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([category])
 }
