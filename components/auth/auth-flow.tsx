@@ -56,6 +56,29 @@ const USERNAME_MAX = 20;
 const USERNAME_MIN = 3;
 
 /**
+ * How long a sent code is offered for before the form stops accepting it.
+ *
+ * This is our own window, not Firebase's — Firebase does not publish the
+ * lifetime of an SMS code and will keep accepting one for a good while longer.
+ * Holding a shorter, visible deadline is the point: the screen previously gave
+ * no indication whether a code was still good, so somebody whose SMS never
+ * arrived sat looking at an empty field with a Resend link that offered no
+ * reason to believe the second attempt would do better.
+ *
+ * Resend is deliberately locked until this elapses. Every send burns a
+ * reCAPTCHA token and an SMS against the project's quota, and a person who has
+ * not received one text will happily press the link five times.
+ */
+const OTP_TTL_MS = 2 * 60_000;
+
+/** m:ss for the countdown. */
+function formatCountdown(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+/**
  * `idle` covers both "nothing typed yet" and "the check could not run". The
  * form stays passable in the second case — the server validates on save and
  * now returns alternatives if it refuses, so a flaky check must not be a wall.
@@ -132,6 +155,16 @@ export function AuthFlow() {
   const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  /**
+   * When the code on screen stops being offered. Null before the first send.
+   *
+   * Stored as a deadline rather than as a remaining count so it survives the
+   * tab being backgrounded — a phone locks the moment somebody goes to read
+   * the SMS, and a counter decremented by an interval would come back having
+   * lost exactly the time the user spent fetching the code.
+   */
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [nameInput, setNameInput] = useState<string | null>(null);
   const [usernameInput, setUsernameInput] = useState<string | null>(null);
   const [institute, setInstitute] = useState<Institute | null>(null);
@@ -244,6 +277,25 @@ export function AuthFlow() {
     };
   }, []);
 
+  /**
+   * Drives the countdown. Only runs while a code is actually outstanding, and
+   * stops itself once the deadline passes so an abandoned tab is not waking up
+   * once a second for the rest of its life.
+   *
+   * `setNow` is called from the interval callback, not from the effect body,
+   * so this does not cascade renders the way a synchronous setState would.
+   */
+  useEffect(() => {
+    if (otpExpiresAt === null || now >= otpExpiresAt) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [otpExpiresAt, now]);
+
+  const secondsLeft =
+    otpExpiresAt === null ? 0 : Math.max(0, Math.ceil((otpExpiresAt - now) / 1000));
+  /** A code was sent and its window has closed. Distinct from "none sent yet". */
+  const otpExpired = otpExpiresAt !== null && secondsLeft === 0;
+
   const handleGoogle = async () => {
     setBusy(true);
     setError(null);
@@ -285,6 +337,11 @@ export function AuthFlow() {
         toE164(countryCode, phone),
         freshRecaptcha(),
       );
+      // A resend replaces the previous code, so the field must not keep
+      // offering digits that belong to a code Firebase has already superseded.
+      setOtp('');
+      setNow(Date.now());
+      setOtpExpiresAt(Date.now() + OTP_TTL_MS);
       setPickedStep('otp');
     } catch (err) {
       // Surface the actual Firebase code — most phone-auth failures are
@@ -298,6 +355,13 @@ export function AuthFlow() {
   };
 
   const handleVerifyOtp = async () => {
+    // Checked before the length rule: telling somebody their half-typed code
+    // is too short, when the code itself is dead either way, sends them
+    // hunting for digits instead of pressing Resend.
+    if (otpExpired) {
+      setError('That code has expired. Send a new one.');
+      return;
+    }
     if (otp.trim().length < 6) {
       setError('Enter the 6-digit code.');
       return;
@@ -549,6 +613,19 @@ export function AuthFlow() {
                   <p className="mt-2 text-[14px] text-ink-muted">
                     Sent to <span className="text-ink">{toE164(countryCode, phone)}</span>.
                   </p>
+                  {/* The deadline, stated plainly. Expiry is not an error the
+                      user caused, so it reads as status rather than alarm —
+                      the red banner below is reserved for a code that was
+                      actually rejected. */}
+                  <p
+                    className="mt-1 text-[13px] text-ink-subtle"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {otpExpired
+                      ? 'This code has expired. Send a new one.'
+                      : `Expires in ${formatCountdown(secondsLeft)}.`}
+                  </p>
                   <div className="mt-7">
                     <Field label="6-digit code">
                       <Input
@@ -567,15 +644,30 @@ export function AuthFlow() {
                     size="lg"
                     className="mt-6 w-full"
                     loading={busy}
+                    disabled={otpExpired}
                     onClick={handleVerifyOtp}
                   >
                     Verify
                   </Button>
+                  {/* Locked until the code expires: every press spends a
+                      reCAPTCHA token and an SMS from the project quota, and
+                      somebody who has not received the first text will press
+                      this repeatedly. Once it does expire it is the only thing
+                      left to do, so it becomes the emphasised control. */}
                   <button
+                    type="button"
                     onClick={handleSendOtp}
-                    className="mt-4 w-full text-[13px] text-ink-muted hover:text-ink"
+                    disabled={busy || secondsLeft > 0}
+                    className={cn(
+                      'mt-4 w-full text-[13px] transition-colors duration-snap',
+                      secondsLeft > 0
+                        ? 'cursor-not-allowed text-ink-subtle'
+                        : 'font-medium text-brand hover:text-brand-hover',
+                    )}
                   >
-                    Resend code
+                    {secondsLeft > 0
+                      ? `Resend code in ${formatCountdown(secondsLeft)}`
+                      : 'Resend code'}
                   </button>
                 </>
               ) : null}
