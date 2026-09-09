@@ -77,14 +77,40 @@ export function getFirebaseAuth(): Auth | null {
      * private browsing, storage-blocked or locked-down enterprise browsers —
      * leaves the app on a loading spinner forever with no way to sign in.
      *
-     * Declaring the chain lets Firebase degrade IndexedDB → localStorage →
+     * Declaring the chain lets Firebase degrade localStorage → IndexedDB →
      * in-memory on its own and still emit. In-memory means the session ends
      * with the tab, which is the correct trade against not signing in at all.
+     *
+     * localStorage is deliberately ahead of IndexedDB, which is the opposite
+     * of Firebase's own default.
+     *
+     * IndexedDBLocalPersistence listens for `pagehide` and `visibilitychange`
+     * and, the moment the document is hidden, sets an internal `isHiding` flag
+     * and closes the connection. Every read or write while that flag is up
+     * throws a bare `Error('Database is closing/hidden')` — see
+     * `_openDb()` in @firebase/auth. A Google sign-in hides the document by
+     * definition: the popup takes focus, and on mobile it is a whole separate
+     * tab. Google posts the credential back while our document is still
+     * hidden, so Firebase sets `currentUser` in memory, then throws on the
+     * persistence write that follows. signInWithPopup rejects, the auth
+     * listener is never notified, and the user is shown the SDK's raw internal
+     * string while being — briefly, unpersistedly — signed in. That is the
+     * "Database is closing/hidden" sign-in failure.
+     *
+     * localStorage has no such lifecycle: it is synchronous and readable while
+     * hidden, so the write simply lands. The stored blob is one small JSON
+     * object, so the synchronous cost is not worth optimising against.
+     *
+     * Existing sessions are not lost by this reorder. PersistenceUserManager
+     * searches *every* persistence in the hierarchy for a stored user, then
+     * migrates it to the first available one and clears the rest, so anybody
+     * currently held in IndexedDB is moved into localStorage on their next
+     * load rather than being signed out.
      */
     authInstance = initializeAuth(firebaseApp, {
       persistence: [
-        indexedDBLocalPersistence,
         browserLocalPersistence,
+        indexedDBLocalPersistence,
         inMemoryPersistence,
       ],
       /**

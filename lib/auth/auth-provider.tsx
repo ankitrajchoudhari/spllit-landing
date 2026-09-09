@@ -16,6 +16,8 @@ import {
   signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
+  updateCurrentUser,
+  type Auth,
   type User as FirebaseUser,
 } from 'firebase/auth';
 
@@ -54,6 +56,69 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+/**
+ * Firebase's IndexedDB persistence refuses to touch the database while the
+ * document is hidden, throwing a bare `Error('Database is closing/hidden')`
+ * with no error code attached.
+ *
+ * lib/firebase.ts now prefers localStorage precisely so this does not happen,
+ * but the chain still falls through to IndexedDB when localStorage is
+ * unavailable — Safari with cookies blocked, some enterprise profiles — so the
+ * failure is reachable and has to be survivable here.
+ */
+function isPersistenceHiddenError(error: unknown): boolean {
+  return error instanceof Error && /database is closing\/hidden/i.test(error.message);
+}
+
+/** Resolves once the tab is actually in front of the user again. */
+function documentVisible(timeoutMs = 5000): Promise<void> {
+  if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onChange);
+      resolve();
+    };
+    const onChange = () => {
+      if (document.visibilityState === 'visible') done();
+    };
+    // Resolve on the timeout too. Returning late is recoverable; never
+    // returning would strand the sign-in exactly as the bug already does.
+    const timer = setTimeout(done, timeoutMs);
+    document.addEventListener('visibilitychange', onChange);
+  });
+}
+
+/**
+ * Re-runs the persistence write that was refused while the tab was hidden.
+ *
+ * This is worth attempting because the sign-in genuinely succeeded: Firebase
+ * assigns `auth.currentUser` *before* it writes, so at the point the write
+ * throws the credential is already in memory and only the save is missing.
+ * Waiting for the tab to come forward clears the SDK's `isHiding` flag, and
+ * updateCurrentUser then persists the session and notifies the listeners that
+ * the failed attempt skipped.
+ *
+ * Returns whether the session was recovered; the caller reports the original
+ * error if not.
+ */
+async function retryHiddenPersistence(auth: Auth): Promise<boolean> {
+  const user = auth.currentUser;
+  if (!user) return false;
+
+  await documentVisible();
+
+  try {
+    await updateCurrentUser(auth, user);
+    return true;
+  } catch (error) {
+    console.error('[auth] could not persist session after hidden-tab failure:', error);
+    return false;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -169,7 +234,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      * here to surface errors that would otherwise be swallowed and leave the
      * user staring at the sign-in screen they just came back from.
      */
-    void getRedirectResult(auth).catch((error) => {
+    void getRedirectResult(auth).catch(async (error) => {
+      // Same hidden-tab persistence refusal as the popup path. Coming back
+      // from Google can land while the document is still reported hidden, and
+      // without this the completed redirect is thrown away in a console line.
+      if (isPersistenceHiddenError(error) && (await retryHiddenPersistence(auth))) return;
       console.error('[auth] Google redirect sign-in failed:', error);
     });
 
@@ -260,6 +329,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // onAuthStateChanged drives the rest; nothing to do here.
       return 'popup';
     } catch (error) {
+      /**
+       * The credential arrived while our tab was still behind the Google
+       * popup, so persistence refused the write. The user is signed in but
+       * unsaved — retry the write now rather than reporting a failure for a
+       * sign-in that actually worked.
+       */
+      if (isPersistenceHiddenError(error) && (await retryHiddenPersistence(auth))) {
+        return 'popup';
+      }
+
       const code = (error as { code?: string }).code ?? '';
       /**
        * Popups are unavailable in more places than they are available: iOS

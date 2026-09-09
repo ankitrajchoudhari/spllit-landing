@@ -36,6 +36,27 @@ const MESSAGES: Record<string, string> = {
     'Firebase is misconfigured for this environment (invalid API key).',
 };
 
+/**
+ * Bare `Error`s thrown from inside the SDK, matched on message because they
+ * carry no code.
+ *
+ * The fallback below deliberately surfaces `error.message`, which is right for
+ * the errors this app throws itself — they are written for the person reading
+ * them. Firebase's internals are not: "Database is closing/hidden" is a note
+ * to a Firebase maintainer, and users were being shown it verbatim when a
+ * sign-in raced a hidden tab. Anything matched here is replaced.
+ *
+ * The condition is handled properly in lib/auth/auth-provider.tsx, which
+ * retries the write; this only governs what is said when that retry also fails.
+ */
+const INTERNAL_MESSAGES: { pattern: RegExp; message: string }[] = [
+  {
+    pattern: /database is closing\/hidden/i,
+    message:
+      'Sign-in could not finish because the tab lost focus. Keep this tab in front and try again.',
+  },
+];
+
 interface MaybeFirebaseError {
   code?: unknown;
   message?: unknown;
@@ -49,6 +70,9 @@ export function firebaseErrorMessage(error: unknown, fallback: string): string {
     // more useful to act on than a generic apology.
     return known ?? `${fallback} (${code})`;
   }
-  if (error instanceof Error && error.message) return error.message;
+  if (error instanceof Error && error.message) {
+    const internal = INTERNAL_MESSAGES.find((entry) => entry.pattern.test(error.message));
+    return internal ? internal.message : error.message;
+  }
   return fallback;
 }
