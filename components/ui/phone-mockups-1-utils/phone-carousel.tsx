@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import Image from 'next/image';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 
 import { cn } from '@/lib/utils';
@@ -18,13 +17,25 @@ import { cn } from '@/lib/utils';
  * deps for one component's class strings is not a trade worth making.
  */
 
-export interface ImageItem {
-  src: string;
+/**
+ * One phone in the carousel.
+ *
+ * `screen` is rendered markup rather than an image `src`. The original took a
+ * URL and drew it with next/image; those URLs pointed at another company's
+ * Cloudinary account, which now returns 401 for all four, so the carousel
+ * showed four empty frames. Screens that are part of the bundle cannot fail
+ * that way — see app-screens.tsx.
+ */
+export interface ScreenItem {
+  /** Stable key, and the anchor for the dot controls. */
+  id: string;
+  /** Announced to screen readers in place of the picture. */
   alt: string;
+  screen: ReactNode;
 }
 
 export interface PhoneCarouselProps {
-  images: ImageItem[];
+  screens: ScreenItem[];
   className?: string;
   /** Milliseconds between automatic advances. 0 disables autoplay. */
   autoPlayMs?: number;
@@ -45,7 +56,7 @@ function ringOffset(index: number, active: number, total: number): number {
   return raw;
 }
 
-function PhoneFrame({ image, priority }: { image: ImageItem; priority: boolean }) {
+function PhoneFrame({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
@@ -59,16 +70,9 @@ function PhoneFrame({ image, priority }: { image: ImageItem; priority: boolean }
       {/* Dynamic island. Sits above the screen, inside the bezel. */}
       <span className="absolute left-1/2 top-2 z-10 h-[18px] w-[74px] -translate-x-1/2 rounded-full bg-neutral-900" />
 
-      <span className="absolute inset-0 overflow-hidden rounded-[1.9rem]">
-        <Image
-          src={image.src}
-          alt={image.alt}
-          fill
-          sizes="240px"
-          priority={priority}
-          className="object-cover"
-        />
-      </span>
+      {/* The screen itself. `isolate` keeps the screen's own stacking context
+          below the dynamic island and the glare above it. */}
+      <span className="absolute inset-0 isolate overflow-hidden rounded-[1.9rem]">{children}</span>
 
       {/* Screen glare — one soft diagonal highlight, which is what stops the
           frame reading as a flat rectangle with a photo in it. */}
@@ -80,11 +84,11 @@ function PhoneFrame({ image, priority }: { image: ImageItem; priority: boolean }
   );
 }
 
-export function PhoneCarousel({ images, className, autoPlayMs = 3800 }: PhoneCarouselProps) {
+export function PhoneCarousel({ screens, className, autoPlayMs = 3800 }: PhoneCarouselProps) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
 
-  const total = images.length;
+  const total = screens.length;
   const go = useCallback(
     (next: number) => setActive(((next % total) + total) % total),
     [total],
@@ -111,7 +115,7 @@ export function PhoneCarousel({ images, className, autoPlayMs = 3800 }: PhoneCar
         className="relative flex h-[350px] w-full items-center justify-center sm:h-[440px] lg:h-[500px]"
         style={{ perspective: 1400 }}
       >
-        {images.map((image, index) => {
+        {screens.map((item, index) => {
           const offset = ringOffset(index, active, total);
           const distance = Math.abs(offset);
           // Only the active phone and its two neighbours are drawn; anything
@@ -121,9 +125,9 @@ export function PhoneCarousel({ images, className, autoPlayMs = 3800 }: PhoneCar
 
           return (
             <motion.button
-              key={image.src}
+              key={item.id}
               type="button"
-              aria-label={image.alt}
+              aria-label={item.alt}
               aria-current={offset === 0 ? 'true' : undefined}
               onClick={() => go(index)}
               animate={{
@@ -141,19 +145,19 @@ export function PhoneCarousel({ images, className, autoPlayMs = 3800 }: PhoneCar
               }}
               className="absolute cursor-pointer rounded-[2.4rem] focus-visible:outline-none"
             >
-              <PhoneFrame image={image} priority={index === 0} />
+              <PhoneFrame>{item.screen}</PhoneFrame>
             </motion.button>
           );
         })}
       </div>
 
       <div className="flex items-center gap-2">
-        {images.map((image, index) => (
+        {screens.map((item, index) => (
           <button
-            key={image.src}
+            key={item.id}
             type="button"
             onClick={() => go(index)}
-            aria-label={`Show ${image.alt}`}
+            aria-label={`Show ${item.alt}`}
             aria-current={index === active ? 'true' : undefined}
             className={cn(
               'h-1.5 rounded-full transition-all duration-snap',

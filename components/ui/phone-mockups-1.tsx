@@ -1,37 +1,51 @@
 import {
   PhoneCarousel,
-  type ImageItem,
+  type ScreenItem,
 } from '@/components/ui/phone-mockups-1-utils/phone-carousel';
+import {
+  ChatScreen,
+  NearbyRidesScreen,
+  RideDetailScreen,
+  SquadScreen,
+} from '@/components/ui/phone-mockups-1-utils/app-screens';
 
 /**
- * ⚠️ PLACEHOLDER SCREENS.
+ * The landing-page phone carousel.
  *
- * These four images ship with the upstream component and are screenshots of
- * Behance, Notion, One and Reddit — other companies' apps, served from a
- * third-party Cloudinary account. They render because res.cloudinary.com is
- * already allowed in next.config.mjs, but they must be replaced with real
- * Spllit screens (map, ride detail, squad) before this goes in front of
- * anyone. Swapping the four entries below is the whole change.
+ * These were four PNGs on a stranger's Cloudinary account, and they were
+ * screenshots of Behance, Notion, One and Reddit rather than of this product.
+ * All four now answer 401 — hotlinking was locked down at some point — which
+ * is what emptied the phones on the hero. They are now Spllit's own screens,
+ * drawn in app-screens.tsx from the same design tokens as the real app, so
+ * there is no third-party host left to fail and nothing on screen that belongs
+ * to another company.
+ *
+ * The order is the story the hero tells: find a ride, look at it, turn it into
+ * a squad, talk to the squad.
  */
-const exampleImages: ImageItem[] = [
+const screens: ScreenItem[] = [
   {
-    src: 'https://res.cloudinary.com/harshitproject/image/upload/v1746774805/Behance-screen.png',
-    alt: 'Behance app on iPhone',
+    id: 'nearby',
+    alt: 'Spllit showing shared rides on a map near IIT Madras',
+    screen: <NearbyRidesScreen />,
   },
   {
-    src: 'https://res.cloudinary.com/harshitproject/image/upload/v1746774805/Notion-screen.png',
-    alt: 'Notion app on iPhone',
+    id: 'ride',
+    alt: 'A ride to Chennai Airport with the driver and the fare per seat',
+    screen: <RideDetailScreen />,
   },
   {
-    src: 'https://res.cloudinary.com/harshitproject/image/upload/v1746774806/One-screen.png',
-    alt: 'One app on iPhone',
+    id: 'squad',
+    alt: 'A travel squad to Pondicherry with four of six seats filled',
+    screen: <SquadScreen />,
   },
   {
-    src: 'https://res.cloudinary.com/harshitproject/image/upload/v1746774807/Reddit-nj7hwh.png',
-    alt: 'Reddit app on iPhone',
+    id: 'chat',
+    alt: 'The squad chat, confirming pickup and the split fare',
+    screen: <ChatScreen />,
   },
 ];
 
 export default function PhoneMockupBasic() {
-  return <PhoneCarousel images={exampleImages} />;
+  return <PhoneCarousel screens={screens} />;
 }

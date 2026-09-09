@@ -62,7 +62,7 @@ export function LandingNav() {
             'hover:opacity-85 active:scale-95 md:block',
           )}
         >
-          Plan my ride
+          Sign up
         </Link>
 
         <button
@@ -100,7 +100,7 @@ export function LandingNav() {
                 onClick={() => setOpen(false)}
                 className="mt-1 block w-full rounded-full bg-ink px-5 py-3.5 text-center font-sans text-[15px] font-medium uppercase tracking-[0.04em] text-canvas"
               >
-                Plan my ride
+                Sign up
               </button>
             </SignInDrawer>
           </motion.div>
