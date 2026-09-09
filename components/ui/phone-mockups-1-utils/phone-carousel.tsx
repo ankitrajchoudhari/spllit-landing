@@ -65,6 +65,20 @@ function PhoneFrame({ children }: { children: ReactNode }) {
         // radius and the frame radius stay concentric at every width.
         'border-[7px] border-neutral-900 bg-neutral-900',
         'shadow-[0_24px_60px_-20px_rgba(0,0,0,0.45)]',
+        /**
+         * How much to shrink the screen's contents at this breakpoint.
+         *
+         * The frame is 165/210/240px wide, which leaves 151/196/226px of
+         * screen once the 7px bezel is taken off both sides. The screens are
+         * drawn once, for the largest of those, and scaled down for the other
+         * two — so a phone renders the same layout everywhere instead of the
+         * same *type sizes* in a 33% narrower box, which on a real phone was
+         * enough to burst the search pill and crowd every row.
+         *
+         * 1 at lg so the largest phone — the one that is actually read — is
+         * never resampled.
+         */
+        '[--phone-scale:0.668] sm:[--phone-scale:0.867] lg:[--phone-scale:1]',
       )}
     >
       {/* Dynamic island. Sits above the screen, inside the bezel. */}
@@ -72,7 +86,24 @@ function PhoneFrame({ children }: { children: ReactNode }) {
 
       {/* The screen itself. `isolate` keeps the screen's own stacking context
           below the dynamic island and the glare above it. */}
-      <span className="absolute inset-0 isolate overflow-hidden rounded-[1.9rem]">{children}</span>
+      <span className="absolute inset-0 isolate overflow-hidden rounded-[1.9rem]">
+        {/**
+         * Oversize by exactly the reciprocal of the scale, then scale back
+         * down from the top-left corner. The two cancel, so the surface still
+         * fills the screen precisely while the content inside it lays out in a
+         * constant ~226x510 space at every breakpoint.
+         */}
+        <span
+          className="absolute left-0 top-0 origin-top-left"
+          style={{
+            width: 'calc(100% / var(--phone-scale))',
+            height: 'calc(100% / var(--phone-scale))',
+            transform: 'scale(var(--phone-scale))',
+          }}
+        >
+          {children}
+        </span>
+      </span>
 
       {/* Screen glare — one soft diagonal highlight, which is what stops the
           frame reading as a flat rectangle with a photo in it. */}
@@ -111,8 +142,25 @@ export function PhoneCarousel({ screens, className, autoPlayMs = 3800 }: PhoneCa
       aria-roledescription="carousel"
       aria-label="App screens"
     >
+      {/**
+       * `overflow-x-clip`, not `overflow-hidden`.
+       *
+       * The off-centre phones are translated by a percentage of their own
+       * width, so on a narrow screen they reach well past this box — at 375px
+       * the furthest one ends about 98px beyond it, which is enough to make
+       * the whole landing page scroll sideways. Clipping the x axis stops
+       * that at the source.
+       *
+       * It has to be `clip` rather than `hidden` because `overflow-x: hidden`
+       * forces the y axis to `auto`, and the phones are deliberately taller
+       * than the shadows they cast — that would have traded a sideways scroll
+       * for a vertical scrollbar inside the carousel. `clip` leaves y visible.
+       *
+       * The heights below then leave room for the tallest frame (357/455/520px
+       * for a 9:19.5 phone at 165/210/240px wide) so nothing is cut off.
+       */}
       <div
-        className="relative flex h-[350px] w-full items-center justify-center sm:h-[440px] lg:h-[500px]"
+        className="relative flex h-[380px] w-full items-center justify-center overflow-x-clip sm:h-[470px] lg:h-[540px]"
         style={{ perspective: 1400 }}
       >
         {screens.map((item, index) => {
