@@ -60,8 +60,12 @@ const REDACTED_KEYS = new Set([
  * Caps both the number of keys and the size of each value: `before`/`after` are
  * free-form JSON, and without a ceiling one careless caller passing a whole
  * document turns every row in this collection into a multi-kilobyte blob.
+ *
+ * Exported for tests. Redaction is a privacy guarantee rather than a detail —
+ * an audit row is kept far longer than the record it describes, so a key
+ * slipping through here persists long after the account it came from is gone.
  */
-function sanitise(
+export function sanitise(
   input: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null {
   if (!input) return null;

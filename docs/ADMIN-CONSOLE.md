@@ -123,8 +123,27 @@ shapes must not change.
 | `PATCH /flags/:key` | `flags.edit` |
 | `GET /system` | `system.view` |
 
+Phase 2 added a second router, `routes/adminConsoleOps.ts`, on the same mount
+path. Their prefixes do not overlap, so ordering between the two is not load
+bearing.
+
+| Route | Permission |
+|---|---|
+| `GET /rides`, `GET /rides/:id` | `content.view` |
+| `GET /squads`, `GET /squads/:id` | `content.view` |
+| `GET /events`, `GET /events/:id` | `content.view` |
+| `GET /communities`, `GET /communities/:id` | `content.view` |
+| `GET /notifications` | `content.view` |
+| `PATCH /events/:id/status` | `content.delete` |
+| `GET /emergencies`, `GET /moderation/status` | `moderation.view` |
+| `GET /search` | `users.view` |
+
 `identify` + `requireConsoleAdmin` are applied once at the router level so a new
 handler cannot ship ungated by someone forgetting to repeat them.
+
+`GET /search` additionally narrows *within* the handler: it checks the caller's
+`content.view` and `audit.view` before running those groups, so a Support user
+searching gets people and nothing else rather than a 403 for the whole palette.
 
 ## Database
 
@@ -198,37 +217,121 @@ straightforward leak of what the platform runs.
 
 ## Status
 
-**Phase 1 — foundation: done.** Verified: backend `tsc` clean + 155 tests pass;
-admin app builds (7 routes) and lints clean; main app `tsc` clean, lints clean,
-150 tests pass.
+**Phase 1 (foundation) and Phase 2 (operations): done.**
 
-Built:
+Verified on every run: backend `tsc` clean + **180 tests pass**; admin `tsc`
+clean, lints clean, production build clean (**14 routes**); main app `tsc`
+clean, lints clean, **150 tests pass**.
 
-- [x] Five-role RBAC with permission matrix and legacy fallback
+### Built
+
+Phase 1 — foundation:
+
+- [x] Five-role RBAC with a permission matrix and legacy fallback
 - [x] Server-side authorisation on every route; no frontend-only checks
-- [x] Audit log — successes and failures, reasons required, PII redacted
+- [x] Audit log — successes *and* failures, reasons required, PII redacted
 - [x] Separate app, own Worker, own config, dark Spllit-token UI
 - [x] Sign-in, session guard, sidebar, loading/empty/error/permission states
-- [x] Dashboard, Users (paginated + filtered), Audit, Flags, Admins, System
+- [x] Dashboard, Users, Audit, Flags, Admins, System
 
-Not built, and why:
+Phase 2 — operations:
 
-- [ ] **Moderation** — Spllit has no `Report` model and no way for a user to
-      report anyone. Needs product work in the main app first, which was out of
-      scope for this pass. The nav shows it as unavailable rather than empty.
-- [ ] **Posts/comments** — Spllit has no such feature. Not applicable.
-- [ ] **Analytics** — needs `AnalyticsEvent` + instrumentation. Phase 5.
-- [ ] **Realtime** — Socket.IO already exists and is well built
-      (`backend/src/services/live.ts`); the console needs an `admin:metrics`
-      room and rollup counters. Phase 4. Until then the dashboard polls at 60s
-      and does not pretend to be live.
+- [x] Rides, Squads, Events, Communities — list + detail, server-side search,
+      filtering, sorting and pagination throughout
+- [x] User 360: profile, account, counts, rides, squads, communities, events,
+      and **two separate audit trails** — what admins did *to* the account, and
+      what the account did *as* an admin
+- [x] Suspend / restore, and event cancellation — each one confirmed, reasoned,
+      audited, and rank-checked on the server
+- [x] Notifications with a real open rate, and an explicit note that Spllit
+      records no per-device delivery receipt
+- [x] Moderation surfacing what genuinely exists (SOS, blocks) and stating
+      plainly that reporting does not
+- [x] Global search over six entity types, behind ⌘K, capped at five hits per
+      group and permission-filtered per group
+- [x] Toasts, breadcrumbs, confirmation dialogs, grouped sidebar
+- [x] **25 tests** on the security logic — the permission matrix, the
+      escalation guards, audit redaction and the diff
 
-### Next
+### Not built, and why
 
-**Phase 4 before Phase 5.** `/overview` currently runs ~20 live `count()` calls
-per request. That is honest at today's volume, but it is the thing that must not
-be wired to a fast refresh — a `MetricRollup` model with incremental counters on
-domain writes is the only affordable version of the 3-second target.
+- [ ] **Reports queue** — Spllit has no `Report` model and no way for a user to
+      report anyone. It needs product work in the main app, which was out of
+      scope. The console says so rather than showing an empty queue.
+- [ ] **Posts / comments** — Spllit has no such feature. Not applicable.
+- [ ] **Chat message content** — deliberately unreachable. Squad and community
+      chat show volume and last activity only. Reading private conversations
+      needs a report or support ticket naming the thread, and neither exists
+      yet, so the console offers no route to the messages at all.
+- [ ] **Analytics** — needs `AnalyticsEvent` plus instrumentation. Phase 4.
+- [ ] **Realtime** — Phase 3, below.
+
+## Phase 3 — realtime requirements
+
+**Do this before Phase 4 analytics.** The dependency runs
+`raw database → rollups/events → realtime → analytics`, not
+`raw database → analytics → realtime`.
+
+### The problem to solve
+
+`GET /overview` currently runs ~20 live `count()` calls per request. That is
+honest and fine at today's volume, and it is why the console polls at **60
+seconds** and does not claim to be live. Wiring it to a 3-second refresh would
+be roughly 48,000 collection scans an hour, forever, whether or not anybody has
+the tab open.
+
+The fix is not a faster poll. It is to stop recounting:
+
+```
+Spllit app  ──▶  event layer  ──┬──▶  MongoDB          (durable write)
+  (a domain write)              ├──▶  MetricRollup     (incr, not recount)
+                                └──▶  Socket.IO        (room: admin:metrics)
+                                            │
+                                            ▼
+                                    admin.spllit.app
+                                    (aggregates on load, deltas after)
+```
+
+Reads on page load come from cached aggregates; after that the page receives
+only deltas. Polling stays as the fallback when the socket drops — which is
+also what drives the "Reconnecting" state.
+
+### Events that will need to publish
+
+Named now so Phase 2's write paths can be instrumented in one pass later.
+Everything marked *(exists)* has a write path in the codebase today; the rest
+depend on features that do not exist yet.
+
+| Event | Source | Status |
+|---|---|---|
+| `USER_CREATED` | `routes/auth.ts`, `usersPlatform.ts` | exists |
+| `USER_SUSPENDED` / `USER_RESTORED` | `adminConsole.ts` | exists |
+| `RIDE_CREATED` | `routes/rides.ts`, `ridesPlatform.ts` | exists |
+| `RIDE_STATUS_CHANGED` | ride transition handler | exists |
+| `MATCH_CREATED` / `MATCH_ACCEPTED` | `routes/matches.ts` | exists |
+| `SQUAD_CREATED` | `routes/squads.ts` | exists |
+| `SQUAD_MEMBER_JOINED` | `routes/squadsMembers.ts` | exists |
+| `EVENT_CREATED` / `EVENT_CANCELLED` | `routes/events.ts`, `adminConsoleOps.ts` | exists |
+| `COMMUNITY_CREATED` | `routes/communities.ts` | exists |
+| `MESSAGE_SENT` | `services/live.ts` `chat:send` | exists |
+| `NOTIFICATION_SENT` | `services/notifications.ts` | exists |
+| `EMERGENCY_RAISED` | `routes/emergency.ts` | exists |
+| `ADMIN_ACTION` | `services/auditLog.ts` `record()` | exists |
+| `REPORT_CREATED` | — | needs the reporting feature |
+| `POST_CREATED` / `COMMENT_CREATED` | — | no such feature in Spllit |
+| `SYSTEM_ERROR` | — | needs error aggregation |
+
+`services/auditLog.ts` `record()` is the single choke point for `ADMIN_ACTION` —
+every privileged mutation already flows through it, so that one is a one-line
+emit rather than an audit of every handler.
+
+### Room security
+
+The `admin:metrics` room must gate its join the way `services/live.ts` already
+gates squad and ride rooms: against a real privilege check, resolved from the
+database, never a global broadcast. That file is the pattern to copy — it
+refuses a room join unless membership is proven, which is exactly the shape the
+admin room needs with `resolveAdminRole` in place of membership.
 
 ## Decisions taken
 
