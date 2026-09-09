@@ -37,6 +37,19 @@ export function RealtimeBridge() {
       onEvent('notification:new', () => {
         void queryClient.invalidateQueries({ queryKey: qk.notifications });
         void queryClient.invalidateQueries({ queryKey: qk.unreadCount });
+        /**
+         * A notification is the tail of a state change, not an isolated
+         * message: "you're in", "not admitted", "the squad was cancelled" all
+         * describe squad state the screen behind the bell is still showing
+         * stale. Refetching the squad queries here is what makes the page catch
+         * up without a reload, for the many cases where the affected user is
+         * not in the room the originating event was broadcast to.
+         *
+         * Invalidation, not a patch — the payload carries only an id, and the
+         * server stays the source of truth.
+         */
+        void queryClient.invalidateQueries({ queryKey: ['squads'] });
+        void queryClient.invalidateQueries({ queryKey: qk.mySquads });
       }),
     );
 

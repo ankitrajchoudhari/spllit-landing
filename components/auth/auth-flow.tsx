@@ -726,14 +726,22 @@ export function AuthFlow() {
                         )}
                       >
                         {emailVerified ? (
-                          <>Verified with your @{chosenInstitute.domains[0]} address.</>
+                          /* The address they actually hold, not the institute's
+                             canonical one — naming domains[0] told a student on
+                             study.iitm.ac.in they had been verified with an
+                             address that is not theirs. */
+                          <>Verified with your {profile?.email ?? 'campus'} address.</>
                         ) : (
                           <>
                             To create or join rides you&apos;ll need to add your{' '}
                             <span className="font-medium text-ink">
-                              @{chosenInstitute.domains[0]}
+                              {chosenInstitute.name}
                             </span>{' '}
-                            email. You can finish signing up now and verify from your profile.
+                            email
+                            {chosenInstitute.domains.length === 1
+                              ? ` (@${chosenInstitute.domains[0]})`
+                              : ` — any of @${chosenInstitute.domains.join(', @')}`}
+                            . You can finish signing up now and verify from your profile.
                           </>
                         )}
                       </p>

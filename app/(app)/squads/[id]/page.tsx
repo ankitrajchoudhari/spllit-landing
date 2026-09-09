@@ -14,8 +14,7 @@ import { SquadTabs, type SquadTab } from '@/components/squads/squad-tabs';
 import { useSquadPresence } from '@/lib/hooks/use-squad-presence';
 import { squadMembersService, squadsService } from '@/lib/services/squads';
 import { SquadMembersBoard } from '@/components/squads/squad-members-board';
-import { SquadJoinCode } from '@/components/squads/squad-join-code';
-import { VerificationGate } from '@/components/shared/verification-gate';
+import { VerificationGate, useVerificationGate } from '@/components/shared/verification-gate';
 import { SquadJourneyPanel } from '@/components/squads/squad-journey-panel';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -23,7 +22,7 @@ import { Skeleton, SkeletonMap } from '@/components/ui/skeleton';
 import { MapCanvas } from '@/components/map/map-canvas';
 import { ChatDialog } from '@/components/chat/chat-dialog';
 import { JoinFeeDialog, JoinFeeNotice } from '@/components/squads/join-fee-dialog';
-import { useEndSquad, useJoinSquad, useLeaveSquad, useSquad } from '@/lib/hooks/queries';
+import { useEndSquad, useJoinSquad, useLeaveSquad, useSquad, useThreads } from '@/lib/hooks/queries';
 import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-provider';
 import { useLivePositions } from '@/lib/live/use-live';
@@ -43,6 +42,23 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
   const [leaveConfirm, setLeaveConfirm] = useState(false);
   /** Set when the API rejects a join because the user is committed elsewhere. */
   const [blockedReason, setBlockedReason] = useState<string | null>(null);
+  // Read as a boolean so the page can decide *where* the gate goes rather than
+  // letting it render wherever it happens to be mounted.
+  const { verified: instituteVerified, ready: gateReady } = useVerificationGate();
+
+  /**
+   * Unread messages in this squad's own thread.
+   *
+   * Read off the thread list the app already loads and which RealtimeBridge
+   * already invalidates on `chat:message` — so the badge moves on the same
+   * server count the inbox uses, and a socket event can never make the two
+   * disagree. Nothing is tallied client-side.
+   */
+  const threads = useThreads();
+  const squadChatUnread =
+    (threads.data ?? []).find(
+      (thread) => thread.contextType === 'squad' && thread.contextId === id,
+    )?.unreadCount ?? 0;
   /** Which terminal transition the leader is confirming, if any. */
   const [endAction, setEndAction] = useState<'completed' | 'cancelled' | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -76,8 +92,10 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
     queryFn: () => squadMembersService.progress(id),
     enabled: Boolean(squad?.viewerRole),
     // Each poll costs one walking-Directions call per moving member, so this
-    // is deliberately slower than the socket position stream.
-    refetchInterval: 20_000,
+    // is deliberately slower than the socket position stream — and it stops
+    // once the server refuses, rather than re-asking a forbidden question
+    // every 20 seconds. See the note on the same query in SquadMembersBoard.
+    refetchInterval: (query) => (query.state.error ? false : 20_000),
   });
 
   if (isPending) {
@@ -163,9 +181,57 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
     });
   }
 
+  /**
+   * The join control, defined once and placed by `gateBlocksJoin` — inline in
+   * the header when it is just a button, or inside the gate card below when the
+   * account still has to verify.
+   *
+   * Same gate as a ride, different words: a squad join is a *request* the leader
+   * decides on, and only then does the fee apply. The CTA has to promise the
+   * step it actually starts.
+   */
+  const joinButton = (
+    <Button
+      size="sm"
+      loading={join.isPending}
+      onClick={() =>
+        join.mutate(undefined, {
+          onError: (err) => {
+            // 409 means they are committed elsewhere — an explainable
+            // situation with an action, not a failure to report.
+            if (err instanceof ApiError && err.code === 'already-in-squad') {
+              setBlockedReason(err.message);
+            }
+          },
+        })
+      }
+    >
+      Request to join
+    </Button>
+  );
+
+  const awaitingApproval =
+    squad.viewerStatus === 'pending' || join.data?.viewerStatus === 'pending';
+  /** True only when the gate will render its card instead of the button. */
+  const gateBlocksJoin = !isMember && !awaitingApproval && gateReady && !instituteVerified;
+
+  const headerAction = isMember ? (
+    <Badge tone="brand">{isLeader ? 'Leader' : 'Member'}</Badge>
+  ) : awaitingApproval ? (
+    /* Admission is the leader's call, so this is a waiting state, not a
+       membership one — offering "Join" again here would suggest the tap
+       failed and queue nothing. */
+    <Badge tone="neutral">Request sent</Badge>
+  ) : gateBlocksJoin ? null : (
+    joinButton
+  );
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <div className="flex items-center gap-3">
+      {/* items-start, not items-center: the heading wraps to two lines on a
+          narrow screen and the back arrow should stay level with its first
+          line rather than drifting to the middle of the block. */}
+      <div className="flex items-start gap-3">
         <Link
           href="/squads"
           aria-label="Back to squads"
@@ -198,38 +264,25 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
             </span>
           </div>
         </div>
-        {isMember ? (
-          <Badge tone="brand">{isLeader ? 'Leader' : 'Member'}</Badge>
-        ) : squad.viewerStatus === 'pending' || join.data?.viewerStatus === 'pending' ? (
-          /* Admission is the leader's call, so this is a waiting state, not a
-             membership one — offering "Join" again here would suggest the tap
-             failed and queue nothing. */
-          <Badge tone="neutral">Request sent</Badge>
-        ) : (
-          /* Same gate as a ride, different words: a squad join is a *request*
-             the leader decides on, and only then does the ₹2 fee apply. The
-             CTA has to promise the step it actually starts. */
-          <VerificationGate action="join this squad">
-            <Button
-              size="sm"
-              loading={join.isPending}
-              onClick={() =>
-                join.mutate(undefined, {
-                  onError: (err) => {
-                    // 409 means they are committed elsewhere — an explainable
-                    // situation with an action, not a failure to report.
-                    if (err instanceof ApiError && err.code === 'already-in-squad') {
-                      setBlockedReason(err.message);
-                    }
-                  },
-                })
-              }
-            >
-              Request to join
-            </Button>
-          </VerificationGate>
-        )}
+        {/*
+          Only ever a compact control here — a badge or a single button, and
+          `shrink-0` so it keeps its size while the title truncates beside it.
+
+          The verification gate used to sit in this slot, and it is not a
+          control: it renders a card plus the whole verify-with-Google banner.
+          As the third child of a non-wrapping `flex items-center` row it was
+          laid out *beside* the title on every width, so on a phone the heading
+          and its "1/4 · College" meta were squeezed into the leftover space and
+          collided with the card. A block that size belongs in the column, not
+          in a header row.
+        */}
+        {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
       </div>
+
+      {/* Full width, in normal flow, below the header — nothing to overlap. */}
+      {gateBlocksJoin ? (
+        <VerificationGate action="join this squad">{joinButton}</VerificationGate>
+      ) : null}
 
       {/* Members get the journey view; everyone else gets the summary strip,
           because distance and navigation only mean anything once you're in. */}
@@ -283,13 +336,24 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
           setTab(next);
         }}
         memberCount={squad.memberCount}
+        chatUnread={squadChatUnread}
       />
 
       {tab === 'members' ? (
         isMember && squad.can ? (
           <div className="space-y-4">
-            {/* Members only: a code on a page anyone can open is not a code. */}
-            {squad.joinCode ? <SquadJoinCode code={squad.joinCode} /> : null}
+            {/*
+              The join code is deliberately not shown here.
+
+              Discovery is the route people actually take: find the squad,
+              request, the leader approves. A six-character code printed at the
+              top of the members tab implied the normal way in was to type it
+              somewhere, which is a step this flow does not have. The code is
+              still allocated and still resolves server-side
+              (squadsMembers.ts and services/squads.ts both look squads up by
+              it), so invite-by-code keeps working wherever it is offered — it
+              is only the clutter on this screen that is gone.
+            */}
             <SquadMembersBoard squadId={squad.id} can={squad.can} viewerId={profile?.id} />
 
             <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
@@ -320,11 +384,30 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
         ) : (
-          <EmptyState
-            icon={<Users className="h-5 w-5" />}
-            title="Members are private"
-            description="Join the squad to see who is coming and how far away they are."
-          />
+          /**
+           * Compact by construction, not by shrinking a big card.
+           *
+           * This is a one-line fact — the roster is private until you join —
+           * and it was rendering as a tall panel with the text stranded in the
+           * middle of a large empty rectangle. Height should come from the
+           * content, so this is a single row: icon, statement, explanation.
+           *
+           * Scoped here rather than changed in EmptyState, which every list in
+           * the app shares and which is already compact for its own uses.
+           */
+          <div className="flex items-center gap-3 rounded-lg border border-dashed border-line px-3.5 py-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-ink-subtle">
+              <Users className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[13.5px] font-semibold leading-tight text-ink">
+                Members are private
+              </p>
+              <p className="mt-0.5 text-[12.5px] leading-snug text-ink-muted">
+                Join the squad to see who is coming.
+              </p>
+            </div>
+          </div>
         )
       ) : null}
 

@@ -85,6 +85,12 @@ let tokenProvider: (() => Promise<string | null>) | null = null;
  *  tear each other's subscription down on unmount. */
 const roomRefCounts = new Map<string, number>();
 
+/**
+ * Set by the auth layer. Deliberately does not touch the connection: the effect
+ * that sets this re-runs whenever the auth status changes and would pass a new
+ * closure each time, so reconnecting from here would churn the socket for no
+ * change of identity. Sign-out is handled explicitly by SocketBridge.
+ */
 export function setSocketTokenProvider(fn: (() => Promise<string | null>) | null) {
   tokenProvider = fn;
 }
@@ -115,8 +121,29 @@ export function getSocket(): SpllitSocket {
   return socket;
 }
 
+/**
+ * Opens the connection, but never before we can prove who we are.
+ *
+ * The server resolves identity from the handshake `auth.token` once, at
+ * connection time, and joins `user:<id>` from it (services/live.ts). A socket
+ * that handshakes without a token is *accepted* — it simply never joins that
+ * room, and `notification:new` is emitted only there. So it connects, looks
+ * healthy, and silently receives nothing until something forces a reconnect.
+ *
+ * That is what was happening on every load. RealtimeBridge is a child of
+ * SocketBridge, React runs child effects first, so `onEvent` → `connectSocket`
+ * opened the handshake before `setSocketTokenProvider` had run. The auth
+ * callback sent `{ token: null }`, and by the time the provider was set the
+ * handshake was already in flight — `s.connected` was still false, so the
+ * parent's `connect()` was a no-op and the tokenless session stuck.
+ *
+ * Gating here rather than reordering the providers: any caller may ask for the
+ * socket at any time, and none of them should have to know that connecting too
+ * early produces a connection that cannot receive anything.
+ */
 export function connectSocket() {
   const s = getSocket();
+  if (!tokenProvider) return s;
   if (!s.connected) s.connect();
   return s;
 }

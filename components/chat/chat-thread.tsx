@@ -14,7 +14,7 @@ import { chatService } from '@/lib/services/chat';
 import { LocationBubble, readLocation } from '@/components/chat/location-bubble';
 import { qk } from '@/lib/hooks/queries';
 import { useAuth } from '@/lib/auth/auth-provider';
-import { connectSocket, joinRoom, onEvent, rooms } from '@/lib/live/socket';
+import { connectSocket, getSocket, joinRoom, onEvent, rooms } from '@/lib/live/socket';
 import type { ChatContextType, ChatMessage, Paginated } from '@/types';
 
 /**
@@ -82,6 +82,40 @@ export function ChatThreadView({
     () => [...(data?.items ?? [])].reverse(),
     [data],
   );
+
+  /**
+   * Tell the server the thread has been seen.
+   *
+   * `chatService.markRead` existed and was never called from anywhere, so
+   * `ThreadReadState.lastReadAt` was never written and the unread count — which
+   * is derived from it — could only ever go up. That is why a thread you had
+   * just read still showed its badge.
+   *
+   * Re-run keyed on the newest message id, so a message arriving while the
+   * thread is open is marked read too rather than counting against a
+   * conversation the user is looking at. Invalidating the thread list is what
+   * moves both the per-thread badge and the dock's total, from the same server
+   * numbers — no local counter.
+   */
+  const newestMessageId = messages[messages.length - 1]?.id ?? null;
+
+  useEffect(() => {
+    if (!threadId) return;
+    let cancelled = false;
+    void chatService
+      .markRead(threadId)
+      .then(() => {
+        if (cancelled) return;
+        void qc.invalidateQueries({ queryKey: qk.threads });
+        void qc.invalidateQueries({ queryKey: qk.unreadCount });
+      })
+      .catch(() => {
+        // A failed read receipt is not worth interrupting the conversation.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [threadId, newestMessageId, qc]);
 
   // Live delivery. Only this thread's room is subscribed.
   useEffect(() => {
@@ -156,6 +190,26 @@ export function ChatThreadView({
   const lastTypingSent = useRef(0);
   const stopTypingTimer = useRef<number | null>(null);
 
+  /**
+   * Says "not typing any more", now, and cancels the pending timer.
+   *
+   * Every exit from typing routes through here — sending, blurring, emptying
+   * the box, closing the thread — because the only other thing that clears the
+   * indicator is a 1.8s timeout the recipient cannot see, and the sender
+   * looking like they are still typing after they have sent the message is
+   * exactly the stuck state that was reported.
+   */
+  const stopTyping = useCallback(() => {
+    if (stopTypingTimer.current) {
+      window.clearTimeout(stopTypingTimer.current);
+      stopTypingTimer.current = null;
+    }
+    if (!threadId || lastTypingSent.current === 0) return;
+    lastTypingSent.current = 0;
+    const socket = getSocket();
+    if (socket.connected) socket.emit('chat:typing', { threadId, typing: false });
+  }, [threadId]);
+
   const signalTyping = useCallback(() => {
     if (!threadId) return;
     const socket = connectSocket();
@@ -171,12 +225,29 @@ export function ChatThreadView({
     stopTypingTimer.current = window.setTimeout(() => {
       socket.emit('chat:typing', { threadId, typing: false });
       lastTypingSent.current = 0;
+      stopTypingTimer.current = null;
     }, 1800);
   }, [threadId]);
 
-  const typingNames = Object.keys(typingUsers)
-    .map((userId) => messages.find((m) => m.senderId === userId)?.sender?.name)
-    .filter((name): name is string => Boolean(name));
+  // Leaving the thread must not leave a "typing…" behind on everyone else's
+  // screen for as long as their sweep takes to notice.
+  useEffect(() => stopTyping, [stopTyping]);
+
+  /**
+   * Names come from the thread's participants, not from the messages.
+   *
+   * Reading them off `messages` meant a participant who had not yet sent
+   * anything in this thread resolved to `undefined`, was filtered out, and the
+   * indicator never appeared — so it worked only for people who had already
+   * spoken. That is the inconsistency: it was never about the event, which
+   * arrives fine, but about having no name to render it with.
+   */
+  const typingNames = Object.keys(typingUsers).map(
+    (userId) =>
+      thread?.participants.find((p) => p.id === userId)?.name ??
+      messages.find((m) => m.senderId === userId)?.sender?.name ??
+      'Someone',
+  );
 
   const [sharingLocation, setSharingLocation] = useState(false);
 
@@ -481,6 +552,10 @@ export function ChatThreadView({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          // Sending ends typing by definition; say so before the message goes,
+          // so the recipient never sees "typing…" above a message that has
+          // already arrived.
+          stopTyping();
           send();
         }}
         className="flex items-center gap-2 border-t border-line bg-surface p-3"
@@ -488,9 +563,14 @@ export function ChatThreadView({
         <input
           value={draft}
           onChange={(e) => {
-            setDraft(e.target.value);
-            signalTyping();
+            const next = e.target.value;
+            setDraft(next);
+            // An empty box is not typing — clearing it should drop the
+            // indicator immediately rather than waiting out the timer.
+            if (next.trim()) signalTyping();
+            else stopTyping();
           }}
+          onBlur={stopTyping}
           placeholder="Message"
           aria-label="Message"
           className={cn(

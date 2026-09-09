@@ -29,6 +29,7 @@ export default function robots(): MetadataRoute.Robots {
           '/host',
           '/invite',
           '/search',
+          '/location',
           '/auth',
           '/api/',
         ],

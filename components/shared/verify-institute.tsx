@@ -33,16 +33,23 @@ export function VerifyInstituteBanner({ className }: { className?: string }) {
     (profile?.instituteId ? INSTITUTES_BY_ID.get(profile.instituteId) : null) ??
     findInstituteByName(profile?.college);
 
-  const domain = institute?.domains[0] ?? null;
+  /**
+   * Every accepted domain, not just the first. The banner used to name
+   * `domains[0]` alone, which told a student on one of the other accepted
+   * addresses that theirs was the wrong one — while the server would have
+   * accepted it perfectly well.
+   */
+  const domains = institute?.domains ?? [];
+  const verifiable = domains.length > 0;
 
   const verify = useMutation({
     mutationFn: async () => {
-      if (!domain) throw new Error('This institute has no verifiable domain.');
+      if (!verifiable) throw new Error('This institute has no verifiable domain.');
 
       const auth = getInstituteVerifierAuth();
       if (!auth) throw new Error('Verification is not configured for this environment.');
 
-      const result = await signInWithPopup(auth, instituteGoogleProvider(domain));
+      const result = await signInWithPopup(auth, instituteGoogleProvider(domains));
       const idToken = await result.user.getIdToken();
 
       try {
@@ -75,14 +82,16 @@ export function VerifyInstituteBanner({ className }: { className?: string }) {
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-semibold text-ink">Verify your campus email</p>
+          <p className="text-[13.5px] font-semibold text-ink">
+            Verify your {institute?.name ?? 'institute'} account
+          </p>
           <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">
-            {domain ? (
+            {verifiable ? (
               <>
                 Creating or joining rides and squads is limited to verified
-                students. Sign in with your{' '}
-                <span className="font-medium text-ink">@{domain}</span> Google account —
-                we never ask you to type the address, Google confirms it.
+                students. Sign in with your {institute?.name ?? 'institute'} Google
+                account — we never ask you to type your email address, Google
+                confirms it.
               </>
             ) : (
               <>
@@ -92,7 +101,23 @@ export function VerifyInstituteBanner({ className }: { className?: string }) {
             )}
           </p>
 
-          {domain ? (
+          {/* The accepted addresses, spelled out. Someone whose address is on
+              the list but was not the canonical one had no way to tell whether
+              it would work, and the old copy implied it would not. */}
+          {verifiable ? (
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {domains.map((d) => (
+                <li
+                  key={d}
+                  className="rounded-md bg-surface-sunken px-2 py-0.5 text-[11.5px] font-medium text-ink-muted"
+                >
+                  name@{d}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {verifiable ? (
             <Button
               size="sm"
               className="mt-3"

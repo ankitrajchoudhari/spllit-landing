@@ -45,7 +45,15 @@ export const INSTITUTES: Institute[] = [
     type: 'IIT',
     // The online BS programme uses its own sub-domain and has far more
     // students than the residential campus — both must be accepted.
-    domains: ['iitm.ac.in', 'smail.iitm.ac.in', 'student.onlinedegree.iitm.ac.in', 'ds.study.iitm.ac.in'],
+    // Kept in step with backend/src/data/institutes.ts — that copy is the one
+    // that authorises. `study.iitm.ac.in` is the BS-degree address.
+    domains: [
+      'iitm.ac.in',
+      'study.iitm.ac.in',
+      'smail.iitm.ac.in',
+      'student.onlinedegree.iitm.ac.in',
+      'ds.study.iitm.ac.in',
+    ],
     accent: IIT,
   },
   { id: 'iitd', name: 'IIT Delhi', code: 'IITD', city: 'New Delhi', type: 'IIT', domains: ['iitd.ac.in'], accent: IIT },
@@ -164,9 +172,16 @@ export function findInstituteByName(name: string | null | undefined): Institute 
  */
 export function emailMatchesInstitute(email: string, institute: Institute): boolean {
   if (institute.domains.length === 0) return false;
-  const at = email.lastIndexOf('@');
-  if (at === -1) return false;
-  const domain = email.slice(at + 1).trim().toLowerCase();
+
+  // Exactly one '@', with content on both sides — kept identical to the
+  // backend's copy in backend/src/data/institutes.ts, which is the one that
+  // authorises. See the note there.
+  const parts = email.trim().split('@');
+  if (parts.length !== 2) return false;
+  const [local, host] = parts;
+  if (!local || !host) return false;
+
+  const domain = host.trim().toLowerCase();
   return institute.domains.some((d) => domain === d.toLowerCase());
 }
 

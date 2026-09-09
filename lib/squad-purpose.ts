@@ -62,13 +62,38 @@ export function purposeIcon(type: SquadType): string {
 }
 
 /**
- * Long place names ("Anna University, Sardar Patel Road, Chennai") make an
- * unreadable squad name. Mapbox puts the distinctive part first, so the segment
- * before the first comma is the useful one.
+ * The shortest name that still identifies the place.
+ *
+ * Mapbox puts the distinctive part first, so the segment before the first comma
+ * is the useful one — but that alone was not enough. A POI comes back as
+ * "Near Fortune Tower Maitreya Vihar Chandrasekharpur", which is one comma-free
+ * segment, and the old 34-character cap turned it into "Near Fortune Tower
+ * Maitreya Vihar Ch…" and then appended " exam run". The result was neither
+ * short nor accurate.
+ *
+ * So the segment is also trimmed at both ends: leading positional filler that
+ * Mapbox adds and never identifies anything, and trailing locality words that
+ * repeat what the address line already says. Truncation stays as the last
+ * resort rather than the only tool.
  */
-function shortPlaceName(label: string): string {
-  const head = label.split(',')[0]?.trim() ?? label.trim();
-  return head.length > 34 ? `${head.slice(0, 33).trimEnd()}…` : head;
+const LEADING_FILLER = /^(near|opposite|opp\.?|behind|beside|next to)\s+/i;
+
+/** Kept to four words: enough for "Fortune Tower Metro Station", no more. */
+const MAX_NAME_WORDS = 4;
+const MAX_NAME_CHARS = 28;
+
+export function shortPlaceName(label: string): string {
+  const head = (label.split(',')[0] ?? label).trim();
+  if (!head) return '';
+
+  const stripped = head.replace(LEADING_FILLER, '').trim() || head;
+
+  const words = stripped.split(/\s+/);
+  const clipped = words.length > MAX_NAME_WORDS ? words.slice(0, MAX_NAME_WORDS).join(' ') : stripped;
+
+  return clipped.length > MAX_NAME_CHARS
+    ? `${clipped.slice(0, MAX_NAME_CHARS - 1).trimEnd()}…`
+    : clipped;
 }
 
 /**
@@ -79,26 +104,28 @@ function shortPlaceName(label: string): string {
  * and told nobody where it was going. The leader can still overwrite it; this
  * only has to be a good enough default that most people never do.
  */
+/**
+ * Purposes that read naturally as "<Place> <Purpose> Squad".
+ *
+ * The rest fall through to "Trip to <Place>", because forcing every purpose
+ * into one template produced things like "Fortune Tower Travel Squad", which
+ * says the same thing twice. Anything not listed is a plain trip.
+ */
+const SQUAD_SUFFIX: Partial<Record<SquadType, string>> = {
+  exam: 'Exam',
+  college: 'College',
+  office: 'Office',
+  event: 'Event',
+  concert: 'Concert',
+  sports: 'Sports',
+};
+
 export function suggestSquadName(destinationLabel: string, purpose: SquadType): string {
   const place = shortPlaceName(destinationLabel);
   if (!place) return '';
 
-  switch (purpose) {
-    case 'exam':
-      return `${place} exam run`;
-    case 'office':
-      return `${place} commute`;
-    case 'shopping':
-      return `${place} shopping trip`;
-    case 'event':
-      return `${place} meetup`;
-    case 'concert':
-      return `${place} concert ride`;
-    case 'sports':
-      return `${place} match run`;
-    default:
-      return `Trip to ${place}`;
-  }
+  const suffix = SQUAD_SUFFIX[purpose];
+  return suffix ? `${place} ${suffix} Squad` : `Trip to ${place}`;
 }
 
 /**

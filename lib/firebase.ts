@@ -182,15 +182,30 @@ export function getInstituteVerifierAuth(): Auth | null {
 }
 
 /**
- * Google provider scoped to one institute domain.
+ * Google provider for institute verification.
  *
  * `hd` is only a UI hint — Google does not guarantee it, and a determined user
  * can still complete the flow with another account. The domain is therefore
  * re-checked on the server against the verified token; this just makes the
  * account chooser show the right thing.
+ *
+ * It takes every accepted domain, not one, because `hd` pinned to a single
+ * value actively locked people out. An IIT Madras student on smail.iitm.ac.in
+ * or study.iitm.ac.in holds an address that is on the allowlist and would pass
+ * the server check — but the chooser was restricted to iitm.ac.in, so their
+ * account was filtered out of the picker and they could never reach that check.
+ * A hint is not worth failing a valid user for.
+ *
+ * Google's `hd` accepts one domain or `*`, never a list, so a multi-domain
+ * institute uses `*`: any Workspace account, which still keeps personal Gmail
+ * out of the chooser. The server decides the rest.
  */
-export function instituteGoogleProvider(domain: string): GoogleAuthProvider {
+export function instituteGoogleProvider(domains: string | string[]): GoogleAuthProvider {
+  const list = (Array.isArray(domains) ? domains : [domains]).filter(Boolean);
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ hd: domain, prompt: 'select_account' });
+  provider.setCustomParameters({
+    hd: list.length === 1 ? (list[0] as string) : '*',
+    prompt: 'select_account',
+  });
   return provider;
 }

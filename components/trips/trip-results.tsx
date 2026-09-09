@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Car, Users } from 'lucide-react';
+import { ArrowLeft, Car, Plus, Users } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { ridesService } from '@/lib/services/rides';
@@ -102,6 +102,17 @@ export function TripResults() {
   const active = tab === 'rides' ? ridesQuery : squadsQuery;
   const isEmpty = tab === 'rides' ? rides.length === 0 : squads.length === 0;
 
+  /**
+   * Creating carries the search forward, so the destination and time just
+   * entered are never asked for a second time.
+   */
+  const goCreate = () =>
+    router.push(
+      tab === 'rides'
+        ? `/rides/new?${tripSearchParams(search).toString()}`
+        : `/squads/new?${tripSearchParams(search).toString()}`,
+    );
+
   const backToSearch = () => router.push('/home');
 
   return (
@@ -161,6 +172,15 @@ export function TripResults() {
         ))}
       </div>
 
+      {/*
+        One create action, defined once and used by both the empty state and
+        the bar below the results. They were previously the same intent written
+        twice, which is how the populated list ended up with no way to create at
+        all: the CTA lived inside the empty branch only, so finding one squad
+        that did not suit you left you with no next step but the browser Back
+        button. Whether results exist changes where the action sits, never
+        whether it exists.
+      */}
       {active.isPending ? (
         /*
           Two halves of one answer. The animation says the app is working; the
@@ -199,7 +219,9 @@ export function TripResults() {
             {tab === 'rides' ? 'No hosts available yet' : 'No squads heading there yet'}
           </p>
           <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-ink-muted">
-            We couldn&apos;t find anyone going to {destinationName} at this time.
+            {tab === 'rides'
+              ? `We couldn't find anyone going to ${destinationName} at this time.`
+              : 'No squads are heading this way yet. Create one and let others travelling the same way join you.'}
           </p>
           {/*
             The create CTA carries the search forward, so the destination and
@@ -207,18 +229,8 @@ export function TripResults() {
             Verification is checked by the create screen, not hidden here — an
             empty state must never stand in for "you are not allowed".
           */}
-          <Button
-            size="sm"
-            className="mt-4"
-            onClick={() =>
-              router.push(
-                tab === 'rides'
-                  ? `/rides/new?${tripSearchParams(search).toString()}`
-                  : `/squads/new?${tripSearchParams(search).toString()}`,
-              )
-            }
-          >
-            + {tab === 'rides' ? 'Create a trip' : 'Start a squad'}
+          <Button size="sm" className="mt-4" onClick={goCreate}>
+            + {tab === 'rides' ? 'Create a trip' : 'Create a Squad'}
           </Button>
         </div>
       ) : tab === 'rides' ? (
@@ -326,6 +338,27 @@ export function TripResults() {
           })}
         </ul>
       )}
+
+      {/*
+        Secondary by design. The results are the answer to what was asked, and
+        an outline button under them offers the alternative without competing
+        with the squads it sits below. Hidden while the empty state is showing,
+        because that state carries the same action as its primary button —
+        offering it twice on one screen is not twice as findable.
+      */}
+      {!active.isPending && !active.isError && !isEmpty ? (
+        <div className="pt-1">
+          <Button variant="outline" className="w-full" onClick={goCreate}>
+            <Plus className="h-4 w-4" aria-hidden />
+            {tab === 'rides' ? 'Create a trip' : 'Create a Squad'}
+          </Button>
+          <p className="mt-2 text-center text-[12px] leading-relaxed text-ink-subtle">
+            {tab === 'rides'
+              ? 'Driving yourself? Offer your spare seats instead.'
+              : 'None of these fit? Start your own and let others join you.'}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
