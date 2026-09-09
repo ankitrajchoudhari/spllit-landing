@@ -28,6 +28,43 @@ const nextConfig = {
    *
    * Query strings are preserved automatically, so `?signin=1` survives the hop.
    */
+  /**
+   * Serves Firebase's auth handler from our own domain.
+   *
+   * This exists for the phone-OTP SMS. Google composes that message as
+   * "<code> is your verification code for <authDomain>", and the app name in
+   * it is not a template we can set from the client — it is whatever
+   * `authDomain` is. Today that is `spllit-app-94194.firebaseapp.com`, so
+   * every OTP text shows the raw Firebase project id to the user.
+   *
+   * Pointing `authDomain` at `spllit.app` fixes the wording, but on its own it
+   * breaks Google sign-in: the popup and redirect flows load
+   * `https://<authDomain>/__/auth/handler`, and this app is served by
+   * Cloudflare Workers, which has nothing at that path. This rewrite is that
+   * missing piece — it proxies the handler through to Firebase, so the browser
+   * sees the flow on spllit.app while Firebase still answers it.
+   *
+   * Deliberately inert until `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` is switched:
+   * while authDomain remains firebaseapp.com nothing requests `/__/auth/*` on
+   * our origin, so this rewrite matches nothing. Ordering matters when you do
+   * switch — see docs/FIREBASE-AUTH-DOMAIN.md.
+   *
+   * The destination is built from the *project id*, never from authDomain: the
+   * whole point is that authDomain is about to become our own domain, and
+   * proxying to it would be a loop.
+   */
+  async rewrites() {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    if (!projectId) return [];
+
+    return [
+      {
+        source: '/__/auth/:path*',
+        destination: `https://${projectId}.firebaseapp.com/__/auth/:path*`,
+      },
+    ];
+  },
+
   async redirects() {
     return [
       { source: '/login', destination: '/auth', permanent: true },
