@@ -112,7 +112,7 @@ export function HostDashboard() {
 
       {/* The one thing that matters when it applies: why they cannot drive. */}
       {hostProfile.status === 'suspended' ? (
-        <div className="flex items-start gap-2.5 rounded-2xl bg-danger/10 px-4 py-3.5">
+        <div className="flex items-start gap-2.5 rounded-2xl bg-danger-muted px-4 py-3.5">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
           <p className="text-[13px] leading-relaxed text-danger">
             {hostProfile.suspendedReason ?? 'Host mode is suspended on this account.'}
@@ -122,7 +122,7 @@ export function HostDashboard() {
         <div
           className={cn(
             'flex flex-wrap items-center justify-between gap-3',
-            'rounded-2xl bg-warning/10 px-4 py-3.5',
+            'rounded-2xl bg-warning-muted px-4 py-3.5',
           )}
         >
           <p className="text-[13px] leading-relaxed text-ink">

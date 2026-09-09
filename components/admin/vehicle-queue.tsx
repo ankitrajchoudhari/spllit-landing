@@ -64,7 +64,7 @@ export function VehicleQueue() {
       <Tabs value={status} onChange={setStatus} items={FILTERS} layoutId="vehicle-queue-tab" />
 
       {error ? (
-        <p role="alert" className="rounded-lg bg-danger/10 px-3.5 py-3 text-[13px] text-danger">
+        <p role="alert" className="rounded-lg bg-danger-muted px-3.5 py-3 text-[13px] text-danger">
           {error}
         </p>
       ) : null}
@@ -161,7 +161,7 @@ function VehicleRow({
       </div>
 
       {vehicle.status === 'rejected' && vehicle.rejectionNote ? (
-        <p className="mt-3 rounded-md bg-danger/10 px-3 py-2 text-[12.5px] text-danger">
+        <p className="mt-3 rounded-md bg-danger-muted px-3 py-2 text-[12.5px] text-danger">
           {vehicle.rejectionNote}
         </p>
       ) : null}

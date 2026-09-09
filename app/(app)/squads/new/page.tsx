@@ -271,7 +271,7 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
         </div>
 
         <div className="rounded-xl border border-line bg-surface p-6 shadow-soft">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/15 text-warning">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-warning-muted text-warning">
             <Users className="h-5 w-5" />
           </span>
           <h2 className="mt-4 font-display text-[19px] font-semibold tracking-[-0.02em] text-ink">
@@ -564,7 +564,7 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
                 Nearby people heading the same way can find and join this squad.
               </p>
             ) : (
-              <p className="mt-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-[12px] leading-relaxed text-ink-muted">
+              <p className="mt-2 rounded-lg border border-warning/40 bg-warning-muted px-3 py-2 text-[12px] leading-relaxed text-ink-muted">
                 <span className="font-medium text-ink">
                   This squad will not appear in anyone&apos;s search.
                 </span>{' '}

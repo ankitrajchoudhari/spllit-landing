@@ -108,7 +108,7 @@ export function VehicleList({
                   disabled={busy}
                   aria-label={`Remove ${vehicle.brandLabel} ${vehicle.modelLabel}`}
                   onClick={() => remove.mutate(vehicle.id)}
-                  className="rounded-md p-2 text-ink-subtle transition-colors hover:bg-danger/10 hover:text-danger"
+                  className="rounded-md p-2 text-ink-subtle transition-colors hover:bg-danger-muted hover:text-danger"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

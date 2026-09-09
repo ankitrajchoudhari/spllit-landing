@@ -151,7 +151,7 @@ function EventVisual() {
             Tonight, 8:00 PM · Open to all campuses
           </p>
         </div>
-        <div className="shrink-0 rounded-md bg-warning/12 px-2.5 py-1.5 text-center">
+        <div className="shrink-0 rounded-md bg-warning-muted px-2.5 py-1.5 text-center">
           <p className="font-display text-base font-bold leading-none text-warning">3h</p>
           <p className="mt-0.5 text-[9px] uppercase tracking-wide text-warning">to go</p>
         </div>

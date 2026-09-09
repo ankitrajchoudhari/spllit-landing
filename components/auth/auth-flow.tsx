@@ -715,7 +715,7 @@ export function AuthFlow() {
                     <div
                       className={cn(
                         'mt-4 flex items-start gap-2.5 rounded-lg px-3.5 py-3',
-                        emailVerified ? 'bg-brand-muted' : 'bg-warning/10',
+                        emailVerified ? 'bg-brand-muted' : 'bg-warning-muted',
                       )}
                     >
                       <InstituteMark institute={chosenInstitute} size="sm" />
@@ -809,7 +809,7 @@ export function AuthFlow() {
           {error ? (
             <p
               role="alert"
-              className="mt-5 rounded-lg bg-danger/10 px-3.5 py-3 text-[13px] leading-relaxed text-danger"
+              className="mt-5 rounded-lg bg-danger-muted px-3.5 py-3 text-[13px] leading-relaxed text-danger"
             >
               {error}
             </p>

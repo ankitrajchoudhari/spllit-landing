@@ -212,7 +212,7 @@ export function SignInDrawer({ children }: { children?: React.ReactNode }) {
                   {error ? (
                     <p
                       role="alert"
-                      className="mt-4 rounded-xl bg-danger/10 px-3.5 py-3 text-[13px] leading-relaxed text-danger"
+                      className="mt-4 rounded-xl bg-danger-muted px-3.5 py-3 text-[13px] leading-relaxed text-danger"
                     >
                       {error}
                     </p>

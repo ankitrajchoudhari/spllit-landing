@@ -181,7 +181,7 @@ export function SquadMembersBoard({
   return (
     <div className="space-y-5">
       {error ? (
-        <p role="alert" className="rounded-lg bg-danger/10 px-3.5 py-3 text-[13px] text-danger">
+        <p role="alert" className="rounded-lg bg-danger-muted px-3.5 py-3 text-[13px] text-danger">
           {error}
         </p>
       ) : null}
@@ -403,7 +403,7 @@ function MenuItem({
       className={cn(
         'flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-[13px] transition-colors',
         tone === 'danger'
-          ? 'text-danger hover:bg-danger/10'
+          ? 'text-danger hover:bg-danger-muted'
           : 'text-ink hover:bg-surface-sunken',
       )}
     >

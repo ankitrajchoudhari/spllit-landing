@@ -35,7 +35,7 @@ export function EmptyState({
         <div
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-md',
-            tone === 'error' ? 'bg-danger/10 text-danger' : 'bg-surface-sunken text-ink-subtle',
+            tone === 'error' ? 'bg-danger-muted text-danger' : 'bg-surface-sunken text-ink-subtle',
           )}
         >
           {icon}

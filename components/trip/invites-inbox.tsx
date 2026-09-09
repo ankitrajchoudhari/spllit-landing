@@ -66,7 +66,7 @@ export function InvitesInbox() {
   return (
     <div className="space-y-6">
       {error ? (
-        <p role="alert" className="rounded-lg bg-danger/10 px-3.5 py-3 text-[13px] text-danger">
+        <p role="alert" className="rounded-lg bg-danger-muted px-3.5 py-3 text-[13px] text-danger">
           {error}
         </p>
       ) : null}

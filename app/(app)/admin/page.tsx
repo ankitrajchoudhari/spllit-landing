@@ -61,7 +61,7 @@ function Stat({
       className={cn(
         'rounded-lg border bg-surface p-4',
         tone === 'danger' && Number(value) > 0
-          ? 'border-danger/40 bg-danger/[0.04]'
+          ? 'border-danger/40 bg-danger-muted'
           : 'border-line',
       )}
     >
@@ -514,7 +514,7 @@ function BroadcastTab() {
 
   return (
     <div className="max-w-lg space-y-4">
-      <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/[0.06] px-4 py-3">
+      <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning-muted px-4 py-3">
         <Radio className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
         <p className="text-[12.5px] leading-relaxed text-ink-muted">
           This sends an in-app notification and a push to every matching user. It cannot

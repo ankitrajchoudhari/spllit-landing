@@ -46,8 +46,8 @@ const RENDERERS: Record<
 const TONE_CLASSES = {
   brand: 'bg-brand-muted text-brand',
   accent: 'bg-accent-muted text-accent',
-  warning: 'bg-warning/12 text-warning',
-  danger: 'bg-danger/12 text-danger',
+  warning: 'bg-warning-muted text-warning',
+  danger: 'bg-danger-muted text-danger',
   neutral: 'bg-surface-sunken text-ink-muted',
 } as const;
 

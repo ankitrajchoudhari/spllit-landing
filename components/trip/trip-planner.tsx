@@ -1000,7 +1000,7 @@ export function TripPlanner() {
                   State it where the squad is, and make it one tap to fix.
                 */}
                 {mySquad.visibility !== 'public' ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-warning/40 bg-warning/10 px-3.5 py-2.5">
+                  <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-warning/40 bg-warning-muted px-3.5 py-2.5">
                     <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-ink-muted">
                       <span className="font-medium text-ink">Invite only.</span> Nobody
                       can find this squad by searching — it opens only to people you

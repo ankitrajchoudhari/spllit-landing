@@ -416,7 +416,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
           The arrived case is not repeated here — the journey panel above
           already says it, next to the distance it replaces. */}
       {isMember && presence.error ? (
-        <p className="rounded-lg bg-warning/10 px-4 py-3 text-[13px] leading-relaxed text-ink">
+        <p className="rounded-lg bg-warning-muted px-4 py-3 text-[13px] leading-relaxed text-ink">
           {presence.error}
         </p>
       ) : null}

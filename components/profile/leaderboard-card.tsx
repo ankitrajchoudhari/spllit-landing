@@ -14,7 +14,7 @@ import type { LeaderboardEntry } from '@/types';
  * the badge is deliberately plain — a wall of gold is a wall of noise.
  */
 const MEDAL: Record<number, string> = {
-  1: 'bg-warning/20 text-warning',
+  1: 'bg-warning-muted text-warning',
   2: 'bg-line text-ink-muted',
   3: 'bg-brand-muted text-brand',
 };
@@ -82,7 +82,7 @@ export function LeaderboardCard({ className }: { className?: string }) {
   return (
     <div className={cn('rounded-xl border border-line bg-surface p-4', className)}>
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-warning-muted text-warning">
           <Trophy className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">

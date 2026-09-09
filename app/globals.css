@@ -47,6 +47,23 @@
 
     --danger: #e5484d;
     --warning: #f5a524;
+    /**
+     * Tinted fills for the two alert colours.
+     *
+     * These exist because an opacity modifier on an alert colour does not work
+     * in this project and never did — it silently compiles to nothing, so a
+     * banner asking for a 10% red fill got no fill. Tailwind can only fold an
+     * opacity modifier into a colour when the token is written with the
+     * `<alpha-value>` placeholder over channel triplets; ours are whole colour
+     * values, so `/10` has nowhere to go. Default palette colours like
+     * `bg-black/25` are unaffected, which is why the bug hid for so long.
+     *
+     * Every error and warning banner in the app was therefore rendering with
+     * no background — coloured text on bare canvas. Same pattern, and the same
+     * fix, as --brand-muted and --accent-muted above.
+     */
+    --danger-muted: rgba(229, 72, 77, 0.12);
+    --warning-muted: rgba(245, 165, 36, 0.14);
 
     /* Glass panels */
     --glass: rgba(255, 255, 255, 0.72);
@@ -76,6 +93,9 @@
 
     --brand-muted: rgba(0, 200, 83, 0.18);
     --accent-muted: rgba(41, 121, 255, 0.2);
+    /* Lifted a little in dark, same as the brand and accent tints. */
+    --danger-muted: rgba(229, 72, 77, 0.18);
+    --warning-muted: rgba(245, 165, 36, 0.2);
 
     --glass: rgba(18, 18, 18, 0.72);
     --glass-line: rgba(255, 255, 255, 0.08);

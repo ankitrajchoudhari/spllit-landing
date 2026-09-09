@@ -75,9 +75,9 @@ export function VerifyInstituteBanner({ className }: { className?: string }) {
   if (!profile || profile.instituteVerified) return null;
 
   return (
-    <div className={cn('rounded-lg border border-warning/30 bg-warning/[0.06] p-4', className)}>
+    <div className={cn('rounded-lg border border-warning/30 bg-warning-muted p-4', className)}>
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warning-muted text-warning">
           <ShieldAlert className="h-4 w-4" />
         </span>
 

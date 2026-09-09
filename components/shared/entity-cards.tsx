@@ -181,7 +181,7 @@ export function EventCard({
             {event.venue.label ? ` · ${event.venue.label}` : ''}
           </p>
         </div>
-        <div className="shrink-0 rounded-md bg-warning/12 px-2 py-1.5 text-center">
+        <div className="shrink-0 rounded-md bg-warning-muted px-2 py-1.5 text-center">
           <p className="font-display text-[13px] font-bold leading-none text-warning">
             {formatCountdown(event.startsAt).replace('in ', '')}
           </p>

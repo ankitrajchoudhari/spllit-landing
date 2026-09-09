@@ -8,8 +8,8 @@ const TONES: Record<Tone, string> = {
   neutral: 'bg-surface-sunken text-ink-muted border-line',
   brand: 'bg-brand-muted text-brand border-transparent',
   accent: 'bg-accent-muted text-accent border-transparent',
-  warning: 'bg-warning/12 text-warning border-transparent',
-  danger: 'bg-danger/12 text-danger border-transparent',
+  warning: 'bg-warning-muted text-warning border-transparent',
+  danger: 'bg-danger-muted text-danger border-transparent',
   live: 'bg-brand-muted text-brand border-transparent',
 };
 

@@ -43,8 +43,20 @@ const config: Config = {
           DEFAULT: 'var(--line)',
           strong: 'var(--line-strong)',
         },
-        danger: 'var(--danger)',
-        warning: 'var(--warning)',
+        /**
+         * `muted` is the tinted fill. Reach for it instead of writing
+         * `bg-danger/10` — opacity modifiers do not compile on these tokens,
+         * because they are whole colour values rather than the channel
+         * triplets an `<alpha-value>` config needs. See app/globals.css.
+         */
+        danger: {
+          DEFAULT: 'var(--danger)',
+          muted: 'var(--danger-muted)',
+        },
+        warning: {
+          DEFAULT: 'var(--warning)',
+          muted: 'var(--warning-muted)',
+        },
       },
       fontFamily: {
         display: ['var(--font-display)', 'system-ui', 'sans-serif'],
