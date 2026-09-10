@@ -79,8 +79,22 @@ path and fails every time it is pressed.
 
 ### Restricting the console to your domain
 
-`security.admin_email_domains` is a JSON list — set it to `["spllit.app"]` and
-only accounts on that domain may hold a console role. Since those addresses are
+`security.admin_email_domains` is a JSON list, stored in the database rather
+than an env var so it can change without a redeploy. Set it to
+`["spllit.app"]` and only accounts on that domain may hold a console role.
+
+```bash
+cd backend
+node scripts/set-setting.mjs --list
+node scripts/set-setting.mjs security.admin_email_domains '["spllit.app"]'
+```
+
+The script refuses rather than applying when the change would remove access
+from an existing admin, or when there is no Super Admin to fall back on —
+finding either of those out by trying to sign in afterwards is an incident.
+`--yes` overrides the first case; nothing overrides the second. It writes an
+audit row either way, because a change made from a laptop is not less worth
+recording than one made from the UI. Since those addresses are
 Zoho mailboxes you control, this is what turns "has a Google account" into "has
 a company mailbox".
 
