@@ -10,6 +10,7 @@ import { mergeMeetingPoint, toStoredGeoPoint } from '../services/geoPoint.js';
 import { z } from 'zod';
 import { calculateDistance } from '../utils/helpers.js';
 import { notify } from '../services/notifications.js';
+import { emailJoinRequested } from '../services/email.js';
 import { getIO } from '../services/live.js';
 import {
   ACTIVE_MEMBER_STATUSES,
@@ -858,6 +859,21 @@ router.post('/:id/join', identify, requireVerifiedInstitute, async (req: AuthReq
       body: 'Review the request to let them in.',
       href: `/squads/${squad.id}`,
       data: { squadId: squad.id },
+    });
+
+    /**
+     * Email as well, for a leader who is not in the app.
+     *
+     * Not awaited into the response path's success: the request has already
+     * been recorded and the in-app notification already sent, so a mail
+     * failure must not turn a successful join request into an error. The
+     * module swallows its own errors; this `void` is the second guard.
+     */
+    void emailJoinRequested({
+      leaderId: squad.leaderId,
+      squadId: squad.id,
+      squadName: squad.name,
+      requesterName: joiner?.name ?? 'Someone',
     });
 
     // Someone asking to join is the squad being used, and keeps it alive.

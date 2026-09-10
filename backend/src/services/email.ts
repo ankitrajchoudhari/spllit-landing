@@ -1,0 +1,236 @@
+import prisma from '../utils/prisma.js';
+
+/**
+ * Transactional email, over Resend.
+ *
+ * Two messages exist and no more: a leader is told somebody asked to join, and
+ * an asker is told they were let in. Every additional type is another way to
+ * end up in spam, so the list grows only when a push notification genuinely
+ * cannot serve instead. See docs/EMAIL-SYSTEM.md.
+ *
+ * Explicitly *not* services/emailService.ts, which sends CSV campaigns through
+ * a Gmail or Zoho mailbox. Transactional mail needs delivery webhooks, a
+ * suppression list, and a sending reputation that is not shared with marketing.
+ *
+ * ## Three rules this module will not break
+ *
+ * 1. **It never fails the action.** A join request must not fail because mail
+ *    failed. Every path here swallows its own errors, the same rule the
+ *    analytics `observe()` hook in utils/prisma.ts follows: the user's write
+ *    has already committed and a delivery problem cannot undo it.
+ * 2. **It never sends to an unverified address.** An address nobody proved they
+ *    own is how a domain collects hard bounces, and hard bounces are what get a
+ *    sender blocked.
+ * 3. **Nothing exists only in an email.** The in-app notification is the source
+ *    of truth; this is a copy that may or may not arrive.
+ *
+ * Plain `fetch` rather than the SDK — one POST against a stable REST API, versus
+ * a dependency and its transitive tree in a service that builds from source on
+ * every push.
+ */
+
+const RESEND_ENDPOINT = 'https://api.resend.com/emails';
+
+/** Absent key disables sending entirely, quietly. */
+function config() {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  return {
+    apiKey,
+    from: process.env.EMAIL_FROM?.trim() || 'Spllit <notifications@mail.spllit.app>',
+    replyTo: process.env.EMAIL_REPLY_TO?.trim() || 'support@spllit.app',
+    appUrl: (process.env.APP_URL?.trim() || 'https://spllit.app').replace(/\/$/, ''),
+  };
+}
+
+export function isEmailConfigured(): boolean {
+  return config() !== null;
+}
+
+/** Minimal escaping for the few values interpolated into the HTML below. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+interface SendInput {
+  to: string;
+  subject: string;
+  heading: string;
+  body: string;
+  actionLabel: string;
+  actionUrl: string;
+  /**
+   * Stable per (event, recipient) so a retry cannot send twice. Resend honours
+   * this for 24h, which is longer than any retry window here.
+   */
+  idempotencyKey: string;
+}
+
+/**
+ * One layout for both messages.
+ *
+ * Deliberately plain: a table-free single column, system fonts, no images. The
+ * elaborate version renders differently in every client and buys nothing for a
+ * message whose entire job is one sentence and one link. No tracking pixel —
+ * open tracking is what makes a transactional message look like marketing to a
+ * spam filter, and Spllit does not need to know when a leader read this.
+ */
+function render(input: SendInput, appUrl: string): string {
+  return `<!doctype html>
+<html><body style="margin:0;padding:24px;background:#eaece7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:28px;">
+    <p style="margin:0 0 20px;font-size:18px;font-weight:600;color:#101211;">Spllit</p>
+    <h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#101211;">${escapeHtml(input.heading)}</h1>
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4e544f;">${escapeHtml(input.body)}</p>
+    <a href="${escapeHtml(input.actionUrl)}" style="display:inline-block;background:#00c853;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 22px;border-radius:999px;">${escapeHtml(input.actionLabel)}</a>
+    <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#7b817c;">
+      You are receiving this because you use Spllit.
+      <a href="${escapeHtml(appUrl)}/settings/notifications" style="color:#7b817c;">Manage notifications</a>.
+    </p>
+  </div>
+</body></html>`;
+}
+
+/** Plain-text alternative. A message with no text part scores worse in filters. */
+function renderText(input: SendInput, appUrl: string): string {
+  return [
+    input.heading,
+    '',
+    input.body,
+    '',
+    `${input.actionLabel}: ${input.actionUrl}`,
+    '',
+    `Manage notifications: ${appUrl}/settings/notifications`,
+  ].join('\n');
+}
+
+async function send(input: SendInput): Promise<boolean> {
+  const cfg = config();
+  if (!cfg) return false;
+
+  try {
+    const response = await fetch(RESEND_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${cfg.apiKey}`,
+        'Content-Type': 'application/json',
+        'Idempotency-Key': input.idempotencyKey,
+      },
+      body: JSON.stringify({
+        from: cfg.from,
+        to: [input.to],
+        reply_to: cfg.replyTo,
+        subject: input.subject,
+        html: render(input, cfg.appUrl),
+        text: renderText(input, cfg.appUrl),
+        headers: {
+          /**
+           * Required by Gmail and Yahoo of bulk senders since February 2024,
+           * and not only for marketing. A missing List-Unsubscribe is a direct
+           * route to the spam folder.
+           *
+           * Both forms: the mailto works everywhere, and the POST form is what
+           * makes the client's own one-click button appear. Phase 4 replaces
+           * the URL with a real no-session unsubscribe endpoint.
+           */
+          'List-Unsubscribe': `<mailto:${cfg.replyTo}?subject=unsubscribe>, <${cfg.appUrl}/settings/notifications>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
+      }),
+      // A hung mail API must not hold a request open.
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      console.error(`[email] Resend refused (${response.status}): ${detail.slice(0, 300)}`);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[email] send failed', error);
+    return false;
+  }
+}
+
+/**
+ * Resolves a recipient, refusing anyone whose address is unverified.
+ *
+ * Returns null rather than throwing — every caller is on a path where the real
+ * work has already succeeded.
+ */
+async function verifiedRecipient(userId: string): Promise<{ email: string; name: string } | null> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true, emailVerified: true },
+    });
+    if (!user?.email || !user.emailVerified) return null;
+    return { email: user.email, name: user.name };
+  } catch (error) {
+    console.error('[email] could not resolve recipient', error);
+    return null;
+  }
+}
+
+/**
+ * Tells a leader that somebody has asked to join.
+ *
+ * The link goes to the squad page, not to an accept action — accepting from a
+ * link is Phase 3, and doing it before the token design is reviewed would mean
+ * a URL that admits a stranger to a live-location group. See
+ * docs/EMAIL-SYSTEM.md.
+ */
+export async function emailJoinRequested(params: {
+  leaderId: string;
+  squadId: string;
+  squadName: string;
+  requesterName: string;
+}): Promise<void> {
+  const cfg = config();
+  if (!cfg) return;
+
+  const to = await verifiedRecipient(params.leaderId);
+  if (!to) return;
+
+  await send({
+    to: to.email,
+    subject: `${params.requesterName} wants to join ${params.squadName}`,
+    heading: 'Someone wants to join your squad',
+    body: `${params.requesterName} has asked to join ${params.squadName}. Open the squad to see who they are and decide.`,
+    actionLabel: 'Review the request',
+    actionUrl: `${cfg.appUrl}/squads/${params.squadId}`,
+    // One request produces one email to one leader, however many times the
+    // notification path runs.
+    idempotencyKey: `join-requested:${params.squadId}:${params.requesterName}:${params.leaderId}`,
+  });
+}
+
+/** Tells someone their request was accepted. */
+export async function emailRequestAccepted(params: {
+  userId: string;
+  squadId: string;
+  squadName: string;
+}): Promise<void> {
+  const cfg = config();
+  if (!cfg) return;
+
+  const to = await verifiedRecipient(params.userId);
+  if (!to) return;
+
+  await send({
+    to: to.email,
+    subject: `You're in — ${params.squadName}`,
+    heading: `You're in`,
+    body: `Your request to join ${params.squadName} was accepted. Open the squad to see the meeting point and who else is going.`,
+    actionLabel: 'Open the squad',
+    actionUrl: `${cfg.appUrl}/squads/${params.squadId}`,
+    idempotencyKey: `request-accepted:${params.squadId}:${params.userId}`,
+  });
+}

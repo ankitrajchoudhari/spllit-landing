@@ -7,6 +7,7 @@ import { currentCommitment } from '../services/squads.js';
 import { AuthRequest } from '../types/express.js';
 import { ok, fail } from '../utils/respond.js';
 import { notify } from '../services/notifications.js';
+import { emailRequestAccepted } from '../services/email.js';
 import { getIO } from '../services/live.js';
 import {
   ACTIVE_MEMBER_STATUSES,
@@ -235,6 +236,22 @@ router.post('/:id/requests/:memberId', identify, async (req: AuthRequest, res: R
       href: decision === 'approve' ? `/squads/${squad.id}` : '/squads',
       data: { squadId: squad.id },
     });
+
+    /**
+     * Email only on approval.
+     *
+     * A rejection is told in-app and left there: mailing somebody to say they
+     * were turned down adds nothing they can act on, and is exactly the kind of
+     * message that earns a spam complaint. Not awaited — the decision is
+     * already recorded and must not fail because mail did.
+     */
+    if (decision === 'approve') {
+      void emailRequestAccepted({
+        userId: request.userId,
+        squadId: squad.id,
+        squadName: squad.name,
+      });
+    }
 
     /**
      * The squad room, and the decided-upon user's own room.

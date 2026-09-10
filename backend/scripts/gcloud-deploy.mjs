@@ -55,6 +55,9 @@ const SECRETS = {
   // REQUIRED: the routes 404 without it, so an install that has not set one up
   // is safe rather than broken. See routes/maintenance.ts.
   MAINTENANCE_KEY: 'spllit-maintenance-key',
+  // Transactional email. Also not REQUIRED — services/email.ts sends nothing
+  // without it and throws nothing either. See docs/EMAIL-SYSTEM.md.
+  RESEND_API_KEY: 'spllit-resend-api-key',
 };
 const REQUIRED = [
   'DATABASE_URL',
