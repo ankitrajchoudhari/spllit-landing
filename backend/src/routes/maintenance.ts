@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { Router, Request, Response } from 'express';
 
 import { ok, fail } from '../utils/respond.js';
@@ -40,23 +40,65 @@ const router = Router();
  * should not be able to confirm from the response that a privileged endpoint
  * exists at this path. A 401 says "you found something real, keep guessing".
  */
+/**
+ * A short, non-reversible fingerprint, so two values can be compared in logs
+ * without either appearing in them.
+ *
+ * Eight hex characters of SHA-256 over a 32-byte random secret is of no use to
+ * an attacker and is exactly enough to answer the only question worth asking
+ * from the outside: are these the same string or not.
+ */
+function fingerprint(value: string): string {
+  return createHash('sha256').update(value).digest('hex').slice(0, 8);
+}
+
 function authorised(req: Request): boolean {
-  const expected = process.env.MAINTENANCE_KEY;
+  /**
+   * Trimmed on both sides, and this is the fix rather than a nicety.
+   *
+   * A secret written with `echo` instead of `printf` carries a trailing
+   * newline, and Secret Manager stores exactly the bytes it is given. The
+   * value then arrives here as "abc123\n" while the caller sends "abc123",
+   * the lengths differ by one, and the request is refused — with a 404 that,
+   * by design, explains nothing. Since no legitimate key has leading or
+   * trailing whitespace, removing it costs nothing and removes the single most
+   * common way of getting this wrong.
+   */
+  const expected = (process.env.MAINTENANCE_KEY ?? '').trim();
   if (!expected) return false;
 
-  const provided = req.get('x-maintenance-key') ?? '';
+  /**
+   * `req.get` is case-insensitive: Node lowercases every incoming header name
+   * and Express lowercases the lookup, so `X-Maintenance-Key` and
+   * `x-maintenance-key` are the same header here. Casing is not a failure mode.
+   */
+  const provided = (req.get('x-maintenance-key') ?? '').trim();
 
   /**
-   * Length is compared first because timingSafeEqual throws on a mismatch, and
-   * the comparison itself must not leak length through timing either — hence
-   * hashing both to a fixed width would be the paranoid option. Here the key is
-   * a machine-generated secret compared against an attacker-supplied string, so
-   * equal-length constant-time comparison is the meaningful protection.
+   * Length is compared first because timingSafeEqual throws on a mismatch.
+   * That leaks length, which for a machine-generated secret compared against
+   * an attacker-supplied string is not the property worth protecting —
+   * constant-time comparison of equal-length values is.
    */
   const a = Buffer.from(provided);
   const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    /**
+     * Logged only on refusal, and only in terms that cannot reconstruct
+     * either value. This exists because the 404 is deliberately silent to the
+     * caller, which makes a misconfigured key indistinguishable from a
+     * missing route from the outside — and that is a genuinely painful thing
+     * to debug blind.
+     */
+    console.warn(
+      '[maintenance] refused: ' +
+        `expected ${b.length} bytes (${fingerprint(expected)}), ` +
+        `received ${a.length} bytes (${provided ? fingerprint(provided) : 'none'})`,
+    );
+    return false;
+  }
+
+  return true;
 }
 
 /**
