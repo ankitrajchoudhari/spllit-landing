@@ -8,6 +8,12 @@ import { AuthRequest } from '../types/express.js';
 import { ok, fail } from '../utils/respond.js';
 import { notify } from '../services/notifications.js';
 import { emailRequestAccepted } from '../services/email.js';
+import {
+  consumeJoinRequestToken,
+  resolveJoinRequestToken,
+  revokeTokensForRequest,
+  sameUser,
+} from '../services/joinRequestTokens.js';
 import { getIO } from '../services/live.js';
 import {
   ACTIVE_MEMBER_STATUSES,
@@ -253,6 +259,11 @@ router.post('/:id/requests/:memberId', identify, async (req: AuthRequest, res: R
       });
     }
 
+    // Answering in the app kills the link that was emailed about it. The token
+    // resolver would refuse it anyway once the membership stops being pending;
+    // this removes the row rather than leaving it to be re-checked.
+    void revokeTokensForRequest(request.id);
+
     /**
      * The squad room, and the decided-upon user's own room.
      *
@@ -482,6 +493,150 @@ router.get('/:id/progress', identify, async (req: AuthRequest, res: Response) =>
   } catch (error) {
     console.error('[squads/progress]', error);
     return fail(res, 500, 'Failed to load squad progress');
+  }
+});
+
+
+/**
+ * Answering a join request from the link in an email.
+ *
+ * Two endpoints, and the split is the security design rather than tidiness:
+ * the GET resolves the token so the page can say *what* is being decided, and
+ * the POST is the decision. Nothing mutates on GET, because Outlook Safe Links,
+ * Gmail's proxy and corporate scanners all fetch URLs found in mail before a
+ * human sees them — a GET that accepted would be accepted by a scanner, minutes
+ * after sending, without the leader reading a word.
+ *
+ * Both require a session. The token says *which* request; the session says
+ * *who* is answering. A forwarded email therefore hands its recipient a pointer
+ * to a request they still cannot act on.
+ *
+ * Every failure answers with the same neutral sentence. A page that
+ * distinguished "no such token" from "already answered" from "not your squad"
+ * would be an oracle for which squads and requests exist, readable by anyone
+ * holding a spent link.
+ */
+const TOKEN_CLOSED = 'This request is no longer open.';
+
+/** GET /api/squads/join-requests/:token — read-only; never spends the token. */
+router.get('/join-requests/:token', identify, async (req: AuthRequest, res: Response) => {
+  const { token, reason } = await resolveJoinRequestToken(req.params.token);
+  if (!token) {
+    console.warn(`[squads/join-token] resolve refused: ${reason}`);
+    return fail(res, 404, TOKEN_CLOSED, 'token-closed');
+  }
+
+  /**
+   * Authorised either by being the addressee, or by holding the permission
+   * anyway — a co-leader who can admit members should not be refused because
+   * the email happened to be addressed to somebody else.
+   */
+  const membership = await membershipOf(token.squadId, req.user!.userId);
+  const allowed = sameUser(token.leaderId, req.user!.userId) || Boolean(membership?.can.admitMembers);
+  if (!allowed) return fail(res, 404, TOKEN_CLOSED, 'token-closed');
+
+  const [squad, request] = await Promise.all([
+    prisma.squad.findUnique({
+      where: { id: token.squadId },
+      select: { id: true, name: true, destination: true, meetingAt: true },
+    }),
+    prisma.squadMember.findUnique({
+      where: { id: token.memberId },
+      select: { id: true, userId: true },
+    }),
+  ]);
+  if (!squad || !request) return fail(res, 404, TOKEN_CLOSED, 'token-closed');
+
+  const requester = await prisma.user.findUnique({
+    where: { id: request.userId },
+    select: { id: true, name: true, username: true, profilePhoto: true, college: true, rating: true },
+  });
+
+  return ok(res, { squad, memberId: request.id, requester });
+});
+
+/** POST /api/squads/join-requests/:token  { decision: approve | reject } */
+router.post('/join-requests/:token', identify, async (req: AuthRequest, res: Response) => {
+  try {
+    const decision = String(req.body?.decision ?? '');
+    if (!['approve', 'reject'].includes(decision)) {
+      return fail(res, 400, 'Decision must be approve or reject');
+    }
+
+    const { token, reason } = await resolveJoinRequestToken(req.params.token);
+    if (!token) {
+      console.warn(`[squads/join-token] decision refused: ${reason}`);
+      return fail(res, 404, TOKEN_CLOSED, 'token-closed');
+    }
+
+    const membership = await membershipOf(token.squadId, req.user!.userId);
+    const allowed =
+      sameUser(token.leaderId, req.user!.userId) || Boolean(membership?.can.admitMembers);
+    if (!allowed) return fail(res, 404, TOKEN_CLOSED, 'token-closed');
+
+    /**
+     * Spend the token before acting.
+     *
+     * The update is guarded on `usedAt: null`, so of two requests arriving
+     * together exactly one wins and the loser is refused. Doing it after the
+     * decision would leave a window in which both could admit the same person,
+     * and admission increments a member count.
+     */
+    if (!(await consumeJoinRequestToken(token.id))) {
+      return fail(res, 404, TOKEN_CLOSED, 'token-closed');
+    }
+
+    const request = await prisma.squadMember.findFirst({
+      where: { id: token.memberId, squadId: token.squadId, status: 'pending' },
+      select: { id: true, userId: true },
+    });
+    if (!request) return fail(res, 404, TOKEN_CLOSED, 'token-closed');
+
+    const squad = await prisma.squad.findUnique({
+      where: { id: token.squadId },
+      select: { id: true, name: true },
+    });
+    if (!squad) return fail(res, 404, TOKEN_CLOSED, 'token-closed');
+
+    await prisma.squadMember.update({
+      where: { id: request.id },
+      data: { status: decision === 'approve' ? 'active' : 'left' },
+    });
+
+    if (decision === 'approve') {
+      await prisma.squad.update({
+        where: { id: squad.id },
+        data: { memberCount: { increment: 1 } },
+      });
+    }
+
+    await notify({
+      userId: request.userId,
+      type: 'squad.joined',
+      title: decision === 'approve' ? `You're in ${squad.name}` : `Not admitted to ${squad.name}`,
+      body:
+        decision === 'approve'
+          ? 'You can see the map and chat now.'
+          : 'The leader turned down your request.',
+      href: decision === 'approve' ? `/squads/${squad.id}` : '/squads',
+      data: { squadId: squad.id },
+    });
+
+    if (decision === 'approve') {
+      void emailRequestAccepted({
+        userId: request.userId,
+        squadId: squad.id,
+        squadName: squad.name,
+      });
+    }
+
+    getIO()?.to(`squad:${squad.id}`).emit('squad:members-changed', { squadId: squad.id });
+    getIO()?.to(`user:${request.userId}`).emit('squad:members-changed', { squadId: squad.id });
+
+    return ok(res, { id: request.id, decision });
+  } catch (error) {
+    console.error('[squads/join-token decision]', error);
+    return fail(res, 500, 'Failed to record the decision');
   }
 });
 

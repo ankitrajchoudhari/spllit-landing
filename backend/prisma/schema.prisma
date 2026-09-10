@@ -859,6 +859,36 @@ model ThreadMessage {
   @@index([createdAt])
 }
 
+/// A single-use link that identifies one pending join request.
+///
+/// Emailed to a leader so they can answer a request without hunting for the
+/// squad. It identifies *which* request; it never authorises anyone — the
+/// endpoint still requires a session and still checks that the caller may admit
+/// members. See docs/EMAIL-SYSTEM.md.
+model JoinRequestToken {
+  id         String    @id @default(cuid()) @map("_id")
+  /// SHA-256 of the token, never the token. A dump of this collection yields
+  /// nothing usable, which a signed token in a URL could not offer — and unlike
+  /// a JWT, a row can be revoked.
+  tokenHash  String    @unique
+  /// Bound at creation, all three checked on use, so a token cannot be replayed
+  /// against a different squad or a different request.
+  squadId    String
+  /// The SquadMember row holding the pending request.
+  memberId   String
+  /// Who the link was sent to. The session must match this, or hold the same
+  /// permission by another route.
+  leaderId   String
+  expiresAt  DateTime
+  /// Set the moment a decision is taken. Single use: a forwarded email is spent
+  /// once, and the second reader gets the same neutral "no longer open".
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([memberId])
+  @@index([expiresAt])
+}
+
 /// Per-user read position. Kept separate from the thread so a read receipt
 /// write never contends with a message write.
 model ThreadReadState {

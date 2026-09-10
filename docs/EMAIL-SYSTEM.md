@@ -171,10 +171,15 @@ in `scripts/gcloud-deploy.mjs` for the fail-closed reason above.
 
 ---
 
-## Phase 3 — accepting from the email (NOT BUILT)
+## Phase 3 — accepting from the email (built)
 
-Stop and read this before implementing. It is the part that grants access to a
-group sharing live location.
+`services/joinRequestTokens.ts`, the two `/api/squads/join-requests/:token`
+endpoints, and the page at `/squads/[id]/requests/[token]`.
+
+The rule that shapes all of it: **the token identifies, the session
+authorises.** The token says which request is being answered; the session says
+who is answering. A forwarded email hands its recipient a pointer to a request
+they still cannot act on.
 
 ### Email links are clicked by machines
 

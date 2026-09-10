@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { calculateDistance } from '../utils/helpers.js';
 import { notify } from '../services/notifications.js';
 import { emailJoinRequested } from '../services/email.js';
+import { createJoinRequestToken, revokeTokensForRequest } from '../services/joinRequestTokens.js';
 import { getIO } from '../services/live.js';
 import {
   ACTIVE_MEMBER_STATUSES,
@@ -869,12 +870,38 @@ router.post('/:id/join', identify, requireVerifiedInstitute, async (req: AuthReq
      * failure must not turn a successful join request into an error. The
      * module swallows its own errors; this `void` is the second guard.
      */
-    void emailJoinRequested({
-      leaderId: squad.leaderId,
-      squadId: squad.id,
-      squadName: squad.name,
-      requesterName: joiner?.name ?? 'Someone',
-    });
+    void (async () => {
+      /**
+       * Minting is inside the same best-effort block as the send. A token is
+       * only useful if the email carrying it goes out, and neither is allowed
+       * to fail the join request that has already been recorded.
+       */
+      let token: string | undefined;
+      try {
+        const pending = await prisma.squadMember.findFirst({
+          where: { squadId: squad.id, userId: req.user!.userId, status: 'pending' },
+          select: { id: true },
+        });
+        if (pending) {
+          token = await createJoinRequestToken({
+            squadId: squad.id,
+            memberId: pending.id,
+            leaderId: squad.leaderId,
+          });
+        }
+      } catch (error) {
+        // The email still sends, pointing at the squad page instead.
+        console.error('[squads/join] could not mint a decision token', error);
+      }
+
+      await emailJoinRequested({
+        leaderId: squad.leaderId,
+        squadId: squad.id,
+        squadName: squad.name,
+        requesterName: joiner?.name ?? 'Someone',
+        token,
+      });
+    })();
 
     // Someone asking to join is the squad being used, and keeps it alive.
     await markSquadActivity(squad.id);
@@ -936,6 +963,9 @@ router.post('/:id/withdraw', identify, async (req: AuthRequest, res: Response) =
     // behind — the same person may well ask again, and a stale row would make
     // the second request look like a duplicate. `left` is for people who were
     // actually in the squad and whose history is worth keeping.
+    // The emailed link points at this request; withdrawing it must not leave a
+    // live link to a decision that no longer exists.
+    await revokeTokensForRequest(membership.id);
     await prisma.squadMember.delete({ where: { id: membership.id } });
 
     const withdrawer = await prisma.user.findUnique({

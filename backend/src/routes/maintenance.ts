@@ -5,6 +5,7 @@ import { ok, fail } from '../utils/respond.js';
 import { sweepErasedChats } from '../services/squadChatRetention.js';
 import { sweepAllRead } from '../services/notificationRetention.js';
 import { isEmailConfigured, sendTestEmail } from '../services/email.js';
+import { sweepJoinRequestTokens } from '../services/joinRequestTokens.js';
 
 /**
  * Scheduled maintenance, called by Cloud Scheduler rather than by a person.
@@ -206,6 +207,15 @@ router.post('/sweep', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[maintenance] notification sweep failed', error);
     results.notifications = { error: 'failed' };
+  }
+
+  try {
+    // Spent and expired decision links. They authorise nothing once used, so
+    // this is housekeeping rather than a security boundary.
+    results.joinTokens = { deleted: await sweepJoinRequestTokens() };
+  } catch (error) {
+    console.error('[maintenance] join token sweep failed', error);
+    results.joinTokens = { error: 'failed' };
   }
 
   console.log(`[maintenance] sweep: ${JSON.stringify(results)}`);

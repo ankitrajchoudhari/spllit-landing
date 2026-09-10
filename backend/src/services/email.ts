@@ -192,6 +192,12 @@ export async function emailJoinRequested(params: {
   squadId: string;
   squadName: string;
   requesterName: string;
+  /**
+   * Opens the request directly. Omitted, the link falls back to the squad page
+   * — the email still works, it just costs the leader a click to find the
+   * request. Minting a token must never be able to stop the mail going out.
+   */
+  token?: string;
 }): Promise<void> {
   const cfg = config();
   if (!cfg) return;
@@ -205,7 +211,18 @@ export async function emailJoinRequested(params: {
     heading: 'Someone wants to join your squad',
     body: `${params.requesterName} has asked to join ${params.squadName}. Open the squad to see who they are and decide.`,
     actionLabel: 'Review the request',
-    actionUrl: `${cfg.appUrl}/squads/${params.squadId}`,
+    /**
+     * The token is in the path, not a query string. Query strings travel in the
+     * `Referer` header to anything the destination page loads, and this one
+     * names a pending decision.
+     *
+     * The link only opens the request; it authorises nothing. The page requires
+     * a session and the decision is a POST — see services/joinRequestTokens.ts
+     * for why a GET here would be answered by a mail scanner.
+     */
+    actionUrl: params.token
+      ? `${cfg.appUrl}/squads/${params.squadId}/requests/${params.token}`
+      : `${cfg.appUrl}/squads/${params.squadId}`,
     // One request produces one email to one leader, however many times the
     // notification path runs.
     idempotencyKey: `join-requested:${params.squadId}:${params.requesterName}:${params.leaderId}`,
