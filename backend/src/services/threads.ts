@@ -3,6 +3,7 @@ import prisma from '../utils/prisma.js';
 import { squadMemberHasAccess } from '../config/features.js';
 import { ACTIVE_MEMBER_STATUSES, LIVE_SQUAD_STATUSES } from './squads.js';
 import { CHAT_RETENTION, chatAccess, type ChatAccess } from './squadChatRetention.js';
+import { STALE_AFTER_DEPARTURE_HOURS } from './rideVisibility.js';
 
 /**
  * Thread resolution. A conversation is identified by what it is attached to,
@@ -318,6 +319,31 @@ export async function canPostToThread(threadId: string, userId: string): Promise
     return { thread: null, denial: { status: 404, message: 'Conversation not found', code: 'not-found' } };
   }
 
+  /**
+   * A ride's chat closes on the same clock its listing does.
+   *
+   * Rides were exempt from the write gate entirely, so a ride that departed a
+   * month ago still had a fully usable conversation — the ride had long since
+   * vanished from search, and its chat had not noticed.
+   */
+  if (thread.contextType === 'ride') {
+    const ride = await prisma.ride.findUnique({
+      where: { id: thread.contextId },
+      select: { status: true, departureTime: true },
+    });
+    if (ride && chatAccess(rideAsRetention(ride)) !== 'open') {
+      return {
+        thread: null,
+        denial: {
+          status: 403,
+          message: 'This ride is over. The conversation is closed.',
+          code: 'ride-chat-closed',
+        },
+      };
+    }
+    return { thread, denial: null };
+  }
+
   if (thread.contextType !== 'squad') return { thread, denial: null };
 
   const [squad, membership] = await Promise.all([
@@ -349,19 +375,71 @@ export async function threadReadAccess(
   thread: ChatThread,
   now: Date = new Date(),
 ): Promise<ChatAccess> {
-  if (thread.contextType !== 'squad') return 'open';
+  if (thread.contextType === 'squad') {
+    const squad = await prisma.squad.findUnique({
+      where: { id: thread.contextId },
+      select: { status: true, endedAt: true },
+    });
 
-  const squad = await prisma.squad.findUnique({
-    where: { id: thread.contextId },
-    select: { status: true, endedAt: true },
-  });
+    // A squad row that no longer exists cannot be measured. Treat it as open
+    // and let the ordinary not-found paths handle it, rather than inventing an
+    // expiry for something whose end date is unknown.
+    if (!squad) return 'open';
 
-  // A squad row that no longer exists cannot be measured. Treat it as open and
-  // let the ordinary not-found paths handle it, rather than inventing an
-  // expiry for something whose end date is unknown.
-  if (!squad) return 'open';
+    return chatAccess(squad, now);
+  }
 
-  return chatAccess(squad, now);
+  if (thread.contextType === 'ride') {
+    const ride = await prisma.ride.findUnique({
+      where: { id: thread.contextId },
+      select: { status: true, departureTime: true },
+    });
+    if (!ride) return 'open';
+    return chatAccess(rideAsRetention(ride), now);
+  }
+
+  // Channels and DMs have no trip to be over. They are conversations in their
+  // own right, not the byproduct of a journey, so nothing here expires them.
+  return 'open';
+}
+
+/**
+ * Maps a ride onto the same retention shape a squad has.
+ *
+ * Rides have no `endedAt` — they were never given one, because until now
+ * nothing measured from the end of a ride. Two things stand in for it:
+ *
+ *   - a terminal status, which is the ride equivalent of a squad ending;
+ *   - departure plus the staleness window from services/rideVisibility.ts,
+ *     which is already the point at which the rest of the app stops treating
+ *     the ride as live. Reusing it means a ride disappears from search and its
+ *     chat starts winding down on the same clock, rather than on two.
+ *
+ * Without this, a ride thread never closed at all: a ride that departed a month
+ * ago still had a fully usable chat, because retention only knew about squads.
+ */
+function rideAsRetention(ride: { status: string; departureTime: Date | null }): {
+  status: string;
+  endedAt: Date | null;
+} {
+  const terminal = ['completed', 'cancelled'].includes(ride.status);
+
+  if (!ride.departureTime) {
+    // No departure to measure from. Only an explicit terminal status closes it,
+    // and even then there is no timestamp — so it stays readable.
+    return { status: ride.status, endedAt: null };
+  }
+
+  const staleAt = new Date(
+    ride.departureTime.getTime() + STALE_AFTER_DEPARTURE_HOURS * 3600 * 1000,
+  );
+
+  // `chatAccess` only measures squads it considers terminal, so a ride past its
+  // staleness window is reported as terminal with that moment as its end.
+  return {
+    status: terminal || staleAt <= new Date() ? 'completed' : ride.status,
+    endedAt: staleAt,
+  };
 }
 
 /**
@@ -378,20 +456,37 @@ export async function threadReadAccessMap(
   const access = new Map<string, ChatAccess>();
 
   const squadThreads = threads.filter((t) => t.contextType === 'squad');
+  const rideThreads = threads.filter((t) => t.contextType === 'ride');
+
+  // Channels and DMs have no trip to be over, so nothing here expires them.
   for (const thread of threads) {
-    if (thread.contextType !== 'squad') access.set(thread.id, 'open');
+    if (thread.contextType !== 'squad' && thread.contextType !== 'ride') {
+      access.set(thread.id, 'open');
+    }
   }
-  if (squadThreads.length === 0) return access;
 
-  const squads = await prisma.squad.findMany({
-    where: { id: { in: squadThreads.map((t) => t.contextId) } },
-    select: { id: true, status: true, endedAt: true },
-  });
-  const byId = new Map(squads.map((s) => [s.id, s]));
+  if (squadThreads.length > 0) {
+    const squads = await prisma.squad.findMany({
+      where: { id: { in: squadThreads.map((t) => t.contextId) } },
+      select: { id: true, status: true, endedAt: true },
+    });
+    const byId = new Map(squads.map((s) => [s.id, s]));
+    for (const thread of squadThreads) {
+      const squad = byId.get(thread.contextId);
+      access.set(thread.id, squad ? chatAccess(squad, now) : 'open');
+    }
+  }
 
-  for (const thread of squadThreads) {
-    const squad = byId.get(thread.contextId);
-    access.set(thread.id, squad ? chatAccess(squad, now) : 'open');
+  if (rideThreads.length > 0) {
+    const rides = await prisma.ride.findMany({
+      where: { id: { in: rideThreads.map((t) => t.contextId) } },
+      select: { id: true, status: true, departureTime: true },
+    });
+    const byId = new Map(rides.map((r) => [r.id, r]));
+    for (const thread of rideThreads) {
+      const ride = byId.get(thread.contextId);
+      access.set(thread.id, ride ? chatAccess(rideAsRetention(ride), now) : 'open');
+    }
   }
 
   return access;

@@ -319,9 +319,28 @@ router.get('/mine', identify, async (req: AuthRequest, res: Response) => {
      * list — which also made the "one squad at a time" guard fail open, since
      * the client could no longer see the squad it was meant to block on.
      */
+    /**
+     * `pending` is included, and leaving it out was a dead end for the user.
+     *
+     * Discovery excludes any squad you are already attached to — and it counts
+     * `pending` as attached, deliberately, so a squad you have asked to join
+     * stops being offered to you again. But this list only counted *active*
+     * memberships. Between the two, asking to join made the squad vanish
+     * completely: gone from "Squads near you" because you had asked, and absent
+     * from "your squads" because nobody had said yes yet.
+     *
+     * The result was a request that could not be seen, chased or withdrawn, and
+     * a squad that looked like it had been deleted. The two queries have to
+     * agree on what "attached" means, and the honest answer is that a pending
+     * request is a thing you are waiting on, so it belongs on your own list —
+     * marked as pending, which `viewerStatus` below now carries.
+     */
     const memberships = await prisma.squadMember.findMany({
-      where: { userId: req.user!.userId, status: { in: [...ACTIVE_MEMBER_STATUSES] } },
-      select: { squadId: true, role: true },
+      where: {
+        userId: req.user!.userId,
+        status: { in: [...ACTIVE_MEMBER_STATUSES, 'pending'] },
+      },
+      select: { squadId: true, role: true, status: true },
     });
 
     const squads = await prisma.squad.findMany({
@@ -336,6 +355,7 @@ router.get('/mine', identify, async (req: AuthRequest, res: Response) => {
 
     const leaders = await attachLeaders(squads);
     const roleBySquad = new Map(memberships.map((m) => [m.squadId, m.role]));
+    const statusBySquad = new Map(memberships.map((m) => [m.squadId, m.status]));
 
     return ok(
       res,
@@ -343,6 +363,10 @@ router.get('/mine', identify, async (req: AuthRequest, res: Response) => {
         ...squad,
         leader: leaders.get(squad.leaderId) ?? null,
         viewerRole: roleBySquad.get(squad.id) ?? null,
+        // So the client can show a requested squad as awaiting approval rather
+        // than as one you are already in — the two are not the same thing, and
+        // showing them identically would be its own kind of lie.
+        viewerStatus: statusBySquad.get(squad.id) ?? null,
       })),
     );
   } catch (error) {
