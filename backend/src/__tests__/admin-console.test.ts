@@ -26,6 +26,7 @@ import {
 import { diff, sanitise } from '../services/auditLog.js';
 import { ADMIN_EVENTS, METRIC_FOR } from '../services/adminEvents.js';
 import { markActive, markedTodayCount, resetActiveCache } from '../services/activeUsers.js';
+import { bucketFor, evaluate, type FlagState } from '../services/featureFlags.js';
 
 /** A user row as `resolveAdminRole` expects it, with nothing yet privileged. */
 const ACTIVE = {
@@ -306,5 +307,102 @@ describe('active-user marking', () => {
     markActive('');
 
     assert.equal(markedTodayCount(), 0);
+  });
+});
+
+/** A flag with everything permissive, narrowed per test. */
+const FLAG: FlagState = {
+  key: 'rides.enabled',
+  enabled: true,
+  rolloutPercentage: 100,
+  targetUserIds: [],
+  environments: [],
+};
+
+describe('feature flag evaluation', () => {
+  it('is off when the flag does not exist', () => {
+    // An unknown key must not read as on, or a typo enables something.
+    assert.equal(evaluate(undefined, 'user-a', 'production'), false);
+  });
+
+  it('is off for everyone when disabled, targets included', () => {
+    // Off is off. A rollout percentage on a disabled flag is not a partial
+    // state, and a targeted user must not slip through it.
+    const flag = { ...FLAG, enabled: false, rolloutPercentage: 100, targetUserIds: ['user-a'] };
+
+    assert.equal(evaluate(flag, 'user-a', 'production'), false);
+    assert.equal(evaluate(flag, 'user-b', 'production'), false);
+  });
+
+  it('narrows by environment only when environments are listed', () => {
+    assert.equal(evaluate(FLAG, 'user-a', 'production'), true);
+
+    const staged = { ...FLAG, environments: ['development'] };
+    assert.equal(evaluate(staged, 'user-a', 'development'), true);
+    assert.equal(evaluate(staged, 'user-a', 'production'), false);
+  });
+
+  it('lets a targeted user bypass the percentage', () => {
+    // This is what makes it possible to check a 1% rollout before widening it.
+    const flag = { ...FLAG, rolloutPercentage: 0, targetUserIds: ['user-a'] };
+
+    assert.equal(evaluate(flag, 'user-a', 'production'), true);
+    assert.equal(evaluate(flag, 'user-b', 'production'), false);
+  });
+
+  it('is off for an anonymous caller on a partial rollout', () => {
+    // Nobody to bucket stably, so a coin flip per request is the wrong answer.
+    const flag = { ...FLAG, rolloutPercentage: 50 };
+
+    assert.equal(evaluate(flag, null, 'production'), false);
+    // A full rollout still applies — there is nothing to bucket.
+    assert.equal(evaluate({ ...FLAG, rolloutPercentage: 100 }, null, 'production'), true);
+  });
+
+  it('keeps a user on the same side of a rollout every time', () => {
+    // The property that matters most. A random draw per call would flicker
+    // people between variants mid-session.
+    const flag = { ...FLAG, rolloutPercentage: 50 };
+    const first = evaluate(flag, 'user-a', 'production');
+
+    for (let i = 0; i < 100; i += 1) {
+      assert.equal(evaluate(flag, 'user-a', 'production'), first);
+    }
+  });
+
+  it('widening a rollout never removes anyone already inside it', () => {
+    // Monotonicity. If raising 20% to 40% could evict someone, a gradual
+    // rollout would take features away from users who already had them.
+    const ids = Array.from({ length: 300 }, (_, i) => `user-${i}`);
+
+    for (const id of ids) {
+      if (evaluate({ ...FLAG, rolloutPercentage: 20 }, id, 'production')) {
+        assert.equal(
+          evaluate({ ...FLAG, rolloutPercentage: 40 }, id, 'production'),
+          true,
+          `${id} was inside 20% but not 40%`,
+        );
+      }
+    }
+  });
+
+  it('buckets differently per flag, so one cohort does not get everything', () => {
+    // Hashing the user id alone would put the same people in every rollout.
+    const ids = Array.from({ length: 200 }, (_, i) => `user-${i}`);
+    const differing = ids.filter(
+      (id) => bucketFor('flag.one', id) !== bucketFor('flag.two', id),
+    );
+
+    assert.ok(differing.length > 150, `only ${differing.length}/200 buckets differed`);
+  });
+
+  it('spreads buckets across the range', () => {
+    // A hash that clustered would make "20%" mean something other than 20%.
+    const ids = Array.from({ length: 1000 }, (_, i) => `user-${i}`);
+    const inside = ids.filter((id) => bucketFor(FLAG.key, id) < 50).length;
+
+    // Generous bounds: this asserts the distribution is not badly skewed, not
+    // that a hash is perfectly uniform.
+    assert.ok(inside > 400 && inside < 600, `expected roughly half, got ${inside}/1000`);
   });
 });

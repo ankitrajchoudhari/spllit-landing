@@ -19,6 +19,7 @@ import { ok, fail } from '../utils/respond.js';
 import * as audit from '../services/auditLog.js';
 import { readCounters, readSeries } from '../services/adminEvents.js';
 import { connectedAdminCount } from '../services/adminSocket.js';
+import { invalidateFlagCache } from '../services/featureFlags.js';
 import {
   activationFunnel,
   activeUsers as activeUserMetrics,
@@ -790,6 +791,10 @@ router.patch(
         req,
         () => prisma.featureFlag.update({ where: { key }, data }),
       );
+
+      // Same reasoning as settings: the admin who just flipped a flag is the
+      // one most likely to check whether it took.
+      invalidateFlagCache();
 
       return ok(res, updated);
     } catch (error) {

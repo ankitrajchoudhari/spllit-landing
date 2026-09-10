@@ -208,9 +208,21 @@ CORS allowlist.
 cd admin && npm run deploy    # opennextjs-cloudflare build && deploy
 ```
 
-This does **not** touch the `spllit.app` deploy — different Worker, different
-command. There is no GitHub Actions workflow for it yet; add one modelled on
-`.github/workflows/deploy-frontend.yml` when you want it on push.
+Or push to `main`: `.github/workflows/deploy-admin.yml` is path-filtered to
+`admin/**` and deploys the `spllit-admin` Worker on its own. The frontend
+workflow now ignores `admin/**` for the same reason it ignores `backend/**` —
+without that, every console tweak would rebuild and republish spllit.app.
+
+`NEXT_PUBLIC_*` values are inlined at build time, so they must exist as GitHub
+**repository secrets**, not only in the Cloudflare dashboard — a bundle already
+compiled in CI cannot pick them up later. The Firebase values are deliberately
+the same ones the main app uses: an admin is a Spllit user whose row carries a
+console role, so a different Firebase project would mean the account signing in
+here does not exist in the database the backend checks.
+
+The backend needs one new variable: `ADMIN_URL=https://admin.spllit.app` for
+CORS. The literal origin is also hardcoded in the allowlist as a fallback, so a
+missing variable degrades to working rather than to a blank console.
 
 ### DNS
 
@@ -222,18 +234,34 @@ is not what ships. So:
    → **Add custom domain** → `admin.spllit.app`.
 2. If `spllit.app` is on Cloudflare nameservers, the record is created for you.
 3. If DNS is still at Name.com, add the `CNAME` Cloudflare shows you
-   (`admin` → the workers.dev target) with proxying handled by Cloudflare.
+   (`admin` → the workers.dev target), proxied through Cloudflare.
 
 The console sends `X-Robots-Tag: noindex` and `X-Frame-Options: DENY` from both
 `next.config.mjs` and its metadata — an admin console in search results is a
 straightforward leak of what the platform runs.
+
+### First run against a database
+
+```bash
+cd backend
+npx prisma db push                              # 8 new collections + indexes
+node prisma/indexes.mjs                         # sparse-unique indexes
+node scripts/seed-console-config.mjs            # flags + settings definitions
+node scripts/grant-console-role.mjs you@spllit.app super_admin
+```
+
+`seed-console-config.mjs` is idempotent and **never overwrites a value**.
+Re-running it after a deploy must not silently switch a flag back on because
+the seed file still says `false` — the seed defines what exists, the console
+owns what it is set to. `--list` shows the current state without changing
+anything.
 
 ## Status
 
 **Phases 1 (foundation), 2 (operations), 3 (realtime), 4 (analytics) and
 5 (settings, broadcasts, exports): done.**
 
-Verified on every run: backend `tsc` clean + **186 tests pass**; admin `tsc`
+Verified on every run: backend `tsc` clean + **195 tests pass**; admin `tsc`
 clean, lints clean, production build clean (**16 routes**); main app `tsc`
 clean, lints clean, **150 tests pass**.
 
@@ -300,6 +328,10 @@ Phase 5 — settings, broadcasts, exports:
       audit before sending, hard cap at 5,000
 - [x] CSV / JSON exports with explicit column lists, a double permission gate
       and a stated 10,000-row cap
+- [x] Flag evaluation with stable per-user bucketing, and settings that the
+      broadcast and export caps genuinely read — **9 more tests**
+- [x] `seed-console-config.mjs` defining Spllit's real flags and settings
+- [x] Its own deploy workflow, and `admin/**` excluded from the frontend's
 
 ### Not built, and why
 
@@ -477,12 +509,43 @@ shipped. Days before that read as zero because nothing was recorded, not
 because nobody was there — the payload carries that caveat in `notes` and the
 page renders it above the figures rather than in a footnote.
 
+## Feature flags
+
+Evaluation lives in `services/featureFlags.ts`, and two properties matter more
+than the storage:
+
+**Bucketing is stable.** A user inside a 20% rollout stays inside it on every
+subsequent request — a random draw per call would flicker people between
+variants mid-session, which is worse than not having the rollout. The hash
+covers the flag key *and* the user id, so every 20% rollout on the platform
+does not contain the same 20% of people. Widening a rollout never evicts anyone
+already inside it, which is asserted in the tests rather than assumed.
+
+**Reads are cached** on a 30-second TTL, because a flag check costing a database
+round trip is one nobody can afford on a hot path, and a flag nobody puts on a
+hot path is not a feature flag. An edit from the console drops the cache
+immediately, so the admin who just flipped it is not the one waiting.
+
+`enabled: false` means off for everyone, targets included — off is off, and a
+rollout percentage on a disabled flag is not a partial state.
+
+> **Wiring still to do.** Nothing user-facing reads these yet. `isEnabled(key,
+> userId)` and `resolveAll(userId)` are ready, but the surface that would call
+> them lives in the main app, which was out of scope. Until that happens a flag
+> is a working definition with no consumer — worth knowing before trusting one
+> as a kill switch.
+
 ## Settings, broadcasts and exports
 
 The three surfaces that change something *outside* the console: a setting every
 user's app reads, a notification that lands on their phone, and a file of their
 data leaving the building. Each is deliberately harder to do by accident than
 the read-only pages.
+
+The broadcast recipient cap and the export row cap are read from settings
+rather than hardcoded, so the Settings page changes real behaviour — but both
+are **clamped in code**, where the form cannot reach them. An admin can tune
+the ceiling; a mistyped 5000000 cannot become the number the send loop uses.
 
 **Settings.** `requiresConfirmation` travels with the setting rather than
 living in the UI, so a dangerous switch cannot become a one-click toggle by

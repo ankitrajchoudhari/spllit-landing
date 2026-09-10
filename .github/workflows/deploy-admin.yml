@@ -1,0 +1,90 @@
+name: Deploy admin console (Cloudflare Workers)
+
+# The console is its own Worker on its own domain, so it deploys on its own.
+# Path-filtered to admin/** alone: a change to the user-facing app must not
+# republish the console, and a console change must not republish spllit.app.
+#
+# Note that backend/** is absent from the trigger deliberately. The console's
+# API lives in the backend and deploys with it; this workflow ships only the
+# Next.js app that calls it.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'admin/**'
+      - '.github/workflows/deploy-admin.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-admin
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Every step runs inside admin/. It has its own package.json, its own
+    # lockfile and its own wrangler config; running from the repo root would
+    # pick up the main app's.
+    defaults:
+      run:
+        working-directory: admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - run: npm ci
+
+      # Typecheck and lint before publishing, same as the frontend workflow.
+      # Both are seconds, and a deploy that ships a broken build is worse than
+      # no deploy.
+      - run: npx tsc --noEmit
+      - run: npx eslint .
+
+      # `npm run deploy` is the project's own script (opennextjs-cloudflare
+      # build && deploy), using the Wrangler pinned in admin/package.json — so
+      # the version that deploys is the version that was tested. Deliberately
+      # not cloudflare/wrangler-action; see the note in deploy-frontend.yml.
+      - name: Build and deploy
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # NEXT_PUBLIC_* is inlined at build time, so these must exist HERE,
+          # in the build environment. Setting them in the Cloudflare dashboard
+          # does nothing for a bundle already compiled in CI.
+          #
+          # The Firebase values are shared with the main app on purpose: an
+          # admin is a Spllit user whose row carries a console role, so a
+          # different Firebase project would mean the account signing in here
+          # does not exist in the database the backend checks.
+          NEXT_PUBLIC_ENV: production
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_SOCKET_URL: ${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+
+      - name: Confirm the deploy is serving
+        run: |
+          # A green wrangler step means "published", not "reachable". The
+          # console answers 200 with its sign-in screen when signed out, so a
+          # 200 here is a real check rather than a redirect being followed.
+          for i in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://admin.spllit.app/ || true)
+            echo "attempt $i: $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 6
+          done
+          echo "admin.spllit.app did not return 200 after the deploy"
+          exit 1

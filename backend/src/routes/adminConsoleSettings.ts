@@ -11,6 +11,7 @@ import { ok, fail } from '../utils/respond.js';
 import { str } from '../utils/adminQuery.js';
 import * as audit from '../services/auditLog.js';
 import { notify } from '../services/notifications.js';
+import { getBounded, invalidateSettingsCache } from '../services/platformSettings.js';
 
 /**
  * Admin console — settings, broadcasts and exports.
@@ -113,6 +114,10 @@ router.patch(
           }),
       );
 
+      // Dropped immediately rather than waiting for the 30s TTL: the admin who
+      // just changed a setting is the one most likely to check whether it took.
+      invalidateSettingsCache();
+
       return ok(res, updated);
     } catch (error) {
       console.error('[admin-console/settings/:key]', error);
@@ -136,7 +141,18 @@ type Audience = (typeof AUDIENCES)[number];
  * push attempted, and a mistyped audience that reached the entire user base
  * cannot be recalled once it is on people's phones.
  */
-const BROADCAST_CAP = 5000;
+const BROADCAST_CAP_DEFAULT = 5000;
+
+/**
+ * Read from settings, clamped in code.
+ *
+ * The clamp is what keeps this safe to expose: an admin can tune the ceiling
+ * from the console, but a mistyped 5000000 cannot become the number the send
+ * loop uses. The bounds live here, where the form cannot reach them.
+ */
+async function broadcastCap(): Promise<number> {
+  return getBounded('notifications.broadcast_cap', BROADCAST_CAP_DEFAULT, 1, 20_000);
+}
 
 function audienceWhere(audience: Audience, college: string) {
   const base: Record<string, unknown> = { isActive: true };
@@ -174,14 +190,17 @@ router.post(
       const college = str(req.body?.college);
       if (audience === 'college' && !college) return fail(res, 400, 'A college is required.');
 
-      const total = await prisma.user.count({ where: audienceWhere(audience, college) });
+      const [total, cap] = await Promise.all([
+        prisma.user.count({ where: audienceWhere(audience, college) }),
+        broadcastCap(),
+      ]);
 
       return ok(res, {
         audience,
         total,
-        capped: total > BROADCAST_CAP,
-        cap: BROADCAST_CAP,
-        willReach: Math.min(total, BROADCAST_CAP),
+        capped: total > cap,
+        cap,
+        willReach: Math.min(total, cap),
       });
     } catch (error) {
       console.error('[admin-console/broadcast/preview]', error);
@@ -216,7 +235,7 @@ router.post(
       const recipients = await prisma.user.findMany({
         where: audienceWhere(audience, college),
         select: { id: true },
-        take: BROADCAST_CAP,
+        take: await broadcastCap(),
       });
 
       /**
@@ -373,7 +392,12 @@ type Dataset = keyof typeof EXPORTS;
  * so rather than pretend, the export is capped and the response header says it
  * was truncated. A silently short file is the worst of the options.
  */
-const EXPORT_CAP = 10_000;
+const EXPORT_CAP_DEFAULT = 10_000;
+
+/** Same reasoning as the broadcast cap: tunable, but bounded in code. */
+async function exportCap(): Promise<number> {
+  return getBounded('exports.row_cap', EXPORT_CAP_DEFAULT, 100, 50_000);
+}
 
 /** RFC 4180: quote everything, double any inner quote. */
 function csvCell(value: unknown): string {
@@ -401,8 +425,9 @@ router.get('/export/:dataset', async (req: AdminRequest, res: Response) => {
       return fail(res, 403, 'Your role cannot run exports.', 'permission_denied');
     }
 
-    const rows = (await spec.fetch(EXPORT_CAP)) as Record<string, unknown>[];
-    const truncated = rows.length === EXPORT_CAP;
+    const cap = await exportCap();
+    const rows = (await spec.fetch(cap)) as Record<string, unknown>[];
+    const truncated = rows.length === cap;
 
     await audit.record(
       admin,

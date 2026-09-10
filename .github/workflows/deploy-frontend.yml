@@ -11,9 +11,15 @@ on:
     branches: [main]
     paths-ignore:
       - 'backend/**'
+      # Same reasoning as backend/: the admin console is a separate Worker with
+      # its own deploy. Without this, an admin-only change rebuilds and
+      # republishes spllit.app for no reason — every console tweak becoming a
+      # production deploy of the user-facing site.
+      - 'admin/**'
       - '**.md'
       - 'docs/**'
       - '.github/workflows/deploy-backend.yml'
+      - '.github/workflows/deploy-admin.yml'
   # Lets you redeploy the current commit from the Actions tab without an
   # empty commit, which is what you want when only a secret changed.
   workflow_dispatch:
