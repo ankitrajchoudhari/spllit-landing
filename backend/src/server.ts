@@ -3,6 +3,9 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+// For /health, which pings the database rather than only reporting that the
+// process is up — see the endpoint for why that distinction cost a deploy.
+import prisma from './utils/prisma.js';
 import authRoutes from './routes/auth.js';
 import rideRoutes from './routes/rides.js';
 import matchRoutes from './routes/matches.js';
@@ -250,8 +253,51 @@ app.use(
 );
 
 // Health check
-app.get('/health', (req, res) => {
+/**
+ * Liveness: the process is up and serving. Deliberately touches nothing.
+ *
+ * Kept dependency-free so the wiring suite can prove the whole routing table
+ * without a database, which is the property that makes that suite runnable in
+ * CI at all. Readiness is a separate endpoint below.
+ */
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+/**
+ * Readiness: can this revision actually do its job?
+ *
+ * Split from /health because the two questions have different answers and only
+ * one of them belongs in a deploy gate. A deploy carrying a broken DATABASE_URL
+ * rolled out green precisely because the gate polled liveness: the process had
+ * started, so it answered 200, while every authenticated request was failing on
+ * a database it could not reach. The workflow polls this instead.
+ *
+ * The ping is `$runCommandRaw({ ping: 1 })` — Mongo's own no-op. It reads no
+ * collection, so it cannot be slow because of data volume, and it proves what a
+ * real query would: the connection string parses, the credentials are accepted,
+ * and a server answers.
+ *
+ * Raced against a timeout because the failure being caught is an unreachable
+ * server. A health check that hangs is worse than one that fails — the gate
+ * would sit there until the job's own timeout instead of reporting quickly.
+ */
+app.get('/health/ready', async (_req, res) => {
+  const timestamp = new Date().toISOString();
+
+  try {
+    await Promise.race([
+      prisma.$runCommandRaw({ ping: 1 }),
+      new Promise((_resolve, reject) =>
+        setTimeout(() => reject(new Error('database ping timed out')), 4000),
+      ),
+    ]);
+  } catch (error) {
+    console.error('[health/ready] database unreachable:', error);
+    return res.status(503).json({ status: 'degraded', database: 'unreachable', timestamp });
+  }
+
+  return res.json({ status: 'ok', database: 'ok', timestamp });
 });
 
 // API Routes

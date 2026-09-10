@@ -44,13 +44,37 @@ export async function identify(
   }
 
   if (!isFirebaseAdminConfigured()) {
+    // Distinct from a bad token: the server has no credentials to verify with.
+    // Logged because the silent version of this was indistinguishable in the
+    // logs from a user simply presenting a bad token.
+    console.error('[identify] Firebase Admin is not configured — check FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY');
+    res.status(401).json({ success: false, message: 'Invalid token' });
+    return;
+  }
+
+  /**
+   * Verification and lookup are caught separately, and this is not tidiness.
+   *
+   * They shared one `try`, so anything thrown below — including the database
+   * being unreachable — was reported as `401 Invalid token`. That is a lie in
+   * the most expensive direction: it blames the caller's credentials for a
+   * server-side outage. A rotated database password cost four rounds of
+   * debugging Firebase keys, service-account IAM and Secret Manager, because a
+   * perfectly valid token kept coming back "Invalid".
+   *
+   * A token we cannot verify is 401. A database we cannot reach is 503, which
+   * is both true and the thing a client should retry.
+   */
+  let decoded: Awaited<ReturnType<typeof verifyFirebaseIdToken>>;
+  try {
+    decoded = await verifyFirebaseIdToken(token);
+  } catch (error) {
+    console.error('[identify] Firebase verification failed:', error);
     res.status(401).json({ success: false, message: 'Invalid token' });
     return;
   }
 
   try {
-    const decoded = await verifyFirebaseIdToken(token);
-
     // Resolve the Firebase identity to a local user. Matching on firebaseUid
     // first, then email, lets accounts created before firebaseUid existed
     // adopt their uid on the next sign-in instead of forking into a duplicate.
@@ -84,8 +108,11 @@ export async function identify(
     markActive(req.user.userId);
     next();
   } catch (error) {
-    console.error('[identify] Firebase verification failed:', error);
-    res.status(401).json({ success: false, message: 'Invalid token' });
+    // The token was already verified above, so reaching here means our own
+    // storage failed, not the caller. 503 says so, and says it is worth
+    // retrying — which 401 actively discourages.
+    console.error('[identify] could not resolve the signed-in user:', error);
+    res.status(503).json({ success: false, message: 'Service temporarily unavailable' });
   }
 }
 

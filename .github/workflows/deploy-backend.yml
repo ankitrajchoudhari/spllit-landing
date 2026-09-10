@@ -88,7 +88,11 @@ jobs:
       - name: Confirm the new revision is serving
         run: |
           for i in $(seq 1 10); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://api.spllit.app/health || true)
+            # /health/ready, not /health: liveness only proves the process
+            # started. A deploy carrying a broken DATABASE_URL passed this gate
+            # green while every authenticated request was failing, because the
+            # process was up and answering. Readiness pings the database.
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://api.spllit.app/health/ready || true)
             echo "attempt $i: $code"
             [ "$code" = "200" ] && break
             sleep 6
