@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { Badge, Button } from '@/components/ui/primitives';
 import { CommandPalette } from '@/components/command-palette';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { LiveIndicator } from '@/components/live-indicator';
 
 interface NavItem {
   href: string;
@@ -213,6 +214,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="min-w-0 flex-1">
             <Breadcrumbs />
           </div>
+
+          <LiveIndicator />
 
           {/*
             A visible affordance for the palette. A keyboard shortcut nobody is

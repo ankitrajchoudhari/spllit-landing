@@ -16,6 +16,7 @@ interface SystemHealth {
   checkedAt: string;
   api: { ok: boolean; uptimeSeconds: number };
   database: { ok: boolean; latencyMs: number | null };
+  realtime: { connectedAdmins: number };
   memory: { heapUsedMb: number; rssMb: number };
   node: string;
   unavailable: { key: string; reason: string }[];
@@ -78,6 +79,10 @@ export default function SystemPage() {
             <Badge tone={data.database.ok ? 'good' : 'bad'}>
               Database {data.database.ok ? 'connected' : 'unreachable'}
             </Badge>
+            <Badge tone={data.realtime.connectedAdmins > 0 ? 'good' : 'neutral'}>
+              {data.realtime.connectedAdmins} admin
+              {data.realtime.connectedAdmins === 1 ? '' : 's'} connected
+            </Badge>
             <Badge tone="neutral">Node {data.node}</Badge>
           </div>
 
@@ -92,6 +97,11 @@ export default function SystemPage() {
             />
             <Stat label="Heap used" value={`${data.memory.heapUsedMb}MB`} />
             <Stat label="RSS" value={`${data.memory.rssMb}MB`} />
+            <Stat
+              label="Live sockets"
+              value={data.realtime.connectedAdmins}
+              sub="Consoles watching"
+            />
           </div>
 
           <div className="grid gap-3 lg:grid-cols-2">

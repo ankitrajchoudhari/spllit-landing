@@ -24,6 +24,7 @@ import {
   roleHasPermission,
 } from '../config/adminRoles.js';
 import { diff, sanitise } from '../services/auditLog.js';
+import { ADMIN_EVENTS, METRIC_FOR } from '../services/adminEvents.js';
 
 /** A user row as `resolveAdminRole` expects it, with nothing yet privileged. */
 const ACTIVE = {
@@ -243,5 +244,32 @@ describe('audit diff', () => {
     // Composite fields would otherwise report a change on every single write.
     const out = diff({ venue: { lat: 1, lng: 2 } }, { venue: { lat: 1, lng: 2 } });
     assert.deepEqual(out.after, {});
+  });
+});
+
+describe('realtime event catalogue', () => {
+  it('gives every event a metric key', () => {
+    // An event added without one would increment a counter literally named
+    // `undefined`, and the dashboard figure it feeds would silently stop
+    // moving with nothing failing anywhere.
+    for (const event of ADMIN_EVENTS) {
+      const metric = METRIC_FOR[event];
+      assert.equal(typeof metric, 'string', `${event} has no metric`);
+      assert.ok(metric.length > 0, `${event} has an empty metric`);
+    }
+  });
+
+  it('gives every event a distinct metric key', () => {
+    const metrics = ADMIN_EVENTS.map((event) => METRIC_FOR[event]);
+    assert.equal(new Set(metrics).size, metrics.length, 'two events share a metric');
+  });
+
+  it('names every metric in dotted form', () => {
+    // The rollup id is `<metric>:<day>`, so a metric containing a colon would
+    // produce ambiguous keys that collide across different days.
+    for (const metric of Object.values(METRIC_FOR)) {
+      assert.ok(/^[a-z]+\.[a-z_]+$/.test(metric), `${metric} is not a dotted lowercase key`);
+      assert.ok(!metric.includes(':'), `${metric} would break the rollup id`);
+    }
   });
 });

@@ -1082,3 +1082,70 @@ model PlatformSetting {
 
   @@index([category])
 }
+
+// ---------------------------------------------------------------------------
+// Realtime metrics (Phase 3)
+//
+// The dashboard used to answer every counter with a live count() over the
+// collection. That is affordable at a 60-second poll and ruinous at three
+// seconds: ~20 counters against a growing database, forever, whether or not
+// anyone has the tab open. These two models exist so the common case is a
+// keyed read and an atomic increment instead.
+// ---------------------------------------------------------------------------
+
+/// A running lifetime total, incremented on write rather than recounted.
+///
+/// Separate from MetricRollup because a lifetime figure must not be computed by
+/// summing every daily bucket ever recorded — that cost grows without bound,
+/// which is the problem this whole model exists to avoid.
+model MetricCounter {
+  /// Dotted metric key: user.created | ride.created | message.sent …
+  key       String   @id @map("_id")
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+/// One day's worth of one metric.
+///
+/// The id is `<metric>:<day>` rather than a cuid, so an increment is a single
+/// keyed upsert with no lookup first. Two writes landing in the same
+/// millisecond then collide on the primary key instead of silently creating a
+/// second bucket for the same day and halving the number the dashboard shows.
+model MetricRollup {
+  /// "<metric>:<YYYY-MM-DD>"
+  id     String @id @map("_id")
+  metric String
+  /// UTC day. Stated because a rollup keyed on local time double-counts and
+  /// skips days whenever the server's zone changes under it.
+  day    String
+  count  Int    @default(0)
+
+  @@index([metric, day])
+  @@index([day])
+}
+
+/// The live activity feed.
+///
+/// Deliberately denormalised and deliberately small: a feed row is a headline
+/// plus a link, never a copy of the record. Rows are pruned by
+/// `services/adminEvents.ts` rather than kept forever — this is a window onto
+/// what is happening now, and an unbounded one would become the largest
+/// collection in the database purely to serve a sidebar.
+model ActivityEvent {
+  id         String   @id @default(cuid()) @map("_id")
+  /// Matches the event names in docs/ADMIN-CONSOLE.md, e.g. USER_CREATED.
+  type       String
+  title      String
+  subtitle   String?
+  /// user | ride | squad | event | community | emergency | admin
+  entityType String?
+  entityId   String?
+  /// Console-relative deep link, resolved when the row is written.
+  href       String?
+  /// info | warning | danger — drives the dot colour, nothing else.
+  severity   String   @default("info")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([type, createdAt])
+}

@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
+import { useLive } from '@/lib/live';
+import { ActivityFeed } from '@/components/activity-feed';
 import { formatCount, formatRelative } from '@/lib/utils';
 import { Card, PageHeader, Stat } from '@/components/ui/primitives';
 import {
@@ -49,10 +51,23 @@ interface Signups {
 }
 
 export default function DashboardPage() {
+  const { deltaSince } = useLive();
+
   const overview = useQuery({
     queryKey: ['overview'],
     queryFn: () => api<Overview>('/overview'),
   });
+
+  /**
+   * A figure plus whatever has happened since it was fetched.
+   *
+   * `dataUpdatedAt` is the moment the number left the server, so the delta is
+   * exactly the events it could not have included. On the 60-second refetch the
+   * base moves forward and the delta collapses to zero on its own — no reset,
+   * and no drift from counting the same event twice.
+   */
+  const live = (base: number, metric: string) =>
+    base + deltaSince(metric, overview.dataUpdatedAt);
 
   const signups = useQuery({
     queryKey: ['signups', 30],
@@ -106,13 +121,13 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Stat
                 label="Total users"
-                value={formatCount(data.users.total)}
+                value={formatCount(live(data.users.total, 'user.created'))}
                 sub={`${formatCount(data.users.onboarded)} onboarded`}
                 icon={<Users className="h-4 w-4" />}
               />
               <Stat
                 label="New today"
-                value={formatCount(data.users.newToday)}
+                value={formatCount(live(data.users.newToday, 'user.created'))}
                 sub={`${formatCount(data.users.newWeek)} this week`}
                 icon={<UserPlus className="h-4 w-4" />}
               />
@@ -136,25 +151,25 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Stat
                 label="Active rides"
-                value={formatCount(data.rides.active)}
+                value={formatCount(live(data.rides.active, 'ride.created'))}
                 sub={`${formatCount(data.rides.completed)} completed all time`}
                 icon={<Car className="h-4 w-4" />}
               />
               <Stat
                 label="Active squads"
-                value={formatCount(data.squads.active)}
+                value={formatCount(live(data.squads.active, 'squad.created'))}
                 sub={`${formatCount(data.squads.total)} total`}
                 icon={<UsersRound className="h-4 w-4" />}
               />
               <Stat
                 label="Upcoming events"
-                value={formatCount(data.events.upcoming)}
+                value={formatCount(live(data.events.upcoming, 'event.created'))}
                 sub={`${formatCount(data.events.total)} total`}
                 icon={<CalendarDays className="h-4 w-4" />}
               />
               <Stat
                 label="Messages 24h"
-                value={formatCount(data.chat.messages24h)}
+                value={formatCount(live(data.chat.messages24h, 'message.sent'))}
                 sub={`${formatCount(data.chat.threads)} threads`}
                 icon={<MessageCircle className="h-4 w-4" />}
               />
@@ -168,17 +183,24 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Stat
                 label="Open SOS"
-                value={formatCount(data.emergencies.open)}
+                value={formatCount(live(data.emergencies.open, 'emergency.raised'))}
                 tone={data.emergencies.open > 0 ? 'bad' : 'good'}
                 icon={<ShieldAlert className="h-4 w-4" />}
               />
               <Stat label="Communities" value={formatCount(data.communities.total)} />
               <Stat label="Waitlist" value={formatCount(data.waitlist.total)} />
-              <Stat label="Notifications 24h" value={formatCount(data.notifications.sent24h)} />
+              <Stat label="Notifications 24h" value={formatCount(live(data.notifications.sent24h, 'notification.sent'))} />
             </div>
           </section>
 
           <SignupChart query={signups} />
+
+          <section className="flex flex-col gap-3">
+            <h2 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-ink-subtle">
+              Live activity
+            </h2>
+            <ActivityFeed />
+          </section>
 
           {data.unavailable.length > 0 ? (
             <section className="flex flex-col gap-3">

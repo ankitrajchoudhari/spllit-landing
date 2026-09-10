@@ -147,9 +147,15 @@ searching gets people and nothing else rather than a 403 for the whole palette.
 
 ## Database
 
-Three additive models in `backend/prisma/schema.prisma` — `AuditLog`,
-`FeatureFlag`, `PlatformSetting` — plus the optional `User.adminRole` field.
+Six additive models in `backend/prisma/schema.prisma` — `AuditLog`,
+`FeatureFlag`, `PlatformSetting`, and from Phase 3 `MetricCounter`,
+`MetricRollup` and `ActivityEvent` — plus the optional `User.adminRole` field.
 No existing model or field was changed.
+
+`MetricRollup`'s id is `<metric>:<YYYY-MM-DD>` rather than a cuid, so an
+increment is one keyed upsert with no lookup first. Two writes in the same
+millisecond then collide on the primary key instead of quietly creating a second
+bucket for the same day and halving the figure the dashboard shows.
 
 MongoDB creates collections on first write, so there is no migration step:
 
@@ -217,9 +223,9 @@ straightforward leak of what the platform runs.
 
 ## Status
 
-**Phase 1 (foundation) and Phase 2 (operations): done.**
+**Phases 1 (foundation), 2 (operations) and 3 (realtime): done.**
 
-Verified on every run: backend `tsc` clean + **180 tests pass**; admin `tsc`
+Verified on every run: backend `tsc` clean + **183 tests pass**; admin `tsc`
 clean, lints clean, production build clean (**14 routes**); main app `tsc`
 clean, lints clean, **150 tests pass**.
 
@@ -253,6 +259,19 @@ Phase 2 — operations:
 - [x] **25 tests** on the security logic — the permission matrix, the
       escalation guards, audit redaction and the diff
 
+Phase 3 — realtime:
+
+- [x] `MetricCounter` / `MetricRollup` / `ActivityEvent`, incremented on write
+      rather than recounted
+- [x] A Prisma query extension as the single instrumentation point — ten models
+      observed, zero route files edited
+- [x] A dedicated `/admin` Socket.IO namespace, isolated from the one carrying
+      user positions and chat, refusing non-admins at the handshake
+- [x] Live activity feed: backlog fetched **once**, everything after it by event
+- [x] Live/reconnecting/offline indicator with a 60s polling fallback
+- [x] Drift-free deltas derived from timestamps, not a running tally
+- [x] **3 more tests** on the event catalogue's invariants
+
 ### Not built, and why
 
 - [ ] **Reports queue** — Spllit has no `Report` model and no way for a user to
@@ -264,74 +283,114 @@ Phase 2 — operations:
       needs a report or support ticket naming the thread, and neither exists
       yet, so the console offers no route to the messages at all.
 - [ ] **Analytics** — needs `AnalyticsEvent` plus instrumentation. Phase 4.
-- [ ] **Realtime** — Phase 3, below.
 
-## Phase 3 — realtime requirements
+## Phase 3 — realtime
 
-**Do this before Phase 4 analytics.** The dependency runs
-`raw database → rollups/events → realtime → analytics`, not
-`raw database → analytics → realtime`.
+**Built.** The console updates from events, not from a faster poll.
 
-### The problem to solve
+### What changed
 
-`GET /overview` currently runs ~20 live `count()` calls per request. That is
-honest and fine at today's volume, and it is why the console polls at **60
-seconds** and does not claim to be live. Wiring it to a 3-second refresh would
-be roughly 48,000 collection scans an hour, forever, whether or not anybody has
-the tab open.
-
-The fix is not a faster poll. It is to stop recounting:
+`GET /overview` used to answer every figure with a live `count()`. The volatile
+ones — the figures events move — now come from `MetricCounter`, a single keyed
+read of all counters at once. What stayed a live count is the set of figures
+that are *states* rather than events: rides currently active, accounts
+currently suspended. Those cannot be derived by incrementing, because a row
+changing status is not a write anybody counts.
 
 ```
-Spllit app  ──▶  event layer  ──┬──▶  MongoDB          (durable write)
-  (a domain write)              ├──▶  MetricRollup     (incr, not recount)
-                                └──▶  Socket.IO        (room: admin:metrics)
-                                            │
-                                            ▼
-                                    admin.spllit.app
-                                    (aggregates on load, deltas after)
+Spllit app  ──▶  Prisma extension  ──┬──▶  MetricCounter   (lifetime, incr)
+  (any create)   (utils/prisma.ts)   ├──▶  MetricRollup    (per UTC day, incr)
+                                     ├──▶  ActivityEvent   (feed row, pruned)
+                                     └──▶  io.of('/admin') (room: metrics)
+                                                  │
+                                                  ▼
+                                          admin.spllit.app
+                                    (figures on load, deltas after)
 ```
 
-Reads on page load come from cached aggregates; after that the page receives
-only deltas. Polling stays as the fallback when the socket drops — which is
-also what drives the "Reconnecting" state.
+### The instrumentation point
 
-### Events that will need to publish
+**One file, not fifteen.** `utils/prisma.ts` wraps the client in a `$extends`
+query extension that observes `create` on the ten models the console reports
+on. The alternative was an emit inside each route handler — which means editing
+files the live user-facing app depends on, and means every future write path
+silently going unreported until somebody remembers to add one.
 
-Named now so Phase 2's write paths can be instrumented in one pass later.
-Everything marked *(exists)* has a write path in the codebase today; the rest
-depend on features that do not exist yet.
+Each handler runs `query(args)` first and reports only once it resolves, so
+nothing is announced that did not commit. None of them awaits the reporting.
+`metricCounter`, `metricRollup` and `activityEvent` are deliberately absent from
+the observed list — they are what the reporting writes, and observing them would
+have each event trigger another.
 
-| Event | Source | Status |
-|---|---|---|
-| `USER_CREATED` | `routes/auth.ts`, `usersPlatform.ts` | exists |
-| `USER_SUSPENDED` / `USER_RESTORED` | `adminConsole.ts` | exists |
-| `RIDE_CREATED` | `routes/rides.ts`, `ridesPlatform.ts` | exists |
-| `RIDE_STATUS_CHANGED` | ride transition handler | exists |
-| `MATCH_CREATED` / `MATCH_ACCEPTED` | `routes/matches.ts` | exists |
-| `SQUAD_CREATED` | `routes/squads.ts` | exists |
-| `SQUAD_MEMBER_JOINED` | `routes/squadsMembers.ts` | exists |
-| `EVENT_CREATED` / `EVENT_CANCELLED` | `routes/events.ts`, `adminConsoleOps.ts` | exists |
-| `COMMUNITY_CREATED` | `routes/communities.ts` | exists |
-| `MESSAGE_SENT` | `services/live.ts` `chat:send` | exists |
-| `NOTIFICATION_SENT` | `services/notifications.ts` | exists |
-| `EMERGENCY_RAISED` | `routes/emergency.ts` | exists |
-| `ADMIN_ACTION` | `services/auditLog.ts` `record()` | exists |
-| `REPORT_CREATED` | — | needs the reporting feature |
-| `POST_CREATED` / `COMMENT_CREATED` | — | no such feature in Spllit |
-| `SYSTEM_ERROR` | — | needs error aggregation |
+`ADMIN_ACTION` comes from `auditLog.record()` instead, which every privileged
+mutation already passes through.
 
-`services/auditLog.ts` `record()` is the single choke point for `ADMIN_ACTION` —
-every privileged mutation already flows through it, so that one is a one-line
-emit rather than an audit of every handler.
+### Why a namespace, not a room
 
-### Room security
+`io.of('/admin')` rather than an `admin:metrics` room on the default namespace.
+`services/live.ts` owns that namespace and carries every user's positions,
+presence and chat; adding an admin room to it would mean editing the file the
+live map depends on, and putting admin fan-out one stray `broadcast.emit` away
+from every user's phone. A namespace is isolated by construction.
 
-The `admin:metrics` room must gate its join the way `services/live.ts` already
-gates squad and ride rooms: against a real privilege check, resolved from the
-database, never a global broadcast. That file is the pattern to copy — it
-refuses a room join unless membership is proven, which is exactly the shape the
-admin room needs with `resolveAdminRole` in place of membership.
+Authentication there is a **connection** gate, not a room gate. `live.ts` lets
+unauthenticated sockets connect and refuses their room joins, because a public
+map still has something to show them. Nothing in `/admin` is public, so a
+non-admin is refused the handshake outright.
+
+### Connection states
+
+The indicator never claims to be live when it is not — a stale dashboard
+reading "Live" invites someone to act on figures that stopped moving ten
+minutes ago.
+
+| State | Meaning |
+|---|---|
+| `connecting` | Opening the connection. |
+| `live` | Connected; figures move as events arrive. |
+| `reconnecting` | Dropped and retrying. Figures may be stale. |
+| `offline` | Gave up, or was refused. **Falls back to 60s polling.** |
+| `disabled` | No `NEXT_PUBLIC_SOCKET_URL` at build time. Polling. |
+
+### Deltas without drift
+
+The dashboard still refetches its real figures every 60 seconds, so a running
+tally of live events would keep adding on top of numbers that had already
+absorbed them — every counter drifting upward the longer a tab stayed open.
+
+Instead the client keeps *timestamped* ticks and asks `deltaSince(metric,
+overview.dataUpdatedAt)`. The delta is exactly what has happened since the
+figures left the server; on each refetch the base moves forward and the delta
+collapses to zero on its own. Nothing to reset, nothing double counted.
+
+### Backfill
+
+Counters start empty and fill from the first write after this shipped.
+**Existing history is not backfilled**, so lifetime totals read lower than the
+collections actually hold until it is. `/overview` sends `counters` raw
+alongside the figures so a genuine zero stays distinguishable from a metric that
+is not yet recording.
+
+### Still to do
+
+`MESSAGE_SENT` and `NOTIFICATION_SENT` are counted but withheld from the feed —
+at real volume they would push everything else off it within seconds. If the
+feed ever needs them, it needs a filter first.
+
+## Phase 4 — analytics (not started)
+
+Needs `AnalyticsEvent` plus instrumentation, then retention, cohorts and
+funnels on top of the rollups this phase established. The dependency that made
+Phase 3 come first still holds: `raw database → rollups/events → realtime →
+analytics`.
+
+Events named in the catalogue but with no source yet:
+
+| Event | Blocked on |
+|---|---|
+| `REPORT_CREATED` | the reporting feature |
+| `POST_CREATED` / `COMMENT_CREATED` | no such feature in Spllit |
+| `SYSTEM_ERROR` | error aggregation |
 
 ## Decisions taken
 

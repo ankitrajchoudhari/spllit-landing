@@ -17,6 +17,8 @@ import {
 } from '../config/adminRoles.js';
 import { ok, fail } from '../utils/respond.js';
 import * as audit from '../services/auditLog.js';
+import { readCounters, readSeries } from '../services/adminEvents.js';
+import { connectedAdminCount } from '../services/adminSocket.js';
 
 /**
  * The admin console API — admin.spllit.app.
@@ -103,11 +105,19 @@ router.get('/me', async (req: AdminRequest, res: Response) => {
  *
  * Counts for the founder dashboard, in one round trip.
  *
- * These are live `count()` calls, which is honest but not the end state: the
- * plan replaces them with pre-aggregated rollups before the realtime phase,
- * because forty counters on a three-second refresh is tens of thousands of
- * collection scans an hour. Until that lands the console polls this slowly
- * rather than pretending to be realtime.
+ * Phase 3 changed what this costs. The volatile figures — the ones the live
+ * feed increments — now come from `MetricCounter`, which is a single keyed read
+ * of every counter at once rather than a `count()` per metric. What remains as
+ * a live count is the set of figures that are *states* rather than events:
+ * how many rides are currently active, how many accounts are suspended. Those
+ * cannot be derived by incrementing, because a row changing status is not a
+ * write anybody counts.
+ *
+ * `counters` is sent alongside so the client can tell a metric that is
+ * genuinely zero from one that has not started being recorded yet — the
+ * counters only begin filling from the first write after Phase 3 shipped, so a
+ * database with existing history reports lifetime totals lower than the
+ * collections actually hold until it is backfilled.
  */
 router.get(
   '/overview',
@@ -174,8 +184,21 @@ router.get(
         prisma.notification.count({ where: { createdAt: { gte: dayAgo } } }),
       ]);
 
+      /**
+       * Lifetime counters and today's rollups, in two queries rather than
+       * twenty. Read after the block above so a slow counter read cannot delay
+       * the figures the page cannot render without.
+       */
+      const counters = await readCounters();
+
       return ok(res, {
         generatedAt: now.toISOString(),
+        /**
+         * Raw counters, so the client can distinguish a real zero from a
+         * metric that is not yet being recorded. Empty until the first write
+         * after Phase 3 — existing history is not backfilled.
+         */
+        counters,
         users: {
           total: totalUsers,
           newToday,
@@ -790,6 +813,8 @@ router.get(
     return ok(res, {
       checkedAt: new Date().toISOString(),
       api: { ok: true, uptimeSeconds: Math.round(process.uptime()) },
+      // Real connections to the /admin namespace, not an estimate.
+      realtime: { connectedAdmins: connectedAdminCount() },
       database: { ok: databaseOk, latencyMs: databaseLatencyMs },
       memory: {
         heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
@@ -801,6 +826,63 @@ router.get(
         { key: 'queues', reason: 'Spllit has no background job queue.' },
       ],
     });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Realtime (Phase 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/admin-console/activity?limit=
+ *
+ * The activity feed's backlog. The console loads this once, then receives
+ * everything after it over the socket — so this is the only query the feed
+ * makes, no matter how long the tab stays open.
+ */
+router.get(
+  '/activity',
+  requirePermission('dashboard.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const limit = Math.min(Math.max(Number(req.query.limit) || 40, 1), 100);
+
+      const rows = await prisma.activityEvent.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      });
+
+      return ok(res, { rows, connectedAdmins: connectedAdminCount() });
+    } catch (error) {
+      console.error('[admin-console/activity]', error);
+      return fail(res, 500, 'Failed to load activity');
+    }
+  },
+);
+
+/**
+ * GET /api/admin-console/series?metric=&days=
+ *
+ * A metric's daily history, straight from the rollups.
+ *
+ * Unlike /signups — which scans the User collection and is kept because it can
+ * report on history recorded before Phase 3 — this reads pre-aggregated
+ * buckets and its cost does not grow with the size of the collection.
+ */
+router.get(
+  '/series',
+  requirePermission('dashboard.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const metric = String(req.query.metric ?? '').trim();
+      if (!metric) return fail(res, 400, 'A metric is required.');
+
+      const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
+      return ok(res, { metric, days, series: await readSeries(metric, days) });
+    } catch (error) {
+      console.error('[admin-console/series]', error);
+      return fail(res, 500, 'Failed to load series');
+    }
   },
 );
 

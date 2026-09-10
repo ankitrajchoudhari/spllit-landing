@@ -130,6 +130,32 @@ export async function record(
     // silently leaving the trail empty.
     console.error('[auditLog/record] failed to write audit row', error);
   }
+
+  /**
+   * The console's realtime feed, from the one place every privileged mutation
+   * already passes through.
+   *
+   * Emitted outside the try/catch above so an audit-write failure still
+   * announces the action — an admin watching the feed should see what another
+   * admin just did whether or not the row landed.
+   *
+   * Imported lazily to avoid a cycle: adminEvents reaches prisma, which is what
+   * this module is built on.
+   */
+  try {
+    const { publish } = await import('./adminEvents.js');
+    publish({
+      type: 'ADMIN_ACTION',
+      title: `${admin.email} ran ${input.action}`,
+      subtitle: input.targetLabel ?? null,
+      entityType: 'admin',
+      entityId: input.targetId ?? null,
+      href: '/audit',
+      severity: input.success === false ? 'warning' : 'info',
+    });
+  } catch (error) {
+    console.error('[auditLog/record] failed to publish admin event', error);
+  }
 }
 
 /**

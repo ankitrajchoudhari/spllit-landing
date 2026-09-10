@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { Shell } from '@/components/shell';
+import { LiveProvider } from '@/lib/live';
 import { SignIn } from '@/components/sign-in';
 import { Button } from '@/components/ui/primitives';
 import { ErrorState, Spinner } from '@/components/ui/states';
@@ -72,5 +73,12 @@ export function Guard({ children }: { children: ReactNode }) {
     );
   }
 
-  return <Shell>{children}</Shell>;
+  // Mounted only once authorisation has succeeded: the /admin namespace
+  // refuses a non-admin handshake, so connecting any earlier just produces a
+  // refused socket and a misleading "offline".
+  return (
+    <LiveProvider>
+      <Shell>{children}</Shell>
+    </LiveProvider>
+  );
 }

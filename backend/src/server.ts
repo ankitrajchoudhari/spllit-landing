@@ -34,6 +34,7 @@ import publicDataRoutes from './routes/publicData.js';
 import aiRoutes from './routes/ai.js';
 import { setupSocketHandlers } from './services/socket.js';
 import { setupLiveHandlers } from './services/live.js';
+import { setupAdminNamespace } from './services/adminSocket.js';
 import { perfMiddleware } from './middleware/perf.js';
 import { rateLimit } from './middleware/rateLimit.js';
 
@@ -247,6 +248,10 @@ app.use('/api/ai', aiRoutes);
 setupSocketHandlers(io);
 // Live/ephemeral layer: positions, presence, room fan-out.
 setupLiveHandlers(io);
+// Admin console realtime. Its own namespace, not a room on the default one:
+// that namespace carries every user's positions and chat, and admin fan-out
+// must not be one stray broadcast away from reaching it.
+setupAdminNamespace(io);
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
