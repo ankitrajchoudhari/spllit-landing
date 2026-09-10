@@ -46,6 +46,22 @@ export const LIFECYCLE = {
    * — their arrival says nothing about anyone else.
    */
   MIN_ARRIVAL_QUORUM: 2,
+  /**
+   * Ceiling for a squad that never named a meeting time, measured from when it
+   * was created.
+   *
+   * Such a squad is not scheduled — it was made to happen now — so creation is
+   * the only honest anchor for it. Before this existed it had no clock at all
+   * and could be closed only by hand, which meant one made by accident, or made
+   * and forgotten, stayed live indefinitely: still discoverable, still holding
+   * its members, still accepting joins.
+   *
+   * Longer than HARD_MAX_HOURS because the anchor is weaker. Four hours past a
+   * stated meeting time is strong evidence the squad is over; four hours past
+   * "somebody opened the form" is not, since the trip itself may not have
+   * started when the squad was created.
+   */
+  UNSCHEDULED_MAX_HOURS: 6,
 } as const;
 
 /** Stored values. `active` is the pre-start state, labelled "Scheduled" in UI. */
@@ -58,6 +74,8 @@ export interface LifecycleSquad {
   meetingAt: Date | null;
   durationMinutes: number | null;
   lastActivityAt: Date | null;
+  /** Fallback clock for a squad that never named a meeting time. */
+  createdAt: Date;
 }
 
 export interface LifecycleMember {
@@ -78,7 +96,8 @@ export interface LifecycleDecision {
     | 'meeting-started'
     | 'arrival-quorum'
     | 'quiet'
-    | 'hard-expiry';
+    | 'hard-expiry'
+    | 'unscheduled-expiry';
   /** True when the caller must persist this. */
   changed: boolean;
 }
@@ -123,10 +142,34 @@ export function evaluateLifecycle(
     return { status: squad.status as SquadLifecycleStatus, reason: 'terminal', changed: false };
   }
 
-  // meetingAt is nullable and there is no correct value to backfill, so a squad
-  // without one has no clock to run and ends only by hand.
+  /**
+   * No meeting time: the squad was made to happen now, so creation is the
+   * clock.
+   *
+   * This used to return `active` unconditionally, on the reasoning that there
+   * was no correct value to backfill into `meetingAt`. That is still true — and
+   * nothing is backfilled here — but it left such a squad with no expiry at
+   * all, so one created by mistake stayed live, discoverable and joinable
+   * forever. Creation is a weaker signal than a stated meeting time, which is
+   * why it gets its own, longer ceiling rather than reusing HARD_MAX_HOURS.
+   *
+   * Arrival still ends it early. Everyone reaching the meeting point means the
+   * squad is over whether or not anybody wrote down a time.
+   */
   if (!squad.meetingAt) {
-    return { status: 'active', reason: 'no-meeting-time', changed: squad.status !== 'active' };
+    const unscheduledQuorum = arrivalQuorum(members);
+    if (
+      unscheduledQuorum.length >= LIFECYCLE.MIN_ARRIVAL_QUORUM &&
+      unscheduledQuorum.every((m) => m.status === 'arrived')
+    ) {
+      return settled('completed', 'arrival-quorum');
+    }
+
+    const unscheduledEndMs =
+      squad.createdAt.getTime() + LIFECYCLE.UNSCHEDULED_MAX_HOURS * 60 * MINUTE;
+    if (now.getTime() >= unscheduledEndMs) return settled('completed', 'unscheduled-expiry');
+
+    return settled('active', 'no-meeting-time');
   }
 
   if (now < squad.meetingAt) return settled('active', 'before-meeting');

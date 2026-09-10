@@ -4,6 +4,7 @@ import prisma from '../utils/prisma.js';
 import { identify } from '../middleware/identity.js';
 import { AuthRequest } from '../types/express.js';
 import { ok, fail } from '../utils/respond.js';
+import { sweepRead, unexpiredWhere } from '../services/notificationRetention.js';
 
 const router = Router();
 
@@ -12,9 +13,16 @@ router.get('/', identify, async (req: AuthRequest, res: Response) => {
     const limit = Math.min(Number(req.query.limit) || 30, 60);
     const cursor = req.query.cursor ? String(req.query.cursor) : null;
 
+    // Read notifications expire two hours after being seen. Removing them here
+    // rather than on a timer is deliberate — see services/notificationRetention.
+    // The filter below repeats the rule so the list is right even if this
+    // delete failed or has not caught up.
+    await sweepRead(req.user!.userId);
+
     const items = await prisma.notification.findMany({
       where: {
         userId: req.user!.userId,
+        ...unexpiredWhere(),
         ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
       },
       orderBy: { createdAt: 'desc' },

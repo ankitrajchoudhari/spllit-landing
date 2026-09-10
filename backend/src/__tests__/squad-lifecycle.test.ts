@@ -31,6 +31,9 @@ const squad = (over: Partial<LifecycleSquad> = {}): LifecycleSquad => ({
   meetingAt: MEETING,
   durationMinutes: 45,
   lastActivityAt: MEETING,
+  // An hour before the meeting, so it is never accidentally the thing under
+  // test in the scheduled cases — those all anchor on MEETING.
+  createdAt: new Date(MEETING.getTime() - 60 * 60 * 1000),
   ...over,
 });
 
@@ -62,16 +65,59 @@ describe('squad lifecycle — scheduled to in-progress', () => {
     assert.equal(decision.changed, true);
   });
 
-  it('is exempt entirely when there is no meeting time', () => {
-    // meetingAt is nullable and there is no correct backfill, so a squad
-    // without one has no clock to run and ends only by hand.
+  it('stays active while an unscheduled squad is inside its window', () => {
+    // No meeting time means it was made to happen now, so creation is the
+    // clock. Nothing is backfilled into meetingAt.
+    const created = at(0);
     const decision = evaluateLifecycle(
-      squad({ meetingAt: null, lastActivityAt: null }),
-      [arrived(), arrived()],
-      at(10 * HOUR),
+      squad({ meetingAt: null, lastActivityAt: null, createdAt: created }),
+      [travelling(), travelling()],
+      new Date(created.getTime() + (LIFECYCLE.UNSCHEDULED_MAX_HOURS - 1) * HOUR),
     );
     assert.equal(decision.status, 'active');
     assert.equal(decision.changed, false);
+  });
+
+  it('closes an unscheduled squad once its window from creation has passed', () => {
+    /**
+     * The gap this covers: a squad with no meeting time previously had no
+     * expiry at all and could only be closed by hand, so one created by mistake
+     * stayed live, discoverable and joinable indefinitely.
+     */
+    const created = at(0);
+    const decision = evaluateLifecycle(
+      squad({ meetingAt: null, lastActivityAt: null, createdAt: created }),
+      [travelling(), travelling()],
+      new Date(created.getTime() + LIFECYCLE.UNSCHEDULED_MAX_HOURS * HOUR + MINUTE),
+    );
+    assert.equal(decision.status, 'completed');
+    assert.equal(decision.reason, 'unscheduled-expiry');
+    assert.equal(decision.changed, true);
+  });
+
+  it('lets arrival end an unscheduled squad before its window is up', () => {
+    // Everyone reaching the point ends the squad whether or not anybody wrote
+    // down a time.
+    const created = at(0);
+    const decision = evaluateLifecycle(
+      squad({ meetingAt: null, lastActivityAt: null, createdAt: created }),
+      [arrived(), arrived()],
+      new Date(created.getTime() + HOUR),
+    );
+    assert.equal(decision.status, 'completed');
+    assert.equal(decision.reason, 'arrival-quorum');
+  });
+
+  it('does not let a single arrival close an unscheduled squad', () => {
+    // Same quorum rule as the scheduled path: one person reaching the point
+    // says nothing about anyone else.
+    const created = at(0);
+    const decision = evaluateLifecycle(
+      squad({ meetingAt: null, lastActivityAt: null, createdAt: created }),
+      [arrived(), noLocation()],
+      new Date(created.getTime() + HOUR),
+    );
+    assert.equal(decision.status, 'active');
   });
 });
 
@@ -248,5 +294,8 @@ describe('squad lifecycle — constants are centralised', () => {
     assert.equal(LIFECYCLE.QUIET_MINUTES, 30);
     assert.equal(LIFECYCLE.HARD_MAX_HOURS, 4);
     assert.equal(LIFECYCLE.MIN_ARRIVAL_QUORUM, 2);
+    // Longer than HARD_MAX_HOURS on purpose: creation is a weaker signal that
+    // a trip is over than a stated meeting time is.
+    assert.equal(LIFECYCLE.UNSCHEDULED_MAX_HOURS, 6);
   });
 });
