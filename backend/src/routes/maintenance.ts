@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 
 import { ok, fail } from '../utils/respond.js';
 import { sweepErasedChats } from '../services/squadChatRetention.js';
+import { sweepAllRead } from '../services/notificationRetention.js';
 
 /**
  * Scheduled maintenance, called by Cloud Scheduler rather than by a person.
@@ -142,6 +143,72 @@ router.post('/sweep-chats', async (req: Request, res: Response) => {
     console.error('[maintenance] chat sweep failed', error);
     return fail(res, 500, 'Sweep failed');
   }
+});
+
+/**
+ * POST /api/maintenance/sweep-notifications
+ *
+ * Deletes read notifications past their retention window, across every user.
+ *
+ * The app already sweeps a user's own expired rows whenever they open their
+ * inbox. That covers everybody who keeps using Spllit and nobody who stops —
+ * and the ones who stop are exactly the accounts whose notifications would
+ * otherwise sit forever. This is the pass that reaches them.
+ */
+router.post('/sweep-notifications', async (req: Request, res: Response) => {
+  if (!authorised(req)) return fail(res, 404, 'Not found');
+
+  const limit = Math.min(Math.max(Number(req.body?.limit) || 5000, 1), 20_000);
+
+  try {
+    const { deleted } = await sweepAllRead(new Date(), limit);
+    console.log(`[maintenance] notification sweep: ${deleted} read notifications removed`);
+    // `complete` false means the cap was hit and more are due; a daily job
+    // will clear the rest, but a backlog is worth knowing about.
+    return ok(res, { deleted, complete: deleted < limit });
+  } catch (error) {
+    console.error('[maintenance] notification sweep failed', error);
+    return fail(res, 500, 'Sweep failed');
+  }
+});
+
+/**
+ * POST /api/maintenance/sweep
+ *
+ * Everything above, in one call.
+ *
+ * Exists so the schedule is one job rather than one per retention rule. Adding
+ * a rule should not mean remembering to add a Cloud Scheduler job, and a job
+ * that silently never got created is not a failure anyone notices — the data
+ * simply stays. The individual routes remain for running one in isolation.
+ *
+ * Never fails as a whole because one part failed: each sweep reports its own
+ * outcome, so a broken chat sweep does not also stop notifications being
+ * cleaned up.
+ */
+router.post('/sweep', async (req: Request, res: Response) => {
+  if (!authorised(req)) return fail(res, 404, 'Not found');
+
+  const results: Record<string, unknown> = {};
+
+  try {
+    const chat = await sweepErasedChats();
+    results.chat = chat;
+  } catch (error) {
+    console.error('[maintenance] chat sweep failed', error);
+    results.chat = { error: 'failed' };
+  }
+
+  try {
+    const notifications = await sweepAllRead();
+    results.notifications = notifications;
+  } catch (error) {
+    console.error('[maintenance] notification sweep failed', error);
+    results.notifications = { error: 'failed' };
+  }
+
+  console.log(`[maintenance] sweep: ${JSON.stringify(results)}`);
+  return ok(res, results);
 });
 
 export default router;

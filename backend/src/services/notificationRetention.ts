@@ -70,3 +70,43 @@ export async function sweepRead(userId: string, now: Date = new Date()): Promise
     return 0;
   }
 }
+
+/**
+ * Deletes every user's expired read notifications, not just one caller's.
+ *
+ * The per-user `sweepRead` runs on a read path and so must stay proportional to
+ * the request that triggered it. This one is for the scheduler, where the point
+ * is coverage: a person who stops opening the app never triggers their own
+ * sweep, and their read notifications would otherwise sit indefinitely.
+ *
+ * Bounded per call for the same reason the chat sweep is — a scheduled job
+ * should do a predictable amount of work and come back tomorrow, not issue one
+ * unbounded delete against a collection that grows with every user.
+ *
+ * `@@index([userId, readAt])` leads with userId and so cannot serve this
+ * cross-user range; MongoDB will scan on `readAt`. That is acceptable for a
+ * once-daily job and would not be on a request path — which is precisely why
+ * this is separate from `sweepRead` rather than a parameter on it.
+ */
+export async function sweepAllRead(
+  now: Date = new Date(),
+  limit = 5000,
+): Promise<{ deleted: number }> {
+  const cutoff = readCutoff(now);
+
+  // Selected first so the delete is by id: `deleteMany` has no `take`, and
+  // without this the bound would be advisory rather than real.
+  const due = await prisma.notification.findMany({
+    where: { readAt: { not: null, lt: cutoff } },
+    select: { id: true },
+    take: limit,
+  });
+
+  if (due.length === 0) return { deleted: 0 };
+
+  const { count } = await prisma.notification.deleteMany({
+    where: { id: { in: due.map((n) => n.id) } },
+  });
+
+  return { deleted: count };
+}
