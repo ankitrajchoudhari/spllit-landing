@@ -50,6 +50,14 @@ const router = Router();
 const createSquadSchema = z.object({
   name: text(2, 80),
   description: text(0, 500).optional(),
+  /**
+   * Accepted and ignored. The squad's college is read from the creator's own
+   * row — see the create handler — because a client-supplied one both
+   * mis-files squads and lets anyone post into another institute's feed.
+   *
+   * Kept in the schema rather than removed so an older client still sending it
+   * is not rejected; zod simply drops the value.
+   */
   college: text(0, 120).optional(),
   type: z
     .enum([
@@ -590,12 +598,39 @@ router.post('/', identify, requireVerifiedInstitute, async (req: AuthRequest, re
     const {
       name,
       description,
-      college,
       meetingAt,
       type,
       visibility: chosenVisibility,
       memberLimit,
     } = body;
+
+    /**
+     * The squad's college is the creator's, read from their own row — never
+     * whatever the client sent.
+     *
+     * It used to be `college: college || null` straight off the request body,
+     * which was wrong twice over.
+     *
+     * The visible half: `college` scopes discovery, and the web form fills it
+     * from the creator's profile while the *name* is free text. So a squad
+     * called "Chennai Institute of Technology College Squad" was filed under
+     * IIT Madras, because that is where its creator studies. It then surfaced
+     * to the wrong students and stayed invisible to the ones it was named for.
+     *
+     * The half that matters more: the field was trusted from the client at all.
+     * Anyone posting directly to this endpoint could file a squad under any
+     * institute they liked and appear in that college's feed — a soft trust
+     * boundary that `requireVerifiedInstitute` exists to defend, undone by
+     * taking the answer from the caller.
+     *
+     * Reading it here makes the tag mean "created by a member of this college",
+     * which is the only claim the server can actually stand behind.
+     */
+    const creator = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { college: true },
+    });
+    const college = creator?.college?.trim() || null;
 
     const resolvedDestination = body.destination ?? null;
     const meetingPoint = body.meetingPoint ?? null;
@@ -679,7 +714,8 @@ router.post('/', identify, requireVerifiedInstitute, async (req: AuthRequest, re
         status: 'active',
         memberLimit: memberLimit ?? null,
         themeColor: body.themeColor ?? null,
-        college: college || null,
+        // Derived above from the creator's row, not from the request body.
+        college,
         memberCount: 1,
         ...(storedDestination ? { destination: storedDestination } : {}),
         ...(resolvedMeetingPoint ? { meetingPoint: resolvedMeetingPoint } : {}),

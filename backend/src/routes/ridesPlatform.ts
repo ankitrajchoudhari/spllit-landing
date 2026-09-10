@@ -181,8 +181,26 @@ router.post('/', identify, async (req: AuthRequest, res: Response) => {
     if (typeof destination !== 'string' || !destination.trim()) {
       return fail(res, 400, 'A destination is required');
     }
+    /**
+     * Both ends are required, and the pickup is the one that used to be
+     * optional.
+     *
+     * A ride with no origin coordinates is accepted, stored, and then invisible
+     * for the rest of its life: /nearby filters on an originLat range, which a
+     * null never satisfies, and the corridor filter drops null-origin rides
+     * outright. Nothing ever un-hides it — unlike a stale departure time, which
+     * only hides a ride once it is genuinely past. The host sees their ride on
+     * their own screen and no one else ever does, which reads as the app being
+     * broken rather than as a missing field.
+     *
+     * The destination has always been checked. The asymmetry was the bug: the
+     * two are equally load-bearing for matching.
+     */
+    if (!Number.isFinite(Number(originLat)) || !Number.isFinite(Number(originLng))) {
+      return fail(res, 400, 'Pick the pickup point from the suggestions', 'origin-not-resolved');
+    }
     if (!Number.isFinite(Number(destLat)) || !Number.isFinite(Number(destLng))) {
-      return fail(res, 400, 'Pick the destination from the suggestions');
+      return fail(res, 400, 'Pick the destination from the suggestions', 'destination-not-resolved');
     }
     const departsAt = new Date(departureTime);
     if (Number.isNaN(departsAt.getTime())) {
@@ -204,8 +222,10 @@ router.post('/', identify, async (req: AuthRequest, res: Response) => {
       data: {
         userId: req.user!.userId,
         origin: origin.trim(),
-        originLat: Number.isFinite(Number(originLat)) ? Number(originLat) : null,
-        originLng: Number.isFinite(Number(originLng)) ? Number(originLng) : null,
+        // Unconditional: the guard above has already refused anything that
+        // would have landed here as null.
+        originLat: Number(originLat),
+        originLng: Number(originLng),
         destination: destination.trim(),
         destLat: Number(destLat),
         destLng: Number(destLng),

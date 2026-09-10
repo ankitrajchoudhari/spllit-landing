@@ -66,8 +66,18 @@ const deactivateExpiredPendingRides = async () => {
 // Validation schemas
 const createRideSchema = z.object({
   origin: z.string(),
-  originLat: z.number().optional(),
-  originLng: z.number().optional(),
+  /**
+   * Required, matching destLat/destLng below and the platform router.
+   *
+   * Optional here meant a ride could be created with no pickup coordinates and
+   * then never appear in any guest-facing list, because /nearby filters on an
+   * originLat range and the corridor filter drops null origins. This path is
+   * unreachable today — the platform router mounts first and answers POST / —
+   * but leaving the looser rule in place is how it comes back if the mount
+   * order ever changes.
+   */
+  originLat: z.number(),
+  originLng: z.number(),
   destination: z.string(),
   destLat: z.number(),
   destLng: z.number(),

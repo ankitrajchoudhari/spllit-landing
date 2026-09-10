@@ -202,7 +202,9 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
           label: destination.label,
           address: destination.address,
         },
-        ...(profile?.college ? { college: profile.college } : {}),
+        // Deliberately not sent. The server reads the college from the
+        // creator's own row, because a client-supplied one both mis-files
+        // squads and would let anyone post into another institute's feed.
         ...(meetingPoint
           ? {
               meetingPoint: {
@@ -419,6 +421,27 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
               }}
             />
           </Field>
+
+          {/**
+           * Who this squad will actually reach.
+           *
+           * The name is free text and the audience is the creator's college,
+           * and nothing said so — which is how a squad called "Chennai
+           * Institute of Technology College Squad" came to be listed to IIT
+           * Madras students and to nobody at CIT. Naming it after another
+           * institute is a reasonable thing to do; being surprised by who sees
+           * it is not.
+           */}
+          {profile?.college ? (
+            <p className="-mt-2 flex items-start gap-1.5 text-[12px] leading-relaxed text-ink-subtle">
+              <Users className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+              <span>
+                Visible to <span className="font-medium text-ink-muted">{profile.college}</span>{' '}
+                students, wherever the name points. Change your college in your profile to
+                list elsewhere.
+              </span>
+            </p>
+          ) : null}
 
           {/* Step 3 — purpose. */}
           <div>
