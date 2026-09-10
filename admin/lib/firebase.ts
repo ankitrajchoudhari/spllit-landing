@@ -9,10 +9,11 @@ import {
   signInWithPopup,
   signOut,
   GoogleAuthProvider,
+  OAuthProvider,
   type Auth,
 } from 'firebase/auth';
 
-import { config } from '@/lib/config';
+import { config, zohoEnabled } from '@/lib/config';
 
 /**
  * Firebase, identity only — exactly as the main app uses it.
@@ -48,6 +49,32 @@ export async function signInWithGoogle(): Promise<void> {
   // account in the same browser, and silently reusing the last one signs them
   // in as the wrong person.
   provider.setCustomParameters({ prompt: 'select_account' });
+  await signInWithPopup(getFirebaseAuth(), provider);
+}
+
+/**
+ * Zoho sign-in, through Firebase's generic OIDC support.
+ *
+ * Zoho is not a built-in Firebase provider the way Google is. This works only
+ * once Zoho has been registered as an OIDC provider in Firebase — which needs
+ * Identity Platform — and `NEXT_PUBLIC_ZOHO_PROVIDER_ID` set to that provider's
+ * id (Firebase requires the `oidc.` prefix, e.g. `oidc.zoho`).
+ *
+ * Until then `zohoEnabled` is false and the sign-in screen does not offer it,
+ * so this is never reachable in a state where it would fail.
+ */
+export async function signInWithZoho(): Promise<void> {
+  if (!zohoEnabled) {
+    throw new Error('Zoho sign-in is not configured for this deployment.');
+  }
+
+  const provider = new OAuthProvider(config.zohoProviderId);
+  // Zoho's OIDC scopes. `email` is the one that matters: the backend resolves
+  // an admin by matching the token's email against the User collection, so a
+  // token without one cannot be tied to an account.
+  provider.addScope('email');
+  provider.addScope('profile');
+
   await signInWithPopup(getFirebaseAuth(), provider);
 }
 

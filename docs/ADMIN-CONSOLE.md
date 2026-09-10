@@ -43,6 +43,56 @@ decided server-side, every time. `admin/components/guard.tsx` chooses which
 screen to render; defeating it in a browser console gets you a rendered layout
 and a series of 404s from the API.
 
+### Signing in with a @spllit.app address
+
+Spllit's own addresses are hosted on **Zoho Mail**. Worth being precise about
+what that does and does not give you: Zoho hosts a *mailbox*, it is not an
+identity provider for this app. Firebase does the authenticating either way.
+
+Three ways `ankit@spllit.app` can reach the console:
+
+| Path | Works today | Notes |
+|---|---|---|
+| **Email + password** | ✅ yes | Create the account in Firebase Auth. Reset mail lands in your Zoho inbox — that is where Zoho genuinely participates, and it is what makes the address meaningful. |
+| **Google Sign-In** | ✅ yes | Google lets you create a Google account *using* a non-Gmail address. Do that with `ankit@spllit.app` and the existing Google button works. |
+| **"Continue with Zoho" button** | ⚠️ needs setup | Zoho is not a built-in Firebase provider. See below. |
+
+The recommended path is email + password: it needs no configuration, and only
+someone holding the Zoho mailbox can complete a password reset for it.
+
+#### Enabling the Zoho button
+
+Zoho reaches Firebase as a **generic OIDC provider**, which requires **Firebase
+Identity Platform** (a paid upgrade from the free Auth tier).
+
+1. In the Zoho API Console, create a Server-based OAuth client. Redirect URI is
+   the one Firebase shows you (`https://<project>.firebaseapp.com/__/auth/handler`).
+2. Firebase console → Authentication → Sign-in method → **Add new provider** →
+   OpenID Connect. Issuer `https://accounts.zoho.com`, plus the client id and
+   secret from step 1. Firebase assigns a provider id prefixed `oidc.`.
+3. Set `NEXT_PUBLIC_ZOHO_PROVIDER_ID` to that id (e.g. `oidc.zoho`) in the
+   console's build environment and redeploy.
+
+The button renders **only** when that variable is set and starts with `oidc.`.
+A button that cannot work is worse than no button — it looks like the supported
+path and fails every time it is pressed.
+
+### Restricting the console to your domain
+
+`security.admin_email_domains` is a JSON list — set it to `["spllit.app"]` and
+only accounts on that domain may hold a console role. Since those addresses are
+Zoho mailboxes you control, this is what turns "has a Google account" into "has
+a company mailbox".
+
+**Super Admins are exempt on purpose.** A domain list entered with a typo would
+otherwise lock every admin out — including whoever needs to correct it — with
+the only recovery being a script run against production. Same reasoning as
+refusing to let an admin suspend their own account.
+
+Subdomains are deliberately not matched: `spllit.app` must not admit
+`evil.spllit.app.attacker.com`, and a suffix check is how that mistake is
+usually made. The matching is tested against exactly that case.
+
 ### Roles
 
 Five roles, defined in `backend/src/config/adminRoles.ts` — the single source of
@@ -79,7 +129,7 @@ exists.
 
 ```bash
 cd backend
-node scripts/grant-console-role.mjs you@spllit.app super_admin
+node scripts/grant-console-role.mjs ankit@spllit.app super_admin
 ```
 
 After that, use the console's **Admins** page — it enforces the rank rules and
@@ -221,7 +271,8 @@ console role, so a different Firebase project would mean the account signing in
 here does not exist in the database the backend checks.
 
 The backend needs one new variable: `ADMIN_URL=https://admin.spllit.app` for
-CORS. The literal origin is also hardcoded in the allowlist as a fallback, so a
+CORS. `NEXT_PUBLIC_ZOHO_PROVIDER_ID` is optional and controls whether the Zoho
+sign-in button appears at all. The literal origin is also hardcoded in the allowlist as a fallback, so a
 missing variable degrades to working rather than to a blank console.
 
 ### DNS
@@ -247,7 +298,7 @@ cd backend
 npx prisma db push                              # 8 new collections + indexes
 node prisma/indexes.mjs                         # sparse-unique indexes
 node scripts/seed-console-config.mjs            # flags + settings definitions
-node scripts/grant-console-role.mjs you@spllit.app super_admin
+node scripts/grant-console-role.mjs ankit@spllit.app super_admin
 ```
 
 `seed-console-config.mjs` is idempotent and **never overwrites a value**.
@@ -261,7 +312,7 @@ anything.
 **Phases 1 (foundation), 2 (operations), 3 (realtime), 4 (analytics) and
 5 (settings, broadcasts, exports): done.**
 
-Verified on every run: backend `tsc` clean + **195 tests pass**; admin `tsc`
+Verified on every run: backend `tsc` clean + **203 tests pass**; admin `tsc`
 clean, lints clean, production build clean (**17 routes**); main app `tsc`
 clean, lints clean, **150 tests pass**.
 

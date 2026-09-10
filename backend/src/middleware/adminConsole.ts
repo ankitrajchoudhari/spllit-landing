@@ -5,10 +5,22 @@ import { AuthRequest } from '../types/express.js';
 import {
   AdminRole,
   Permission,
+  emailDomainAllowed,
   permissionsFor,
   resolveAdminRole,
   roleHasPermission,
 } from '../config/adminRoles.js';
+import { getJsonArray } from '../services/platformSettings.js';
+
+/**
+ * Domains permitted to hold a console role, from platform settings.
+ *
+ * Empty by default — see emailDomainAllowed. Cached by the settings service, so
+ * this is not a database read per request.
+ */
+async function allowedAdminDomains(): Promise<string[]> {
+  return getJsonArray('security.admin_email_domains');
+}
 
 /**
  * Authorisation for the admin console.
@@ -65,6 +77,23 @@ export async function requireConsoleAdmin(
   });
 
   const role = user ? resolveAdminRole(user) : null;
+
+  /**
+   * Domain restriction, when one is configured.
+   *
+   * `super_admin` is exempt on purpose. This is the escape hatch: a domain list
+   * entered with a typo would otherwise lock every admin — including whoever
+   * needs to correct it — out of the console entirely, with the only recovery
+   * being a script run against production. The same reasoning as refusing to
+   * let an admin suspend their own account.
+   */
+  if (user && role && role !== 'super_admin') {
+    const domains = await allowedAdminDomains();
+    if (!emailDomainAllowed(user.email, domains)) {
+      res.status(404).json({ success: false, message: 'Not found' });
+      return;
+    }
+  }
 
   if (!user || !role) {
     // A 404 rather than a 403, for the same reason requireAdmin.ts uses one:

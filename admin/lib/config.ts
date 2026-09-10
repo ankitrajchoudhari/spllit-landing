@@ -46,6 +46,22 @@ export const config = {
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
     appId: required(process.env.NEXT_PUBLIC_FIREBASE_APP_ID, 'NEXT_PUBLIC_FIREBASE_APP_ID'),
   },
+
+  /**
+   * Zoho sign-in, if it has been set up.
+   *
+   * Zoho Mail hosting an address does not by itself provide a login — it
+   * provides a mailbox. A "Sign in with Zoho" button needs Zoho configured as a
+   * generic OIDC provider in Firebase, which requires Identity Platform.
+   *
+   * Empty until that exists, and the sign-in screen renders no button when it
+   * is empty. A button that cannot work is worse than no button: it looks like
+   * the supported path and fails every time it is pressed.
+   */
+  zohoProviderId: process.env.NEXT_PUBLIC_ZOHO_PROVIDER_ID ?? '',
 } as const;
+
+/** True when Zoho has been configured as an OIDC provider in Firebase. */
+export const zohoEnabled = config.zohoProviderId.startsWith('oidc.');
 
 export const isConfigured = Boolean(config.api.baseUrl && config.firebase.apiKey);

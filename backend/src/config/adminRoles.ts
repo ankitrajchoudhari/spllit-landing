@@ -178,6 +178,39 @@ export function resolveAdminRole(user: {
   return null;
 }
 
+/**
+ * Whether an address is inside the console's allowed domains.
+ *
+ * Spllit's own addresses are hosted on Zoho Mail, so restricting the console to
+ * `spllit.app` means an admin must hold a company mailbox rather than merely a
+ * Google account someone signed up with. Zoho is not doing the verifying —
+ * Firebase still authenticates — but controlling the domain is what makes the
+ * address meaningful, because only someone with the Zoho mailbox can complete a
+ * password reset for it.
+ *
+ * An empty list means no restriction, which is the default: a domain rule that
+ * shipped enabled would lock out every existing admin the moment it deployed.
+ *
+ * Subdomains are deliberately NOT matched. `spllit.app` must not admit
+ * `evil.spllit.app.attacker.com`, and a suffix check is how that mistake is
+ * usually made.
+ */
+export function emailDomainAllowed(
+  email: string | null | undefined,
+  domains: readonly string[],
+): boolean {
+  if (domains.length === 0) return true;
+  if (!email) return false;
+
+  const at = email.lastIndexOf('@');
+  if (at === -1) return false;
+
+  const domain = email.slice(at + 1).trim().toLowerCase();
+  if (!domain) return false;
+
+  return domains.some((allowed) => allowed.trim().toLowerCase() === domain);
+}
+
 /** Display labels. Kept beside the matrix so a new role cannot ship unnamed. */
 export const ROLE_LABELS: Record<AdminRole, string> = {
   super_admin: 'Super Admin',

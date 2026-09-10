@@ -82,12 +82,22 @@ const SETTINGS = [
     requiresConfirmation: false,
   },
   {
+    key: 'security.admin_email_domains',
+    category: 'security',
+    label: 'Admin email domains',
+    description:
+      'JSON list of domains permitted to hold a console role, e.g. ["spllit.app"]. Empty means no restriction. Super Admins are exempt, so a typo here cannot lock you out of the console.',
+    valueType: 'json',
+    value: [],
+    requiresConfirmation: true,
+  },
+  {
     key: 'general.support_email',
     category: 'general',
     label: 'Support email',
     description: 'Shown to admins as the contact for escalations.',
     valueType: 'string',
-    value: 'spllittech@gmail.com',
+    value: 'ankit@spllit.app',
     requiresConfirmation: false,
   },
 ];

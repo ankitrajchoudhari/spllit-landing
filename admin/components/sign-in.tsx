@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle, LogIn } from 'lucide-react';
+import { AlertTriangle, LogIn, Mail } from 'lucide-react';
 
-import { isConfigured } from '@/lib/config';
-import { signInWithGoogle, signInWithPassword } from '@/lib/firebase';
+import { isConfigured, zohoEnabled } from '@/lib/config';
+import { signInWithGoogle, signInWithPassword, signInWithZoho } from '@/lib/firebase';
 import { Button, Input } from '@/components/ui/primitives';
 
 /**
@@ -46,18 +46,23 @@ export function SignIn() {
     }
   }
 
-  async function onGoogle() {
+  /**
+   * One popup handler for both providers.
+   *
+   * A closed popup is the person changing their mind, not a failure worth
+   * showing them an error about — so those two codes are swallowed while
+   * everything else surfaces.
+   */
+  async function withPopup(run: () => Promise<void>, label: string) {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      await signInWithGoogle();
+      await run();
     } catch (caught) {
-      // A closed popup is the user changing their mind, not a failure worth
-      // showing them an error about.
       const code = (caught as { code?: string })?.code ?? '';
       if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
-        setError('Google sign-in did not complete. Please try again.');
+        setError(`${label} sign-in did not complete. Please try again.`);
       }
     } finally {
       setBusy(false);
@@ -96,10 +101,32 @@ export function SignIn() {
           </p>
         </div>
 
-        <Button variant="secondary" onClick={() => void onGoogle()} disabled={busy}>
-          <LogIn className="h-4 w-4" aria-hidden="true" />
-          Continue with Google
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => void withPopup(signInWithGoogle, 'Google')}
+            disabled={busy}
+          >
+            <LogIn className="h-4 w-4" aria-hidden="true" />
+            Continue with Google
+          </Button>
+
+          {/*
+            Rendered only when Zoho is actually configured as an OIDC provider
+            in Firebase. A button that cannot work is worse than no button — it
+            looks like the supported path and fails every time it is pressed.
+          */}
+          {zohoEnabled ? (
+            <Button
+              variant="secondary"
+              onClick={() => void withPopup(signInWithZoho, 'Zoho')}
+              disabled={busy}
+            >
+              <Mail className="h-4 w-4" aria-hidden="true" />
+              Continue with Zoho
+            </Button>
+          ) : null}
+        </div>
 
         <div className="flex items-center gap-3">
           <span className="h-px flex-1 bg-line" />
@@ -116,7 +143,7 @@ export function SignIn() {
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@spllit.app"
+              placeholder="ankit@spllit.app"
             />
           </label>
 
@@ -143,8 +170,9 @@ export function SignIn() {
         </form>
 
         <p className="text-xs text-ink-subtle">
-          Admin access is granted per account by a Super Admin. Every action taken here is recorded
-          in the audit log.
+          A <span className="text-ink-muted">@spllit.app</span> address works here with a password —
+          Zoho hosts the mailbox, so reset mail lands in your inbox. Admin access is granted per
+          account by a Super Admin, and every action taken here is recorded in the audit log.
         </p>
       </div>
     </div>

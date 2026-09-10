@@ -56,6 +56,19 @@ export async function getString(key: string, fallback: string): Promise<string> 
 }
 
 /**
+ * A list of strings, or an empty list.
+ *
+ * Non-string entries are dropped rather than coerced: a settings value is
+ * free-form JSON edited through a web form, and `["spllit.app", 42]` becoming
+ * `["spllit.app", "42"]` would silently add a domain nobody typed.
+ */
+export async function getJsonArray(key: string): Promise<string[]> {
+  const value = (await load()).get(key);
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+}
+
+/**
  * A number constrained to a range.
  *
  * The clamp is the point: these are edited from a web form by a person, and a

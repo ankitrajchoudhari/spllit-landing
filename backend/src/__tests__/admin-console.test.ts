@@ -20,6 +20,7 @@ import {
   isAdminRole,
   permissionsFor,
   rankOf,
+  emailDomainAllowed,
   resolveAdminRole,
   roleHasPermission,
 } from '../config/adminRoles.js';
@@ -404,5 +405,56 @@ describe('feature flag evaluation', () => {
     // Generous bounds: this asserts the distribution is not badly skewed, not
     // that a hash is perfectly uniform.
     assert.ok(inside > 400 && inside < 600, `expected roughly half, got ${inside}/1000`);
+  });
+});
+
+describe('admin email domain restriction', () => {
+  it('allows everything when no domains are configured', () => {
+    // The default. A domain rule that shipped enabled would lock out every
+    // existing admin the moment it deployed.
+    assert.equal(emailDomainAllowed('anyone@gmail.com', []), true);
+    assert.equal(emailDomainAllowed(null, []), true);
+  });
+
+  it('admits an address inside the allowed domain', () => {
+    assert.equal(emailDomainAllowed('ankit@spllit.app', ['spllit.app']), true);
+  });
+
+  it('refuses an address outside it', () => {
+    assert.equal(emailDomainAllowed('someone@gmail.com', ['spllit.app']), false);
+  });
+
+  it('refuses a missing address once a restriction exists', () => {
+    assert.equal(emailDomainAllowed(null, ['spllit.app']), false);
+    assert.equal(emailDomainAllowed('', ['spllit.app']), false);
+    assert.equal(emailDomainAllowed('no-at-sign', ['spllit.app']), false);
+  });
+
+  it('does not match a subdomain or a suffix', () => {
+    // The mistake this is written to prevent: a suffix check would admit all
+    // three of these.
+    assert.equal(emailDomainAllowed('a@evil.spllit.app.attacker.com', ['spllit.app']), false);
+    assert.equal(emailDomainAllowed('a@notspllit.app', ['spllit.app']), false);
+    assert.equal(emailDomainAllowed('a@mail.spllit.app', ['spllit.app']), false);
+  });
+
+  it('ignores case and surrounding space on both sides', () => {
+    assert.equal(emailDomainAllowed('Ankit@SPLLIT.app', ['spllit.app']), true);
+    assert.equal(emailDomainAllowed('ankit@spllit.app', [' Spllit.App ']), true);
+  });
+
+  it('uses the last @ so a plus-addressed or quoted local part cannot spoof it', () => {
+    // "a@b"@spllit.app is a legal address whose real domain is spllit.app.
+    assert.equal(emailDomainAllowed('"a@evil.com"@spllit.app', ['spllit.app']), true);
+    assert.equal(emailDomainAllowed('ankit+admin@spllit.app', ['spllit.app']), true);
+    // And the reverse: an address that only *looks* like it ends in the domain.
+    assert.equal(emailDomainAllowed('ankit@spllit.app@evil.com', ['spllit.app']), false);
+  });
+
+  it('accepts any of several configured domains', () => {
+    const domains = ['spllit.app', 'spllit.in'];
+    assert.equal(emailDomainAllowed('a@spllit.app', domains), true);
+    assert.equal(emailDomainAllowed('a@spllit.in', domains), true);
+    assert.equal(emailDomainAllowed('a@spllit.com', domains), false);
   });
 });
