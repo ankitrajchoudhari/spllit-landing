@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { dailyCounts } from './distinctCount.js';
 
 /**
  * The founder data explorer's query layer.
@@ -27,6 +28,8 @@ interface Dimension {
 interface DatasetSpec {
   key: string;
   label: string;
+  /** MongoDB collection name, for the date-bucketing aggregation. */
+  collection: string;
   /** Permission required to explore it, matching the console's matrix. */
   permission: string;
   /** Field the date range filters on. */
@@ -55,6 +58,7 @@ export const SCHEMA: DatasetSpec[] = [
       { key: 'onboarded', label: 'Onboarded', kind: 'category' },
       { key: 'isActive', label: 'Active', kind: 'category' },
     ],
+    collection: 'User',
     model: () => prisma.user as never,
   },
   {
@@ -69,6 +73,7 @@ export const SCHEMA: DatasetSpec[] = [
       { key: 'genderPref', label: 'Gender preference', kind: 'category' },
       { key: 'destination', label: 'Destination', kind: 'category' },
     ],
+    collection: 'Ride',
     model: () => prisma.ride as never,
   },
   {
@@ -83,6 +88,7 @@ export const SCHEMA: DatasetSpec[] = [
       { key: 'visibility', label: 'Visibility', kind: 'category' },
       { key: 'college', label: 'College', kind: 'category' },
     ],
+    collection: 'Squad',
     model: () => prisma.squad as never,
   },
   {
@@ -97,6 +103,7 @@ export const SCHEMA: DatasetSpec[] = [
       { key: 'ticketType', label: 'Ticket', kind: 'category' },
       { key: 'college', label: 'College', kind: 'category' },
     ],
+    collection: 'Event',
     model: () => prisma.event as never,
   },
   {
@@ -109,6 +116,7 @@ export const SCHEMA: DatasetSpec[] = [
       { key: 'visibility', label: 'Visibility', kind: 'category' },
       { key: 'college', label: 'College', kind: 'category' },
     ],
+    collection: 'Community',
     model: () => prisma.community as never,
   },
   {
@@ -117,6 +125,7 @@ export const SCHEMA: DatasetSpec[] = [
     permission: 'analytics.view',
     timeField: 'createdAt',
     dimensions: [TIME, { key: 'type', label: 'Type', kind: 'category' }],
+    collection: 'Notification',
     model: () => prisma.notification as never,
   },
   {
@@ -133,6 +142,7 @@ export const SCHEMA: DatasetSpec[] = [
       { key: 'targetType', label: 'Target type', kind: 'category' },
       { key: 'success', label: 'Succeeded', kind: 'category' },
     ],
+    collection: 'AuditLog',
     model: () => prisma.auditLog as never,
   },
 ];
@@ -220,29 +230,25 @@ export async function explore(input: {
 
   if (dimension.kind === 'time') {
     /**
-     * Bucketed in JS rather than by the database.
+     * Grouped by MongoDB, not in JS.
      *
-     * MongoDB can do this with an aggregation pipeline, but Prisma's `groupBy`
-     * cannot express a date truncation — and dropping to `$runCommandRaw` here
-     * would mean hand-building a pipeline from client input, which is exactly
-     * the thing this file exists to avoid. Only the timestamp is selected, and
-     * the range is capped at a year, so the set stays bounded.
+     * Fetching every row in range and counting them here is bounded by the date
+     * range but not by the row count — a year of notifications is millions of
+     * documents read to produce at most 365 numbers.
+     *
+     * The earlier objection to `$runCommandRaw` was that it would mean building
+     * a pipeline from client input. It does not: `spec.collection` and
+     * `spec.timeField` are constants from the whitelist above, never anything
+     * the caller sent.
      */
-    const rows = await model.findMany({
-      where,
-      select: { [spec.timeField]: true },
-    });
+    const counts = await dailyCounts(spec.collection, spec.timeField, since);
 
     const buckets = new Map<string, number>();
     for (let i = days - 1; i >= 0; i -= 1) {
-      buckets.set(dayKey(new Date(now - i * 86_400_000)), 0);
-    }
-
-    for (const row of rows) {
-      const value = row[spec.timeField];
-      if (!(value instanceof Date)) continue;
-      const key = dayKey(value);
-      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+      const key = dayKey(new Date(now - i * 86_400_000));
+      // Days with no data stay at zero: a gap and a quiet day are different
+      // things, and only this layer knows which days were asked for.
+      buckets.set(key, counts.get(key) ?? 0);
     }
 
     return {

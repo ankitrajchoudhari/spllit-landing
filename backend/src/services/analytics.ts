@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { distinctCount, distinctUsersAcross } from './distinctCount.js';
 
 /**
  * Founder analytics, computed from `ActiveUserDay` and the existing models.
@@ -189,22 +190,26 @@ export interface FunnelStep {
  * to User on MongoDB.
  */
 export async function activationFunnel(): Promise<FunnelStep[]> {
-  const [signedUp, onboarded, riders, squadLeaders, eventHosts, squadMembers] = await Promise.all([
+  /**
+   * Every figure is counted in the database.
+   *
+   * These were `findMany({ distinct })` calls, which on MongoDB deduplicate in
+   * Prisma's query engine — meaning the whole collection is fetched and then
+   * reduced to a number. See services/distinctCount.ts.
+   */
+  const [signedUp, onboarded, riders, squadMembers, participants] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { onboarded: true } }),
-    prisma.ride.findMany({ distinct: ['userId'], select: { userId: true } }),
-    prisma.squad.findMany({ distinct: ['leaderId'], select: { leaderId: true } }),
-    prisma.event.findMany({ distinct: ['hostId'], select: { hostId: true } }),
-    prisma.squadMember.findMany({ distinct: ['userId'], select: { userId: true } }),
-  ]);
-
-  // "Did something" is the union, not the sum: one person who both hosted a
-  // ride and joined a squad must count once.
-  const participants = new Set<string>([
-    ...riders.map((row) => row.userId),
-    ...squadLeaders.map((row) => row.leaderId),
-    ...eventHosts.map((row) => row.hostId),
-    ...squadMembers.map((row) => row.userId),
+    distinctCount('Ride', 'userId'),
+    distinctCount('SquadMember', 'userId'),
+    // "Did something" is the union, not the sum: one person who both hosted a
+    // ride and joined a squad must count once. The union happens in Mongo.
+    distinctUsersAcross([
+      { collection: 'Ride', field: 'userId' },
+      { collection: 'Squad', field: 'leaderId' },
+      { collection: 'Event', field: 'hostId' },
+      { collection: 'SquadMember', field: 'userId' },
+    ]),
   ]);
 
   const share = (value: number) => (signedUp > 0 ? Math.round((value / signedUp) * 1000) / 10 : 0);
@@ -221,22 +226,12 @@ export async function activationFunnel(): Promise<FunnelStep[]> {
     {
       key: 'participated',
       label: 'Did something',
-      count: participants.size,
-      share: share(participants.size),
+      count: participants,
+      share: share(participants),
       note: 'Created a ride, led or joined a squad, or hosted an event.',
     },
-    {
-      key: 'created_ride',
-      label: 'Created a ride',
-      count: riders.length,
-      share: share(riders.length),
-    },
-    {
-      key: 'joined_squad',
-      label: 'Joined a squad',
-      count: squadMembers.length,
-      share: share(squadMembers.length),
-    },
+    { key: 'created_ride', label: 'Created a ride', count: riders, share: share(riders) },
+    { key: 'joined_squad', label: 'Joined a squad', count: squadMembers, share: share(squadMembers) },
   ];
 }
 
@@ -254,23 +249,30 @@ export interface AdoptionRow {
  * and only the time series can tell them apart.
  */
 export async function featureAdoption(): Promise<{ total: number; rows: AdoptionRow[] }> {
+  /**
+   * Counted in the database, for the same reason as the funnel above.
+   *
+   * `Chat` was the worst of these: ThreadMessage is the highest-volume
+   * collection in Spllit, and asking Prisma for distinct senders read every
+   * message ever sent in order to return one integer.
+   */
   const [total, rides, squads, events, communities, messages] = await Promise.all([
     prisma.user.count(),
-    prisma.ride.findMany({ distinct: ['userId'], select: { userId: true } }),
-    prisma.squadMember.findMany({ distinct: ['userId'], select: { userId: true } }),
-    prisma.eventAttendee.findMany({ distinct: ['userId'], select: { userId: true } }),
-    prisma.communityMember.findMany({ distinct: ['userId'], select: { userId: true } }),
-    prisma.threadMessage.findMany({ distinct: ['senderId'], select: { senderId: true } }),
+    distinctCount('Ride', 'userId'),
+    distinctCount('SquadMember', 'userId'),
+    distinctCount('EventAttendee', 'userId'),
+    distinctCount('CommunityMember', 'userId'),
+    distinctCount('ThreadMessage', 'senderId'),
   ]);
 
   const share = (value: number) => (total > 0 ? Math.round((value / total) * 1000) / 10 : 0);
 
   const rows: AdoptionRow[] = [
-    { feature: 'Rides', users: rides.length, share: share(rides.length) },
-    { feature: 'Squads', users: squads.length, share: share(squads.length) },
-    { feature: 'Events', users: events.length, share: share(events.length) },
-    { feature: 'Communities', users: communities.length, share: share(communities.length) },
-    { feature: 'Chat', users: messages.length, share: share(messages.length) },
+    { feature: 'Rides', users: rides, share: share(rides) },
+    { feature: 'Squads', users: squads, share: share(squads) },
+    { feature: 'Events', users: events, share: share(events) },
+    { feature: 'Communities', users: communities, share: share(communities) },
+    { feature: 'Chat', users: messages, share: share(messages) },
   ];
 
   return { total, rows: rows.sort((a, b) => b.users - a.users) };

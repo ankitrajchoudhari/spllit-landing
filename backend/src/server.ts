@@ -193,6 +193,62 @@ app.use(
   }),
 );
 
+/**
+ * Admin console limits.
+ *
+ * The console is authenticated, so this is not about anonymous abuse — it is
+ * about a stolen session or a buggy client. An admin token is the most
+ * privileged credential in the system, and the endpoints below are the ones
+ * where a loop does real damage: exports read thousands of rows, broadcasts
+ * reach real phones, and analytics runs aggregations across whole collections.
+ *
+ * Mounted before the routers so a rejected request never reaches a handler,
+ * and ordered narrowest-first: Express runs every matching prefix, so the
+ * general console limit applies on top of the specific ones.
+ */
+app.use(
+  '/api/admin-console/export',
+  rateLimit({
+    name: 'admin-export',
+    windowMs: 60_000,
+    max: 5,
+    message: 'Too many exports. Wait a minute before running another.',
+  }),
+);
+
+app.use(
+  '/api/admin-console/broadcast',
+  rateLimit({
+    name: 'admin-broadcast',
+    windowMs: 15 * 60_000,
+    max: 5,
+    // Deliberately tighter than everything else. A broadcast cannot be
+    // recalled, so the cost of a runaway loop here is measured in people's
+    // notification trays rather than in database load.
+    message: 'Too many broadcasts. This is rate limited on purpose.',
+  }),
+);
+
+app.use(
+  ['/api/admin-console/analytics', '/api/admin-console/explore'],
+  rateLimit({
+    name: 'admin-analytics',
+    windowMs: 60_000,
+    max: 30,
+    message: 'Too many analytics queries. Give it a moment.',
+  }),
+);
+
+app.use(
+  '/api/admin-console',
+  rateLimit({
+    name: 'admin-console',
+    windowMs: 60_000,
+    max: 240,
+    message: 'Too many console requests. Give it a moment.',
+  }),
+);
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

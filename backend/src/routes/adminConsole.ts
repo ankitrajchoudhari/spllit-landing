@@ -922,12 +922,32 @@ router.get(
  * is deliberate: this endpoint returns aggregates only and never names an
  * individual, so it is the one surface a read-only role can safely reach.
  */
+/**
+ * Cached analytics responses, keyed by window.
+ *
+ * These are the most expensive reads in the console — several aggregations
+ * across whole collections — and they answer a question whose shape does not
+ * change minute to minute. Without this, three admins with the page open turn
+ * one workload into three, and a refresh key turns it into as many as somebody
+ * feels like.
+ *
+ * Sixty seconds is chosen against what the page is for: nobody makes a decision
+ * from a retention curve that depends on the last minute of data.
+ */
+const analyticsCache = new Map<number, { at: number; payload: unknown }>();
+const ANALYTICS_CACHE_MS = 60_000;
+
 router.get(
   '/analytics',
   requirePermission('analytics.view'),
   async (req: AdminRequest, res: Response) => {
     try {
       const days = Math.min(Math.max(Number(req.query.days) || 30, 7), 90);
+
+      const cached = analyticsCache.get(days);
+      if (cached && Date.now() - cached.at < ANALYTICS_CACHE_MS) {
+        return ok(res, cached.payload);
+      }
 
       const [active, retentionRows, funnel, adoption] = await Promise.all([
         activeUserMetrics(days),
@@ -936,7 +956,7 @@ router.get(
         featureAdoption(),
       ]);
 
-      return ok(res, {
+      const payload = {
         generatedAt: new Date().toISOString(),
         days,
         active,
@@ -955,7 +975,13 @@ router.get(
             text: 'Active-user history starts when this shipped. Days before that read as zero because nothing was recorded, not because nobody was there.',
           },
         ],
-      });
+      };
+
+      // Bounded by the number of distinct windows the UI offers (7/30/90), so
+      // this cannot grow — no sweep needed.
+      analyticsCache.set(days, { at: Date.now(), payload });
+
+      return ok(res, payload);
     } catch (error) {
       console.error('[admin-console/analytics]', error);
       return fail(res, 500, 'Failed to load analytics');
