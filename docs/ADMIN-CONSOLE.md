@@ -262,7 +262,7 @@ anything.
 5 (settings, broadcasts, exports): done.**
 
 Verified on every run: backend `tsc` clean + **195 tests pass**; admin `tsc`
-clean, lints clean, production build clean (**16 routes**); main app `tsc`
+clean, lints clean, production build clean (**17 routes**); main app `tsc`
 clean, lints clean, **150 tests pass**.
 
 ### Built
@@ -332,8 +332,36 @@ Phase 5 — settings, broadcasts, exports:
       broadcast and export caps genuinely read — **9 more tests**
 - [x] `seed-console-config.mjs` defining Spllit's real flags and settings
 - [x] Its own deploy workflow, and `admin/**` excluded from the frontend's
+- [x] Data explorer over seven datasets, with period comparison and CSV
 
-### Not built, and why
+### Data explorer
+
+`/explore` lets you pick a dataset, a dimension and a range. The rule the query
+layer exists to enforce: **the browser never sends a query.** It sends the
+*name* of a dataset and the *name* of a dimension, and everything else is looked
+up in `services/explorer.ts`. A client that could pass a `where` clause or a
+field name straight through to Prisma would be one `$where` away from reading
+anything — and the console is the surface where the caller is by definition
+already trusted enough to be worth attacking.
+
+Datasets are declared explicitly rather than reflected off the Prisma schema.
+A new model or a new field should not become queryable, exportable and
+chartable just by existing.
+
+The audit dataset requires `audit.view`, not `analytics.view`: audit rows name
+individual admins and what they did, so exploring them is an audit capability
+rather than an analytics one. The schema endpoint filters by permission so the
+builder cannot offer a dataset the query endpoint would then refuse.
+
+Two limits, both stated in the response rather than silently applied: a
+categorical dimension returns its 50 largest groups (grouping on `destination`
+or `college` can otherwise produce thousands of one-row groups), and the range
+caps at a year. Time dimensions are bucketed in JS because Prisma's `groupBy`
+cannot express a date truncation — dropping to `$runCommandRaw` would mean
+hand-building a pipeline from client input, which is the thing the whole file
+avoids.
+
+## Not built, and why
 
 - [ ] **Reports queue** — Spllit has no `Report` model and no way for a user to
       report anyone. It needs product work in the main app, which was out of
@@ -585,7 +613,6 @@ Spllit has no job queue, so the cap is stated rather than pretended around.
 | Posts / comments | No such feature in Spllit. |
 | Chat message content | Deliberately unreachable. Volume and last activity only. |
 | `SYSTEM_ERROR` events | Needs an error aggregation service. |
-| Data explorer | The original spec's Phase 6. Needs a controlled query layer — dimensions and metrics, never raw queries from the browser. |
 
 ## Decisions taken
 

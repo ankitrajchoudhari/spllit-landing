@@ -12,6 +12,7 @@ import { str } from '../utils/adminQuery.js';
 import * as audit from '../services/auditLog.js';
 import { notify } from '../services/notifications.js';
 import { getBounded, invalidateSettingsCache } from '../services/platformSettings.js';
+import { datasetFor, explore, publicSchema } from '../services/explorer.js';
 
 /**
  * Admin console — settings, broadcasts and exports.
@@ -462,6 +463,62 @@ router.get('/export/:dataset', async (req: AdminRequest, res: Response) => {
   } catch (error) {
     console.error('[admin-console/export]', error);
     return fail(res, 500, 'Export failed');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Data explorer
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /explore/schema
+ *
+ * The datasets and dimensions this admin may build a query from. Filtered by
+ * their permissions, so the builder cannot offer a dataset the query endpoint
+ * would then refuse — an option that always errors is worse than no option.
+ */
+router.get('/explore/schema', async (req: AdminRequest, res: Response) => {
+  const admin = req.admin!;
+  return ok(res, { datasets: publicSchema(admin.permissions) });
+});
+
+/**
+ * GET /explore?dataset=&dimension=&days=&compare=
+ *
+ * The browser sends names and a range, never a query. Everything else is
+ * resolved server-side against the whitelist in services/explorer.ts.
+ */
+router.get('/explore', async (req: AdminRequest, res: Response) => {
+  try {
+    const admin = req.admin!;
+    const dataset = str(req.query.dataset);
+    const dimension = str(req.query.dimension);
+
+    const spec = datasetFor(dataset);
+    if (!spec) return fail(res, 400, 'Unknown dataset.');
+
+    // Checked here as well as in the schema listing: a client can call this
+    // directly with any dataset name, and the listing is only a convenience.
+    if (!admin.permissions.includes(spec.permission as never)) {
+      return fail(res, 403, 'Your role cannot explore this dataset.', 'permission_denied');
+    }
+
+    const result = await explore({
+      dataset,
+      dimension,
+      days: Number(req.query.days) || 30,
+      compare: str(req.query.compare) === 'true',
+    });
+
+    return ok(res, result);
+  } catch (error) {
+    // A bad dataset or dimension throws from the service; both are the
+    // caller's fault rather than a server fault, so they read as 400.
+    const message = error instanceof Error ? error.message : 'Query failed';
+    if (message.startsWith('Unknown')) return fail(res, 400, message);
+
+    console.error('[admin-console/explore]', error);
+    return fail(res, 500, 'Query failed');
   }
 });
 

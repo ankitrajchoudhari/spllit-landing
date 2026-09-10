@@ -19,6 +19,7 @@ import {
   Settings,
   ShieldAlert,
   SlidersHorizontal,
+  Table2,
   Users,
   UsersRound,
   X,
@@ -69,6 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Platform',
     items: [
       { href: '/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics.view' },
+      { href: '/explore', label: 'Explore', icon: Table2, permission: 'analytics.view' },
       { href: '/flags', label: 'Feature flags', icon: Flag, permission: 'settings.view' },
       { href: '/settings', label: 'Settings', icon: SlidersHorizontal, permission: 'settings.view' },
       { href: '/audit', label: 'Audit log', icon: ScrollText, permission: 'audit.view' },
