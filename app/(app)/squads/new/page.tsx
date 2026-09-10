@@ -658,7 +658,7 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
       */}
       <div
         className={cn(
-          'sticky z-20 -mx-4 border-t border-line bg-canvas/95 px-4 py-3 backdrop-blur-sm sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none',
+          'sticky z-20 -mx-4 border-t border-line bg-canvas px-4 py-3 backdrop-blur-sm sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none',
           'bottom-[calc(4.5rem+env(safe-area-inset-bottom))] sm:bottom-auto sm:static',
         )}
       >

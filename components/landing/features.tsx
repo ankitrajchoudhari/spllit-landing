@@ -241,7 +241,7 @@ export function Features() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: index * 0.08 }}
-                className="rounded-lg border border-dashed border-line bg-surface-sunken/40 p-5"
+                className="rounded-lg border border-dashed border-line bg-surface-sunken p-5"
               >
                 <Icon className="h-[18px] w-[18px] text-ink-subtle" />
                 <p className="mt-4 text-sm font-semibold text-ink-muted">{item.title}</p>

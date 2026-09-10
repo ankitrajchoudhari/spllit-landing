@@ -59,7 +59,7 @@ function NotificationRow({
     <li
       className={cn(
         'group relative border-l-2 transition-colors',
-        unread ? 'border-brand bg-brand-muted/25' : 'border-transparent',
+        unread ? 'border-brand bg-brand-muted' : 'border-transparent',
         'hover:bg-surface-sunken',
       )}
     >

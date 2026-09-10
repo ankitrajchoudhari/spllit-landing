@@ -11,7 +11,12 @@ type Size = 'sm' | 'md' | 'lg' | 'icon';
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    'bg-brand text-brand-fg hover:bg-brand-hover active:scale-[0.985] shadow-soft disabled:bg-brand/50',
+    // `disabled:opacity-60`, not `disabled:bg-brand/50`: an opacity modifier on
+    // a token compiles to nothing here, so the disabled primary button was
+    // rendering at full brand green and looked pressable. Fading the whole
+    // element also dims the label with it, which the background-only version
+    // never did.
+    'bg-brand text-brand-fg hover:bg-brand-hover active:scale-[0.985] shadow-soft disabled:opacity-60',
   secondary:
     'bg-surface-sunken text-ink hover:bg-line active:scale-[0.985] border border-line',
   outline: 'border border-line-strong text-ink hover:bg-surface-sunken active:scale-[0.985]',

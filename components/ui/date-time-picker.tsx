@@ -340,7 +340,7 @@ export function DateTimePicker({
         </div>
 
         {pickingMonth ? (
-          <div className="absolute inset-0 z-20 rounded-lg bg-surface/95 p-2 backdrop-blur-sm">
+          <div className="absolute inset-0 z-20 rounded-lg bg-surface p-2 backdrop-blur-sm">
             <div className="mb-2 flex items-center justify-between border-b border-line pb-2">
               <button
                 type="button"

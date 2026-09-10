@@ -41,7 +41,7 @@ function ToolbarButton({
       className={cn(
         'relative flex h-9 w-9 shrink-0 select-none appearance-none items-center justify-center',
         'rounded-lg text-ink-muted transition-colors',
-        'hover:bg-line/60 hover:text-ink active:scale-[0.98]',
+        'hover:bg-line hover:text-ink active:scale-[0.98]',
       )}
     >
       {children}

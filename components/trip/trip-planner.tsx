@@ -963,7 +963,7 @@ export function TripPlanner() {
               from here and the "you already have a squad" rule looked arbitrary.
             */}
             {mySquad ? (
-              <div className="mt-5 rounded-2xl border border-brand/40 bg-brand-muted/40 px-4 py-3.5">
+              <div className="mt-5 rounded-2xl border border-brand/40 bg-brand-muted px-4 py-3.5">
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-[18px]">
                     <span aria-hidden="true">

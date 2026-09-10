@@ -349,7 +349,7 @@ function MeetingPointPicker({ query }: { query: string }) {
             'pr-[calc(0.75rem+env(safe-area-inset-right))]',
           )}
         >
-          <div className="pointer-events-auto mx-auto flex w-full max-w-md items-start gap-2 rounded-xl border border-line bg-surface/95 p-2.5 shadow-float backdrop-blur-sm">
+          <div className="pointer-events-auto mx-auto flex w-full max-w-md items-start gap-2 rounded-xl border border-line bg-surface p-2.5 shadow-float backdrop-blur-sm">
             <Link
               href={backHref}
               aria-label="Back to squad"
@@ -404,7 +404,7 @@ function MeetingPointPicker({ query }: { query: string }) {
               aria-label="Drop the pin at my current location"
               className={cn(
                 'pointer-events-auto flex h-11 items-center gap-2 rounded-xl border border-line',
-                'bg-surface/95 px-3.5 text-[13px] font-medium text-ink shadow-float backdrop-blur-sm',
+                'bg-surface px-3.5 text-[13px] font-medium text-ink shadow-float backdrop-blur-sm',
                 'transition-colors hover:bg-surface-sunken disabled:opacity-70',
               )}
             >

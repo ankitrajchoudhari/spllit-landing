@@ -81,7 +81,7 @@ export function MarkerCard({
       }}
       className={cn(
         'group flex max-w-[190px] items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3',
-        'border bg-surface/95 shadow-float backdrop-blur-sm',
+        'border bg-surface shadow-float backdrop-blur-sm',
         'cursor-pointer transition-colors duration-snap',
         selected ? 'border-brand ring-2 ring-brand/25' : 'border-line hover:border-line-strong',
       )}
@@ -122,7 +122,7 @@ export function MarkerCard({
 export function SelfMarker({ heading }: { heading: number | null }) {
   return (
     <div className="relative flex h-4 w-4 items-center justify-center">
-      <span className="absolute h-8 w-8 rounded-full bg-accent/25 animate-pulse-ring" />
+      <span className="absolute h-8 w-8 rounded-full bg-accent-muted animate-pulse-ring" />
       <span className="relative h-4 w-4 rounded-full border-[3px] border-white bg-accent shadow-soft" />
       {heading !== null ? (
         <span

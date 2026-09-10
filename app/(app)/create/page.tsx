@@ -87,7 +87,7 @@ function CreateChooser() {
             <li key={option.href}>
               <Link
                 href={withSearch(option.href)}
-                className="group flex items-start gap-3.5 rounded-2xl border border-line bg-surface px-4 py-4 transition-colors duration-snap hover:border-brand hover:bg-brand-muted/20"
+                className="group flex items-start gap-3.5 rounded-2xl border border-line bg-surface px-4 py-4 transition-colors duration-snap hover:border-brand hover:bg-brand-muted"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-sunken text-ink">
                   <option.Icon className="h-5 w-5" />

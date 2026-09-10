@@ -410,7 +410,7 @@ export function AiConcierge({
             thing you answer with is always in the same place no matter how long
             the conversation gets.
           */}
-          <div className="relative border-t border-line bg-surface/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm sm:px-5">
+          <div className="relative border-t border-line bg-surface px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm sm:px-5">
             <div className="mx-auto w-full max-w-md">
               {interpreting ? (
                 <Button variant="secondary" className="w-full" onClick={stopInterpreting}>

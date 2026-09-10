@@ -76,7 +76,7 @@ export default function LegalIndexPage() {
             <li key={doc.href}>
               <Link
                 href={doc.href}
-                className="group flex items-start gap-4 rounded-xl border border-line bg-surface px-4 py-3.5 transition-colors duration-snap hover:border-brand hover:bg-brand-muted/30"
+                className="group flex items-start gap-4 rounded-xl border border-line bg-surface px-4 py-3.5 transition-colors duration-snap hover:border-brand hover:bg-brand-muted"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block font-display text-[15px] font-semibold tracking-[-0.01em] text-ink">

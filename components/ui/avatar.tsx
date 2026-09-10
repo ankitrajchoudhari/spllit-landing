@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Image from 'next/image';
 
 import { cn, initialsOf } from '@/lib/utils';
@@ -28,6 +31,23 @@ export function Avatar({
   className?: string;
   online?: boolean;
 }) {
+  /**
+   * Set when the photo cannot be painted, which drops us back to initials.
+   *
+   * Without this, a `src` that exists but fails to load left a broken <img> in
+   * the circle — a black box, or a box with a "?" depending on the platform.
+   * It is not a rare case: Google profile URLs on lh3.googleusercontent.com go
+   * 403 once the underlying photo changes, and next/image refuses outright any
+   * host missing from `remotePatterns` in next.config.mjs, so a user whose
+   * photo lives anywhere else fails every time.
+   *
+   * Keyed by `src` so a component reused for a different person — the same
+   * avatar slot in a re-rendered list — retries rather than inheriting the
+   * previous person's failure.
+   */
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showPhoto = Boolean(src) && failedSrc !== src;
+
   return (
     <span className={cn('relative inline-flex shrink-0', className)}>
       <span
@@ -37,13 +57,14 @@ export function Avatar({
           SIZES[size],
         )}
       >
-        {src ? (
+        {showPhoto && src ? (
           <Image
             src={src}
             alt={name ?? 'Profile photo'}
             width={PX[size]}
             height={PX[size]}
             className="h-full w-full object-cover"
+            onError={() => setFailedSrc(src)}
           />
         ) : (
           initialsOf(name)

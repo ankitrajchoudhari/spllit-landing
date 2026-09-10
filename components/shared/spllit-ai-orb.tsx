@@ -161,7 +161,7 @@ export function SpllitAiOrb({
         app, not two that are almost the same.
       */}
       {floating && !reduced ? (
-        <span className="absolute inset-0 rounded-full bg-brand/25 animate-pulse-ring" />
+        <span className="absolute inset-0 rounded-full bg-brand-muted animate-pulse-ring" />
       ) : null}
 
       <motion.svg

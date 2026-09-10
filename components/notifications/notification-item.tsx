@@ -61,7 +61,7 @@ export function NotificationItem({ notification }: { notification: AppNotificati
     <div
       className={cn(
         'flex gap-3 px-4 py-3.5 transition-colors',
-        unread ? 'bg-brand-muted/30' : '',
+        unread ? 'bg-brand-muted' : '',
         notification.href ? 'hover:bg-surface-sunken' : '',
       )}
     >

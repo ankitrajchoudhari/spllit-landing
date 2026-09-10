@@ -19,8 +19,8 @@ import { Star, Users, MapPin, ArrowLeft, Send } from 'lucide-react';
  * wide, honest-sized body text is unreadable, so each screen keeps only the
  * few labels that carry meaning and lets shape stand in for the rest.
  *
- * Only solid token classes are used here. Tailwind's opacity modifiers
- * (`bg-brand/25` and the like) silently generate *no rule at all* in this
+ * Only solid token classes are used here. Tailwind's opacity modifiers on a
+ * design token silently generate *no rule at all* in this
  * project: the tokens are whole colour values (`--brand: #00c853`) rather than
  * the channel triplets an `<alpha-value>` config needs, so the utility has
  * nothing to compose an alpha into. An earlier draft of this file used them

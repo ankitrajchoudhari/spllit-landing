@@ -58,7 +58,7 @@ export function TopBar() {
   const count = unread?.count ?? 0;
 
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-canvas/85 backdrop-blur-glass">
+    <header className="sticky top-0 z-20 border-b border-line bg-canvas backdrop-blur-glass">
       <div className="flex h-16 items-center gap-3 px-4 lg:px-6">
         <Link href="/home" className="flex items-center gap-2.5">
           <Image
