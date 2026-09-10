@@ -16,6 +16,8 @@
  * they see.
  */
 
+import os from 'os';
+
 import { PrismaClient } from '@prisma/client';
 
 const ROLES = ['super_admin', 'admin', 'moderator', 'support', 'analyst'];
@@ -62,6 +64,37 @@ async function main() {
     data: { adminRole: nextRole },
     select: { name: true, email: true, adminRole: true, isActive: true, adminStatus: true },
   });
+
+  /**
+   * Recorded, like every other role change.
+   *
+   * Creating a Super Admin is the most privileged action in the system, and it
+   * is the one the console cannot perform for the first one — so without this
+   * the only account with total access is also the only one whose creation left
+   * no trace. `actorId` is prefixed `script:` so it can never be mistaken for a
+   * real user id.
+   */
+  try {
+    await prisma.auditLog.create({
+      data: {
+        actorId: 'script:grant-console-role',
+        actorEmail: `${os.userInfo().username}@${os.hostname()}`,
+        actorRole: 'super_admin',
+        action: nextRole ? 'admin.role_grant' : 'admin.role_revoke',
+        targetType: 'admin',
+        targetId: user.id,
+        targetLabel: updated.email,
+        before: { adminRole: user.adminRole },
+        after: { adminRole: nextRole },
+        reason: 'Changed with scripts/grant-console-role.mjs',
+        success: true,
+      },
+    });
+  } catch (error) {
+    // The grant already succeeded; a missing log line must not undo it or make
+    // the command look like it failed.
+    console.warn('Warning: could not write the audit row —', error.message);
+  }
 
   console.log(
     nextRole
