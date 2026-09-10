@@ -45,9 +45,55 @@ export type ChatAccess = 'open' | 'locked' | 'erased';
 export interface RetentionSquad {
   status: string;
   endedAt: Date | null;
+  /**
+   * Fallback anchors, for squads that reached a terminal state before
+   * `endedAt` existed. See `inferEndedAt`.
+   */
+  meetingAt?: Date | null;
+  durationMinutes?: number | null;
+  updatedAt?: Date | null;
 }
 
 const TERMINAL: readonly string[] = ['completed', 'cancelled'];
+
+/** Assumed length of a squad that never said, mirroring the lifecycle default. */
+const ASSUMED_DURATION_MINUTES = 45;
+
+/**
+ * When a terminal squad most likely ended, for rows written before `endedAt`.
+ *
+ * The first version of this module treated a null `endedAt` as "leave it
+ * alone", reasoning that retroactively closing conversations because a column
+ * was added later would be an unpleasant surprise. In practice that was the
+ * wrong call: *every* squad that existed before the column was terminal with a
+ * null anchor, so the retention rule applied to nothing at all. Month-old
+ * cancelled squads kept fully usable chats, which is the exact situation the
+ * rule was written to prevent.
+ *
+ * So a terminal squad without an explicit end is dated from the best evidence
+ * on the row instead:
+ *
+ *   - `meetingAt` plus its duration, which is when the trip was expected to be
+ *     over — the same arithmetic the lifecycle uses to expire a squad;
+ *   - failing that, `updatedAt`. For a cancelled squad the last write is
+ *     usually the cancellation itself, which is close enough for a window
+ *     measured in hours and days.
+ *
+ * Returns null only when there is genuinely nothing to measure from, and such
+ * a squad stays open — inventing an end date from no evidence would be worse
+ * than leaving one conversation readable.
+ */
+export function inferEndedAt(squad: RetentionSquad): Date | null {
+  if (squad.endedAt) return squad.endedAt;
+  if (!TERMINAL.includes(squad.status)) return null;
+
+  if (squad.meetingAt) {
+    const minutes = squad.durationMinutes ?? ASSUMED_DURATION_MINUTES;
+    return new Date(squad.meetingAt.getTime() + minutes * 60_000);
+  }
+
+  return squad.updatedAt ?? null;
+}
 
 /**
  * The one definition of what a viewer may do with a squad conversation.
@@ -59,10 +105,12 @@ const TERMINAL: readonly string[] = ['completed', 'cancelled'];
 export function chatAccess(squad: RetentionSquad, now: Date = new Date()): ChatAccess {
   // Live squads are always open, whatever endedAt happens to hold.
   if (!TERMINAL.includes(squad.status)) return 'open';
-  // Ended before the column existed. Nothing to measure from, so leave it be.
-  if (!squad.endedAt) return 'open';
 
-  const since = now.getTime() - squad.endedAt.getTime();
+  // Explicit end if we have one, inferred from the row if we do not.
+  const endedAt = inferEndedAt(squad);
+  if (!endedAt) return 'open';
+
+  const since = now.getTime() - endedAt.getTime();
   if (since >= CHAT_RETENTION.ERASE_DAYS * DAY_MS) return 'erased';
   if (since >= CHAT_RETENTION.LOCK_HOURS * HOUR_MS) return 'locked';
   return 'open';
@@ -92,10 +140,53 @@ export function eraseCutoff(now: Date = new Date()): Date {
  * same messages and one will simply find none left; `deleteMany` on an already
  * empty set is not an error.
  */
+/**
+ * Writes an inferred `endedAt` onto terminal squads that never got one.
+ *
+ * Reads already infer the anchor, so this is not what makes the rule correct —
+ * it is what lets the *sweep* find these rows at all. `deleteMany` filters in
+ * the database, and a where clause cannot run `inferEndedAt`; without the
+ * backfill, every squad that ended before the column existed would stay
+ * unreachable by the erase pass forever, locked to users but never cleaned up.
+ *
+ * Writing it down once also freezes the anchor. An inferred value recomputed
+ * from `updatedAt` on every read would move each time anything touched the row,
+ * which is precisely the drift `endedAt` exists to avoid.
+ *
+ * Bounded, and safe to run repeatedly: it only ever fills nulls.
+ */
+export async function backfillEndedAt(limit = 200): Promise<number> {
+  const missing = await prisma.squad.findMany({
+    where: { status: { in: [...TERMINAL] }, endedAt: null },
+    select: { id: true, status: true, endedAt: true, meetingAt: true, durationMinutes: true, updatedAt: true },
+    take: limit,
+  });
+
+  let filled = 0;
+  for (const squad of missing) {
+    const inferred = inferEndedAt(squad);
+    if (!inferred) continue;
+    // Guarded on endedAt still being null so two instances racing cannot
+    // overwrite each other with slightly different inferences.
+    const { count } = await prisma.squad.updateMany({
+      where: { id: squad.id, endedAt: null },
+      data: { endedAt: inferred },
+    });
+    filled += count;
+  }
+
+  if (filled > 0) console.log(`[chat retention] backfilled endedAt on ${filled} squads`);
+  return filled;
+}
+
 export async function sweepErasedChats(
   now: Date = new Date(),
   limit = 50,
 ): Promise<{ squads: number; messages: number }> {
+  // Squads terminal before endedAt existed are invisible to the query below
+  // until they have an anchor. Fill them first.
+  await backfillEndedAt();
+
   const due = await prisma.squad.findMany({
     where: {
       status: { in: [...TERMINAL] },

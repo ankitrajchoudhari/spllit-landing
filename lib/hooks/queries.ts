@@ -232,6 +232,24 @@ export function useLeaveSquad(squadId: string) {
   });
 }
 
+/**
+ * Withdraws a pending join request.
+ *
+ * Invalidates the same set as leaving: a withdrawn request changes both your
+ * own squad list and what discovery is willing to offer you again.
+ */
+export function useWithdrawRequest(squadId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => squadsService.withdraw(squadId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.squad(squadId) });
+      void qc.invalidateQueries({ queryKey: qk.mySquads });
+      void qc.invalidateQueries({ queryKey: ['squads'] });
+    },
+  });
+}
+
 /** Ends a squad. Invalidates everything squad-shaped: ending one frees the
  *  viewer to create or join another, which changes the whole page. */
 export function useEndSquad(squadId: string) {

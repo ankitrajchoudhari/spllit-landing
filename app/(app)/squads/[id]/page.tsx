@@ -22,7 +22,14 @@ import { Skeleton, SkeletonMap } from '@/components/ui/skeleton';
 import { MapCanvas } from '@/components/map/map-canvas';
 import { ChatDialog } from '@/components/chat/chat-dialog';
 import { JoinFeeDialog, JoinFeeNotice } from '@/components/squads/join-fee-dialog';
-import { useEndSquad, useJoinSquad, useLeaveSquad, useSquad, useThreads } from '@/lib/hooks/queries';
+import {
+  useEndSquad,
+  useJoinSquad,
+  useLeaveSquad,
+  useSquad,
+  useThreads,
+  useWithdrawRequest,
+} from '@/lib/hooks/queries';
 import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/auth-provider';
 import { useLivePositions } from '@/lib/live/use-live';
@@ -35,11 +42,13 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
   const { data: squad, isPending, isError } = useSquad(id);
   const join = useJoinSquad(id);
   const leave = useLeaveSquad(id);
+  const withdraw = useWithdrawRequest(id);
   const endSquad = useEndSquad(id);
   const router = useRouter();
   const [tab, setTab] = useState<SquadTab>('members');
   /** Two-step, because leaving can also transfer leadership. */
   const [leaveConfirm, setLeaveConfirm] = useState(false);
+  const [withdrawConfirm, setWithdrawConfirm] = useState(false);
   /** Set when the API rejects a join because the user is committed elsewhere. */
   const [blockedReason, setBlockedReason] = useState<string | null>(null);
   // Read as a boolean so the page can decide *where* the gate goes rather than
@@ -220,8 +229,21 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
   ) : awaitingApproval ? (
     /* Admission is the leader's call, so this is a waiting state, not a
        membership one — offering "Join" again here would suggest the tap
-       failed and queue nothing. */
-    <Badge tone="neutral">Request sent</Badge>
+       failed and queue nothing.
+       Withdraw sits beside it because waiting was previously the only thing
+       you could do: the request could be made and then never unmade, since
+       Leave refuses a pending member. */
+    <div className="flex items-center gap-2">
+      <Badge tone="neutral">Request sent</Badge>
+      <button
+        type="button"
+        onClick={() => setWithdrawConfirm(true)}
+        disabled={withdraw.isPending}
+        className="text-[13px] font-medium text-ink-muted underline underline-offset-2 transition-colors hover:text-danger disabled:opacity-60"
+      >
+        Withdraw
+      </button>
+    </div>
   ) : gateBlocksJoin ? null : (
     joinButton
   );
@@ -531,6 +553,23 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
         ]}
         confirmLabel="Go to my squad"
         cancelLabel="Stay here"
+      />
+
+      {/* Withdrawing is not the same as leaving, and is much less costly: the
+          request was never accepted, so nothing is lost but the place in the
+          queue. Confirmed anyway because the leader is told, and a request
+          that reappears a second later reads as indecision on their screen. */}
+      <ConfirmDialog
+        open={withdrawConfirm}
+        onClose={() => setWithdrawConfirm(false)}
+        onConfirm={() =>
+          withdraw.mutate(undefined, { onSuccess: () => router.replace('/squads') })
+        }
+        eyebrow="Withdraw request"
+        title={squad.destination?.label?.split(',')[0] ?? squad.name}
+        description="Your request will be removed and the leader will be told. You can ask to join again later."
+        confirmLabel="Withdraw request"
+        cancelLabel="Keep waiting"
       />
 
       {/* Leaving is not undoable — rejoining a private squad needs the leader,

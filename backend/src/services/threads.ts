@@ -349,7 +349,7 @@ export async function canPostToThread(threadId: string, userId: string): Promise
   const [squad, membership] = await Promise.all([
     prisma.squad.findUnique({
       where: { id: thread.contextId },
-      select: { name: true, status: true, endedAt: true },
+      select: { name: true, status: true, endedAt: true, meetingAt: true, durationMinutes: true, updatedAt: true },
     }),
     prisma.squadMember.findUnique({
       where: { squadId_userId: { squadId: thread.contextId, userId } },
@@ -378,7 +378,7 @@ export async function threadReadAccess(
   if (thread.contextType === 'squad') {
     const squad = await prisma.squad.findUnique({
       where: { id: thread.contextId },
-      select: { status: true, endedAt: true },
+      select: { status: true, endedAt: true, meetingAt: true, durationMinutes: true, updatedAt: true },
     });
 
     // A squad row that no longer exists cannot be measured. Treat it as open
@@ -468,7 +468,7 @@ export async function threadReadAccessMap(
   if (squadThreads.length > 0) {
     const squads = await prisma.squad.findMany({
       where: { id: { in: squadThreads.map((t) => t.contextId) } },
-      select: { id: true, status: true, endedAt: true },
+      select: { id: true, status: true, endedAt: true, meetingAt: true, durationMinutes: true, updatedAt: true },
     });
     const byId = new Map(squads.map((s) => [s.id, s]));
     for (const thread of squadThreads) {

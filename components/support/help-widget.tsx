@@ -8,15 +8,26 @@ import {
   CircleCheck,
   HelpCircle,
   Home,
+  Mail,
+  MessageCircle,
   MessageSquare,
   Search,
-  Send,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { useAuth } from '@/lib/auth/auth-provider';
 import { firstNameOf } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+
+/**
+ * Where support actually reads.
+ *
+ * Its own constant rather than SITE.email: that one is the public contact
+ * address on the marketing pages, and the two are free to diverge — a support
+ * queue usually should.
+ */
+const SUPPORT_EMAIL = 'support@spllit.app';
 
 type Panel = 'home' | 'messages' | 'help';
 
@@ -100,18 +111,40 @@ export function HelpWidget() {
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4">
         {panel === 'home' ? (
           <>
+            {/**
+             * Email, not /chat.
+             *
+             * "Send us a message" pointed at the in-app conversation list,
+             * which is where you talk to squads and drivers — not to us. Anyone
+             * following it landed in their own chats and found no way to reach
+             * support at all, which is the opposite of what the card promised.
+             */}
             <SectionCard className="transition-colors hover:border-line-strong">
-              <Link href="/chat" className="flex items-center gap-3">
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="flex items-center gap-3">
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13.5px] font-semibold text-ink">
                     Send us a message
                   </span>
-                  <span className="block text-[12.5px] text-ink-muted">
-                    We usually reply within a day
+                  <span className="block truncate text-[12.5px] text-ink-muted">
+                    {SUPPORT_EMAIL} · we usually reply within a day
                   </span>
                 </span>
-                <Send className="h-4 w-4 shrink-0 text-ink" />
-              </Link>
+                <Mail className="h-4 w-4 shrink-0 text-ink" />
+              </a>
+            </SectionCard>
+
+            {/* Announced rather than hidden: people ask for WhatsApp, and
+                saying it is coming is more useful than saying nothing. Not a
+                link, because a dead link is worse than a plain statement. */}
+            <SectionCard>
+              <div className="flex items-center gap-3">
+                <MessageCircle className="h-4 w-4 shrink-0 text-ink-subtle" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13.5px] font-medium text-ink-muted">WhatsApp</span>
+                  <span className="block text-[12.5px] text-ink-subtle">Coming soon</span>
+                </span>
+                <Badge tone="neutral">Soon</Badge>
+              </div>
             </SectionCard>
 
             <SectionCard>

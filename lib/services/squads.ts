@@ -126,6 +126,14 @@ export const squadsService = {
   leave: (id: string) => api.post<void>(`/squads/${id}/leave`),
 
   /**
+   * Retracts a join request the leader has not answered.
+   *
+   * Distinct from `leave`: that one exits a squad you are in and refuses a
+   * pending member outright, which left a request with no way to unmake it.
+   */
+  withdraw: (id: string) => api.post<void>(`/squads/${id}/withdraw`),
+
+  /**
    * Ends a squad. Leader-only and terminal — this is the only way out of the
    * one-squad-at-a-time rule.
    */

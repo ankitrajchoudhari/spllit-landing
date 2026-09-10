@@ -873,6 +873,89 @@ router.post('/:id/join', identify, requireVerifiedInstitute, async (req: AuthReq
 });
 
 /** POST /api/squads/:id/leave */
+/**
+ * POST /api/squads/:id/withdraw — take back a join request.
+ *
+ * Separate from `leave`, because they are different acts. Leaving is exiting a
+ * squad you are in; withdrawing is retracting a request nobody has answered
+ * yet. `leave` refuses a pending member outright — it requires an active
+ * status — so before this existed a request could be made and then never
+ * unmade: you waited, or you did not, and either way the row stayed.
+ *
+ * Only a `pending` row may be withdrawn. Once the leader has admitted you, the
+ * way out is `leave`, which is the one that adjusts the member count and hands
+ * on leadership if it has to. Withdrawing touches none of that, because a
+ * pending request was never counted in the first place.
+ */
+router.post('/:id/withdraw', identify, async (req: AuthRequest, res: Response) => {
+  try {
+    const membership = await prisma.squadMember.findUnique({
+      where: { squadId_userId: { squadId: req.params.id, userId: req.user!.userId } },
+    });
+
+    if (!membership) return fail(res, 404, 'You have no request on this squad');
+
+    if (membership.status !== 'pending') {
+      /**
+       * Deliberately specific. "You are already in this squad, use Leave" is
+       * actionable; a bare 404 would read as the request having vanished,
+       * which is the confusion this endpoint exists to end.
+       */
+      return fail(
+        res,
+        409,
+        ACTIVE_MEMBER_STATUSES.includes(membership.status as 'active')
+          ? 'Your request was already accepted. Leave the squad instead.'
+          : 'That request is no longer pending.',
+        'not-pending',
+      );
+    }
+
+    const squad = await prisma.squad.findUnique({
+      where: { id: req.params.id },
+      select: { name: true, leaderId: true },
+    });
+
+    // Deleted, not marked 'left'. A withdrawn request should leave nothing
+    // behind — the same person may well ask again, and a stale row would make
+    // the second request look like a duplicate. `left` is for people who were
+    // actually in the squad and whose history is worth keeping.
+    await prisma.squadMember.delete({ where: { id: membership.id } });
+
+    const withdrawer = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { name: true },
+    });
+
+    /**
+     * The leader is told, because they may have been looking at the request
+     * and deciding. Nobody else is: a request that was never accepted was
+     * never visible to the rest of the squad, so announcing its withdrawal
+     * would be telling people about something they never knew existed.
+     */
+    if (squad?.leaderId && squad.leaderId !== req.user!.userId) {
+      await notify({
+        userId: squad.leaderId,
+        type: 'squad.join_requested',
+        title: 'Join request withdrawn',
+        body: `${withdrawer?.name ?? 'Someone'} withdrew their request to join ${squad.name}.`,
+        data: { squadId: req.params.id },
+        href: `/squads/${req.params.id}`,
+      });
+    }
+
+    // Refreshes the leader's pending list if they have the squad open.
+    getIO()?.to(`squad:${req.params.id}`).emit('squad:members-changed', {
+      squadId: req.params.id,
+    });
+
+    return res.status(204).end();
+  } catch (error) {
+    console.error('[squads/withdraw]', error);
+    return fail(res, 500, 'Failed to withdraw the request');
+  }
+});
+
 router.post('/:id/leave', identify, async (req: AuthRequest, res: Response) => {
   try {
     const membership = await prisma.squadMember.findUnique({
