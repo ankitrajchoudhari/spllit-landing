@@ -25,6 +25,7 @@ import {
 } from '../config/adminRoles.js';
 import { diff, sanitise } from '../services/auditLog.js';
 import { ADMIN_EVENTS, METRIC_FOR } from '../services/adminEvents.js';
+import { markActive, markedTodayCount, resetActiveCache } from '../services/activeUsers.js';
 
 /** A user row as `resolveAdminRole` expects it, with nothing yet privileged. */
 const ACTIVE = {
@@ -271,5 +272,39 @@ describe('realtime event catalogue', () => {
       assert.ok(/^[a-z]+\.[a-z_]+$/.test(metric), `${metric} is not a dotted lowercase key`);
       assert.ok(!metric.includes(':'), `${metric} would break the rollup id`);
     }
+  });
+});
+
+describe('active-user marking', () => {
+  it('records a user only once per day, however many requests they make', () => {
+    // The whole point of the in-memory set: this runs on every authenticated
+    // request, and a write per request would be the most expensive thing in
+    // the application.
+    resetActiveCache();
+    assert.equal(markedTodayCount(), 0);
+
+    for (let i = 0; i < 50; i += 1) markActive('user-a');
+
+    assert.equal(markedTodayCount(), 1);
+  });
+
+  it('counts distinct users separately', () => {
+    resetActiveCache();
+
+    markActive('user-a');
+    markActive('user-b');
+    markActive('user-a');
+
+    assert.equal(markedTodayCount(), 2);
+  });
+
+  it('ignores an absent user rather than recording a null row', () => {
+    resetActiveCache();
+
+    markActive(null);
+    markActive(undefined);
+    markActive('');
+
+    assert.equal(markedTodayCount(), 0);
   });
 });

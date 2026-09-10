@@ -1149,3 +1149,34 @@ model ActivityEvent {
   @@index([createdAt])
   @@index([type, createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Analytics (Phase 4)
+// ---------------------------------------------------------------------------
+
+/// One row per user per UTC day they were active.
+///
+/// `User.lastSeen` cannot answer this. It is written at login and nowhere else,
+/// so it records a last *login*, not activity, and it holds a single instant —
+/// there is no history in it to compute a retention curve from.
+///
+/// The id is `<userId>:<day>` rather than a cuid so marking someone active is
+/// one keyed upsert with no lookup first, and so two requests in the same
+/// millisecond collide on the primary key instead of writing the user twice
+/// and inflating every figure derived from this table.
+///
+/// Deliberately holds no event detail. This answers "was this person here that
+/// day", which is all DAU, WAU, MAU and retention need; recording what they did
+/// would make it a behavioural log of every user, kept indefinitely, to compute
+/// numbers that never look at the contents.
+model ActiveUserDay {
+  /// "<userId>:<YYYY-MM-DD>"
+  id        String   @id @map("_id")
+  userId    String
+  /// UTC day, matching MetricRollup.
+  day       String
+  createdAt DateTime @default(now())
+
+  @@index([day])
+  @@index([userId, day])
+}

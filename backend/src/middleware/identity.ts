@@ -4,6 +4,7 @@ import prisma from '../utils/prisma.js';
 import { verifyAccessToken } from '../utils/helpers.js';
 import { verifyFirebaseIdToken, isFirebaseAdminConfigured } from '../utils/firebaseAdmin.js';
 import { AuthRequest } from '../types/express.js';
+import { markActive } from '../services/activeUsers.js';
 
 /**
  * Dual-scheme authentication.
@@ -33,6 +34,9 @@ export async function identify(
 
   try {
     req.user = verifyAccessToken(token);
+    // Fire-and-forget, deduplicated in memory to one write per user per
+    // day. See services/activeUsers.ts — this is the hottest path in the app.
+    markActive(req.user.userId);
     next();
     return;
   } catch {
@@ -75,6 +79,9 @@ export async function identify(
     }
 
     req.user = { userId: user.id, email: user.email };
+    // Fire-and-forget, deduplicated in memory to one write per user per
+    // day. See services/activeUsers.ts — this is the hottest path in the app.
+    markActive(req.user.userId);
     next();
   } catch (error) {
     console.error('[identify] Firebase verification failed:', error);
@@ -98,6 +105,9 @@ export async function identifyOptional(
 
   try {
     req.user = verifyAccessToken(token);
+    // Fire-and-forget, deduplicated in memory to one write per user per
+    // day. See services/activeUsers.ts — this is the hottest path in the app.
+    markActive(req.user.userId);
     next();
     return;
   } catch {
@@ -119,7 +129,10 @@ export async function identifyOptional(
         ],
       },
     });
-    if (user) req.user = { userId: user.id, email: user.email };
+    if (user) {
+      req.user = { userId: user.id, email: user.email };
+      markActive(user.id);
+    }
   } catch {
     // Anonymous is a valid outcome here.
   }

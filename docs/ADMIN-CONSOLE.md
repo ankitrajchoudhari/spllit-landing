@@ -122,6 +122,8 @@ shapes must not change.
 | `GET /flags` | `settings.view` |
 | `PATCH /flags/:key` | `flags.edit` |
 | `GET /system` | `system.view` |
+| `GET /activity`, `GET /series` | `dashboard.view` |
+| `GET /analytics` | `analytics.view` |
 
 Phase 2 added a second router, `routes/adminConsoleOps.ts`, on the same mount
 path. Their prefixes do not overlap, so ordering between the two is not load
@@ -147,9 +149,10 @@ searching gets people and nothing else rather than a 403 for the whole palette.
 
 ## Database
 
-Six additive models in `backend/prisma/schema.prisma` — `AuditLog`,
+Seven additive models in `backend/prisma/schema.prisma` — `AuditLog`,
 `FeatureFlag`, `PlatformSetting`, and from Phase 3 `MetricCounter`,
-`MetricRollup` and `ActivityEvent` — plus the optional `User.adminRole` field.
+`MetricRollup` and `ActivityEvent`, and from Phase 4 `ActiveUserDay` — plus
+the optional `User.adminRole` field.
 No existing model or field was changed.
 
 `MetricRollup`'s id is `<metric>:<YYYY-MM-DD>` rather than a cuid, so an
@@ -223,10 +226,10 @@ straightforward leak of what the platform runs.
 
 ## Status
 
-**Phases 1 (foundation), 2 (operations) and 3 (realtime): done.**
+**Phases 1 (foundation), 2 (operations), 3 (realtime) and 4 (analytics): done.**
 
-Verified on every run: backend `tsc` clean + **183 tests pass**; admin `tsc`
-clean, lints clean, production build clean (**14 routes**); main app `tsc`
+Verified on every run: backend `tsc` clean + **186 tests pass**; admin `tsc`
+clean, lints clean, production build clean (**15 routes**); main app `tsc`
 clean, lints clean, **150 tests pass**.
 
 ### Built
@@ -272,6 +275,18 @@ Phase 3 — realtime:
 - [x] Drift-free deltas derived from timestamps, not a running tally
 - [x] **3 more tests** on the event catalogue's invariants
 
+Phase 4 — analytics:
+
+- [x] `ActiveUserDay`, recorded from the authentication middleware with an
+      in-memory cache collapsing a user's whole day into one write
+- [x] DAU / WAU / MAU, stickiness, and a daily active-user chart
+- [x] Retention by signup-day cohort at D1 / D7 / D30, with unreached days
+      reported as null rather than zero
+- [x] Activation funnel over distinct users, not events
+- [x] Feature adoption across rides, squads, events, communities and chat
+- [x] The dashboard's "Seen today" now reads real DAU instead of `lastSeen`
+- [x] **3 more tests** on the active-user deduplication
+
 ### Not built, and why
 
 - [ ] **Reports queue** — Spllit has no `Report` model and no way for a user to
@@ -282,7 +297,6 @@ Phase 3 — realtime:
       chat show volume and last activity only. Reading private conversations
       needs a report or support ticket naming the thread, and neither exists
       yet, so the console offers no route to the messages at all.
-- [ ] **Analytics** — needs `AnalyticsEvent` plus instrumentation. Phase 4.
 
 ## Phase 3 — realtime
 
@@ -377,20 +391,88 @@ is not yet recording.
 at real volume they would push everything else off it within seconds. If the
 feed ever needs them, it needs a filter first.
 
-## Phase 4 — analytics (not started)
+## Phase 4 — analytics
 
-Needs `AnalyticsEvent` plus instrumentation, then retention, cohorts and
-funnels on top of the rollups this phase established. The dependency that made
-Phase 3 come first still holds: `raw database → rollups/events → realtime →
-analytics`.
+**Built.** Retention, funnels and feature adoption, on top of the rollups Phase
+3 established.
 
-Events named in the catalogue but with no source yet:
+### Why `ActiveUserDay` had to exist
 
-| Event | Blocked on |
+`User.lastSeen` cannot answer any of this. It is written at login and nowhere
+else, so it records a last *login* rather than activity, and it holds a single
+instant — there is no history in it to draw a retention curve from. The
+dashboard's "Seen today" was labelled an approximation for exactly that reason;
+it now reads real DAU instead, so the same question is not answered two
+different ways on two different pages.
+
+`ActiveUserDay` is one row per user per UTC day, and deliberately holds **no
+event detail**. That is all DAU, WAU, MAU and retention need; recording what
+each person did would make it a behavioural log of every user, kept
+indefinitely, to compute numbers that never look at the contents.
+
+### Cost of marking someone active
+
+`markActive()` is called from `middleware/identity.ts`, which runs on every
+authenticated request — the hottest path in the application. A write per
+request would be the single most expensive thing Spllit does, so an in-memory
+set collapses a user's entire day of traffic into **one upsert**.
+
+The cache is per-container, not global. Several containers each write the same
+user once, which is why the id is `<userId>:<day>` — the upsert collapses those
+duplicates at the database rather than trusting any one process to have seen
+everything. A failed write is dropped from the cache so the user's next request
+retries it, rather than losing them for the rest of the day.
+
+### What each figure costs
+
+Every query is bounded by the number of **active** users in the window, never
+by the size of the User collection. A distinct count over 30 days touches one
+row per active user per day and nothing else, so a user who never returns costs
+nothing to ignore.
+
+`distinctActive` uses `groupBy` rather than a count: with one row per user per
+day, the number of groups *is* the distinct user count, and the result set is
+bounded by the answer itself — asking for MAU returns exactly MAU rows.
+
+The trade is stated rather than hidden: these are computed on demand, not
+pre-aggregated. If MAU ever takes long enough to notice, the fix is a nightly
+rollup of the distinct counts, not another index.
+
+### Retention
+
+"Retained on day N" means active on **that specific day**, not merely active at
+some point since. The looser definition only ever goes up with time and so
+flatters every cohort; this one answers whether people actually came back.
+
+A cohort too young to have reached day N reports `null`, rendered as a dash — a
+cohort that signed up yesterday has not failed its D7, it has no D7 yet, and
+showing that as 0% would make every recent cohort look like a catastrophe.
+
+### Funnel
+
+Each step counts **distinct users who reached it**, not events. A user with
+nine rides is one person who reached "created a ride"; counting rides would
+make the funnel widen at the bottom. "Did something" is the union of the
+participation steps, not their sum, so one person who both hosted a ride and
+joined a squad counts once.
+
+### Backfill
+
+`ActiveUserDay` starts filling from the first authenticated request after this
+shipped. Days before that read as zero because nothing was recorded, not
+because nobody was there — the payload carries that caveat in `notes` and the
+page renders it above the figures rather than in a footnote.
+
+## Not built
+
+| Surface | Why |
 |---|---|
-| `REPORT_CREATED` | the reporting feature |
-| `POST_CREATED` / `COMMENT_CREATED` | no such feature in Spllit |
-| `SYSTEM_ERROR` | error aggregation |
+| Reports queue | Spllit has no `Report` model and no way for a user to report anyone. Needs product work in the main app. |
+| Posts / comments | No such feature in Spllit. |
+| Chat message content | Deliberately unreachable. Volume and last activity only. |
+| `SYSTEM_ERROR` events | Needs an error aggregation service. |
+| Data explorer | The original spec's Phase 6. Needs a controlled query layer — dimensions and metrics, never raw queries from the browser. |
+| Broadcast composer | `/api/admin-panel/broadcast` exists and works; the console reports on what was sent but does not yet send. |
 
 ## Decisions taken
 

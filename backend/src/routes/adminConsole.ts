@@ -19,6 +19,12 @@ import { ok, fail } from '../utils/respond.js';
 import * as audit from '../services/auditLog.js';
 import { readCounters, readSeries } from '../services/adminEvents.js';
 import { connectedAdminCount } from '../services/adminSocket.js';
+import {
+  activationFunnel,
+  activeUsers as activeUserMetrics,
+  featureAdoption,
+  retention,
+} from '../services/analytics.js';
 
 /**
  * The admin console API — admin.spllit.app.
@@ -156,10 +162,20 @@ router.get(
         prisma.user.count({ where: { createdAt: { gte: dayAgo } } }),
         prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
         prisma.user.count({ where: { createdAt: { gte: monthAgo } } }),
-        // "Active" here means seen in the last 24h — stated rather than
-        // implied, because DAU computed from `lastSeen` is an approximation
-        // until real event tracking exists.
-        prisma.user.count({ where: { lastSeen: { gte: dayAgo } } }),
+        /**
+         * Distinct users active today, from ActiveUserDay.
+         *
+         * This used to count `lastSeen >= 24h`, which was an approximation and
+         * labelled as one: lastSeen is written at login and nowhere else, so it
+         * measured recent *sign-ins* rather than activity. Now that Phase 4
+         * records activity properly, showing the old estimate here beside a
+         * real DAU on the analytics page would just be two different numbers
+         * for the same question.
+         *
+         * One row per user per day means the count is already distinct, and it
+         * is bounded by DAU rather than by the size of the User collection.
+         */
+        prisma.activeUserDay.count({ where: { day: new Date().toISOString().slice(0, 10) } }),
         prisma.user.count({ where: { isActive: false } }),
         prisma.user.count({ where: { onboarded: true } }),
         prisma.ride.count(),
@@ -882,6 +898,62 @@ router.get(
     } catch (error) {
       console.error('[admin-console/series]', error);
       return fail(res, 500, 'Failed to load series');
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Analytics (Phase 4)
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/admin-console/analytics
+ *
+ * Active users, retention, the activation funnel and feature adoption, in one
+ * round trip — the analytics page needs all four to render anything useful,
+ * and four requests would just be four waterfalls.
+ *
+ * Gated on `analytics.view`, which is the one permission an Analyst has. That
+ * is deliberate: this endpoint returns aggregates only and never names an
+ * individual, so it is the one surface a read-only role can safely reach.
+ */
+router.get(
+  '/analytics',
+  requirePermission('analytics.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const days = Math.min(Math.max(Number(req.query.days) || 30, 7), 90);
+
+      const [active, retentionRows, funnel, adoption] = await Promise.all([
+        activeUserMetrics(days),
+        retention(14),
+        activationFunnel(),
+        featureAdoption(),
+      ]);
+
+      return ok(res, {
+        generatedAt: new Date().toISOString(),
+        days,
+        active,
+        retention: retentionRows,
+        funnel,
+        adoption,
+        /**
+         * Said in the payload rather than left for the reader to infer.
+         * ActiveUserDay only starts filling from the first request after
+         * Phase 4 shipped, so every figure derived from it describes the
+         * period since then and not the platform's whole history.
+         */
+        notes: [
+          {
+            key: 'backfill',
+            text: 'Active-user history starts when this shipped. Days before that read as zero because nothing was recorded, not because nobody was there.',
+          },
+        ],
+      });
+    } catch (error) {
+      console.error('[admin-console/analytics]', error);
+      return fail(res, 500, 'Failed to load analytics');
     }
   },
 );

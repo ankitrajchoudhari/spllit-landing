@@ -67,13 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Platform',
     items: [
-      {
-        href: '/analytics',
-        label: 'Analytics',
-        icon: BarChart3,
-        permission: 'analytics.view',
-        unavailable: 'Event tracking is not implemented yet — Phase 4.',
-      },
+      { href: '/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics.view' },
       { href: '/flags', label: 'Feature flags', icon: Flag, permission: 'settings.view' },
       { href: '/audit', label: 'Audit log', icon: ScrollText, permission: 'audit.view' },
       { href: '/system', label: 'System health', icon: Activity, permission: 'system.view' },
