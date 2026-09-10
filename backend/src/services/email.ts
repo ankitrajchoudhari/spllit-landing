@@ -234,3 +234,46 @@ export async function emailRequestAccepted(params: {
     idempotencyKey: `request-accepted:${params.squadId}:${params.userId}`,
   });
 }
+
+/**
+ * Sends a probe message, for confirming the sending domain actually works.
+ *
+ * Restricted to addresses that already exist as a *verified* user. The
+ * maintenance key gates the endpoint, but a key is a thing that can leak, and
+ * an endpoint that mails arbitrary strings on request is an open relay wearing
+ * a lanyard — precisely the shape spam filters are built to find, on the domain
+ * whose reputation this whole exercise exists to protect.
+ *
+ * Returns why it declined rather than a bare false, because "nothing happened"
+ * is the least useful answer when you are trying to establish whether mail
+ * works at all.
+ */
+export async function sendTestEmail(
+  to: string,
+): Promise<{ sent: boolean; reason?: string }> {
+  const cfg = config();
+  if (!cfg) return { sent: false, reason: 'RESEND_API_KEY is not set on this service' };
+
+  const address = to.trim().toLowerCase();
+  const user = await prisma.user.findFirst({
+    where: { email: address },
+    select: { emailVerified: true },
+  });
+
+  if (!user) return { sent: false, reason: 'No Spllit user has that address' };
+  if (!user.emailVerified) return { sent: false, reason: 'That address is not verified' };
+
+  const ok = await send({
+    to: address,
+    subject: 'Spllit email is working',
+    heading: 'Email is working',
+    body: 'This is a test from the Spllit backend. If it reached your inbox rather than spam, the sending domain is set up correctly.',
+    actionLabel: 'Open Spllit',
+    actionUrl: cfg.appUrl,
+    // Time-based: a test you cannot repeat is not much of a test, and Resend
+    // would silently drop the second one under a fixed key.
+    idempotencyKey: `email-test:${address}:${Date.now()}`,
+  });
+
+  return ok ? { sent: true } : { sent: false, reason: 'Resend refused the message — see logs' };
+}

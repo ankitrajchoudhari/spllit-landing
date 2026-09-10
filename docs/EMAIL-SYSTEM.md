@@ -79,6 +79,33 @@ If `spllit.app` already publishes DMARC with an `sp=` policy, that policy applie
 to this subdomain until the record above overrides it — worth checking, because
 an inherited `sp=reject` will fail every message before you have seen a report.
 
+### 3b. The inherited-policy trap (real, and it bit this domain)
+
+`spllit.app` already publishes DMARC:
+
+```
+v=DMARC1; p=quarantine; rua=...; sp=quarantine; adkim=r; aspf=r; pct=100
+```
+
+`sp=quarantine` is the *subdomain* policy, and it applies to `mail.spllit.app`
+from the moment it sends — a record on the subdomain is what overrides it, and
+without one there is no `p=none` phase at all, whatever you meant to publish.
+
+This is survivable rather than fatal, because `adkim=r` and `aspf=r` are relaxed:
+DKIM signed by `mail.spllit.app` aligns with the organisational domain
+`spllit.app`, so a correctly authenticated message passes and is never
+quarantined. What it removes is the *margin*. On a domain with no reputation
+yet, any authentication hiccup goes straight to a spam folder rather than being
+delivered and reported, and you find out from a user rather than from a report.
+
+Publish the subdomain record during warm-up:
+
+| Type | Name | Value |
+| --- | --- | --- |
+| `TXT` | `_dmarc.mail` | `v=DMARC1; p=none; rua=mailto:support@spllit.app` |
+
+Then tighten it to match the root once the reports are clean.
+
 ### 4. Verify
 
 Resend's dashboard shows the domain as verified once it can see all three

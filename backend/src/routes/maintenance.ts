@@ -4,6 +4,7 @@ import { Router, Request, Response } from 'express';
 import { ok, fail } from '../utils/respond.js';
 import { sweepErasedChats } from '../services/squadChatRetention.js';
 import { sweepAllRead } from '../services/notificationRetention.js';
+import { isEmailConfigured, sendTestEmail } from '../services/email.js';
 
 /**
  * Scheduled maintenance, called by Cloud Scheduler rather than by a person.
@@ -209,6 +210,26 @@ router.post('/sweep', async (req: Request, res: Response) => {
 
   console.log(`[maintenance] sweep: ${JSON.stringify(results)}`);
   return ok(res, results);
+});
+
+/**
+ * POST /api/maintenance/email-test  { "to": "you@example.com" }
+ *
+ * Confirms the sending domain works end to end, without having to provoke a
+ * real join request against a real person to find out.
+ *
+ * The recipient must already be a verified Spllit user — see sendTestEmail for
+ * why an endpoint that mails arbitrary addresses would be a liability on the
+ * very domain this is meant to protect.
+ */
+router.post('/email-test', async (req: Request, res: Response) => {
+  if (!authorised(req)) return fail(res, 404, 'Not found');
+
+  const to = String(req.body?.to ?? '').trim();
+  if (!to) return fail(res, 400, 'Pass { "to": "address" }');
+
+  const result = await sendTestEmail(to);
+  return ok(res, { configured: isEmailConfigured(), ...result });
 });
 
 export default router;
