@@ -216,3 +216,29 @@ describe('unknown routes', () => {
     assert.equal(await call('GET', '/api/definitely-not-a-route'), 404);
   });
 });
+
+describe('scheduled maintenance', () => {
+  /**
+   * Fail-closed, and silent about it.
+   *
+   * MAINTENANCE_KEY is unset in this suite, which is the same state a fresh
+   * install is in. The route must behave as though it does not exist — a
+   * maintenance endpoint left open because a secret was forgotten is worse
+   * than one that is broken, because nothing tells you about it.
+   *
+   * 404 rather than 401 on purpose: an unauthenticated caller should not be
+   * able to confirm from the response that something privileged lives here.
+   */
+  it('does not exist without a maintenance key', async () => {
+    const response = await fetch(`${baseUrl}/api/maintenance/sweep-chats`, { method: 'POST' });
+    assert.equal(response.status, 404);
+  });
+
+  it('does not exist for a wrong key either', async () => {
+    const response = await fetch(`${baseUrl}/api/maintenance/sweep-chats`, {
+      method: 'POST',
+      headers: { 'x-maintenance-key': 'not-the-key' },
+    });
+    assert.equal(response.status, 404);
+  });
+});

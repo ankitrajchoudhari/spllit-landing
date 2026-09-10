@@ -33,6 +33,7 @@ import squadPaymentRoutes from './routes/squadPayments.js';
 import squadMemberRoutes from './routes/squadsMembers.js';
 import eventRoutes from './routes/events.js';
 import notificationRoutes from './routes/notifications.js';
+import maintenanceRoutes from './routes/maintenance.js';
 import waitlistRoutes from './routes/waitlist.js';
 import publicDataRoutes from './routes/publicData.js';
 import aiRoutes from './routes/ai.js';
@@ -331,6 +332,9 @@ app.use('/api/squads', squadMemberRoutes);
 app.use('/api/squads', squadRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/notifications', notificationRoutes);
+// Called by Cloud Scheduler, not by the app. Gated on MAINTENANCE_KEY and
+// 404s without it, so it does not exist until it is deliberately configured.
+app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/public', publicDataRoutes);
 app.use('/api/chat', chatRoutes);

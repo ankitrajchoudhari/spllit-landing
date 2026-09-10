@@ -51,6 +51,10 @@ const SECRETS = {
   RAZORPAY_KEY_ID: 'spllit-razorpay-key-id',
   RAZORPAY_KEY_SECRET: 'spllit-razorpay-key-secret',
   OPENAI_API_KEY: 'spllit-openai-api-key',
+  // Shared secret for /api/maintenance/*, which Cloud Scheduler calls. Not in
+  // REQUIRED: the routes 404 without it, so an install that has not set one up
+  // is safe rather than broken. See routes/maintenance.ts.
+  MAINTENANCE_KEY: 'spllit-maintenance-key',
 };
 const REQUIRED = [
   'DATABASE_URL',
