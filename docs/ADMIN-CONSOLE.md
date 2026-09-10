@@ -139,6 +139,10 @@ bearing.
 | `PATCH /events/:id/status` | `content.delete` |
 | `GET /emergencies`, `GET /moderation/status` | `moderation.view` |
 | `GET /search` | `users.view` |
+| `GET /settings` | `settings.view` |
+| `PATCH /settings/:key` | `settings.edit` |
+| `POST /broadcast/preview`, `POST /broadcast` | `notifications.send` |
+| `GET /export/:dataset` | `exports.run` **and** the dataset's own permission |
 
 `identify` + `requireConsoleAdmin` are applied once at the router level so a new
 handler cannot ship ungated by someone forgetting to repeat them.
@@ -226,10 +230,11 @@ straightforward leak of what the platform runs.
 
 ## Status
 
-**Phases 1 (foundation), 2 (operations), 3 (realtime) and 4 (analytics): done.**
+**Phases 1 (foundation), 2 (operations), 3 (realtime), 4 (analytics) and
+5 (settings, broadcasts, exports): done.**
 
 Verified on every run: backend `tsc` clean + **186 tests pass**; admin `tsc`
-clean, lints clean, production build clean (**15 routes**); main app `tsc`
+clean, lints clean, production build clean (**16 routes**); main app `tsc`
 clean, lints clean, **150 tests pass**.
 
 ### Built
@@ -286,6 +291,15 @@ Phase 4 — analytics:
 - [x] Feature adoption across rides, squads, events, communities and chat
 - [x] The dashboard's "Seen today" now reads real DAU instead of `lastSeen`
 - [x] **3 more tests** on the active-user deduplication
+
+Phase 5 — settings, broadcasts, exports:
+
+- [x] Platform settings with per-setting sensitivity, server-side type checking
+      and mandatory reasons on the sensitive ones
+- [x] Broadcast composer: size the audience first, confirm against that number,
+      audit before sending, hard cap at 5,000
+- [x] CSV / JSON exports with explicit column lists, a double permission gate
+      and a stated 10,000-row cap
 
 ### Not built, and why
 
@@ -463,6 +477,43 @@ shipped. Days before that read as zero because nothing was recorded, not
 because nobody was there — the payload carries that caveat in `notes` and the
 page renders it above the figures rather than in a footnote.
 
+## Settings, broadcasts and exports
+
+The three surfaces that change something *outside* the console: a setting every
+user's app reads, a notification that lands on their phone, and a file of their
+data leaving the building. Each is deliberately harder to do by accident than
+the read-only pages.
+
+**Settings.** `requiresConfirmation` travels with the setting rather than
+living in the UI, so a dangerous switch cannot become a one-click toggle by
+being rendered somewhere new — when it is set, the reason is mandatory on the
+server too, not only in the dialog that asks for it. Values are checked against
+the setting's declared `valueType`: a boolean quietly becoming the string
+`"false"` is truthy everywhere it is read.
+
+**Broadcasts.** Two steps, always. The send button stays disabled until the
+audience has been *sized*, because "notify everyone" should be a decision made
+against a number rather than a guess, and the confirmation repeats that number
+back. Changing the audience or the message invalidates the count, so the
+confirmation can never quote a figure for a different send.
+
+The audit row is written **before** the send, not after. A broadcast cannot be
+recalled; if the send fails partway through, the record of who ordered it and
+why must already exist — a row written only on success would be missing for
+exactly the send that went wrong. There is a hard cap of 5,000 recipients,
+which is a safety limit rather than a pagination one.
+
+**Exports.** An explicit column list per dataset, never `SELECT *`. An export is
+the one place data leaves in bulk, and a field added to a model later must not
+join the file automatically — `phoneHash`, `password` and `fcmTokens` are
+precisely what a wildcard would have carried.
+
+Two permissions are required: the dataset's own, and `exports.run`. A Support
+user can read users in the console without being able to walk out with a file
+of them. Capped at 10,000 rows, and the response says so in
+`X-Export-Truncated` — the brief asks for background jobs beyond that and
+Spllit has no job queue, so the cap is stated rather than pretended around.
+
 ## Not built
 
 | Surface | Why |
@@ -472,7 +523,6 @@ page renders it above the figures rather than in a footnote.
 | Chat message content | Deliberately unreachable. Volume and last activity only. |
 | `SYSTEM_ERROR` events | Needs an error aggregation service. |
 | Data explorer | The original spec's Phase 6. Needs a controlled query layer — dimensions and metrics, never raw queries from the browser. |
-| Broadcast composer | `/api/admin-panel/broadcast` exists and works; the console reports on what was sent but does not yet send. |
 
 ## Decisions taken
 

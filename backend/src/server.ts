@@ -24,6 +24,7 @@ import pickupRoutes from './routes/pickup.js';
 import adminPlatformRoutes from './routes/adminPlatform.js';
 import adminConsoleRoutes from './routes/adminConsole.js';
 import adminConsoleOpsRoutes from './routes/adminConsoleOps.js';
+import adminConsoleSettingsRoutes from './routes/adminConsoleSettings.js';
 import squadRoutes from './routes/squads.js';
 import squadPaymentRoutes from './routes/squadPayments.js';
 import squadMemberRoutes from './routes/squadsMembers.js';
@@ -242,6 +243,7 @@ app.use('/api/admin-console', adminConsoleRoutes);
 // mount path, non-overlapping prefixes, so ordering between the two is not
 // load bearing.
 app.use('/api/admin-console', adminConsoleOpsRoutes);
+app.use('/api/admin-console', adminConsoleSettingsRoutes);
 app.use('/api/ai', aiRoutes);
 
 // Setup Socket.IO handlers

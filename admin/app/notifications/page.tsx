@@ -7,6 +7,7 @@ import { api, ApiError } from '@/lib/api';
 import { formatAbsolute, formatCount, formatRelative } from '@/lib/utils';
 import { Badge, PageHeader, Stat } from '@/components/ui/primitives';
 import { DataTable, type Column } from '@/components/ui/data-table';
+import { BroadcastComposer } from '@/components/broadcast-composer';
 import {
   EmptyState,
   ErrorState,
@@ -117,6 +118,8 @@ export default function NotificationsPage() {
         title="Notifications"
         description="What Spllit has actually sent, and whether it was opened."
       />
+
+      <BroadcastComposer />
 
       {query.isLoading && !data ? (
         <SkeletonRows rows={8} />

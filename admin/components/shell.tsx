@@ -18,6 +18,7 @@ import {
   Search,
   Settings,
   ShieldAlert,
+  SlidersHorizontal,
   Users,
   UsersRound,
   X,
@@ -69,6 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics.view' },
       { href: '/flags', label: 'Feature flags', icon: Flag, permission: 'settings.view' },
+      { href: '/settings', label: 'Settings', icon: SlidersHorizontal, permission: 'settings.view' },
       { href: '/audit', label: 'Audit log', icon: ScrollText, permission: 'audit.view' },
       { href: '/system', label: 'System health', icon: Activity, permission: 'system.view' },
       { href: '/admins', label: 'Admins', icon: Settings, permission: 'admins.manage' },
