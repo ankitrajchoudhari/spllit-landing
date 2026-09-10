@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MessageCircle } from 'lucide-react';
+import { Lock, MessageCircle } from 'lucide-react';
 
 import { formatRelative } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
@@ -55,34 +55,64 @@ function ChatIndex() {
         />
       ) : (
         <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
-          {threads.map((thread) => (
-            <li key={thread.id}>
-              <Link
-                href={`/chat/${thread.id}`}
-                className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surface-sunken"
-              >
+          {threads.map((thread) => {
+            /**
+             * A closed conversation stays in the list — that is the point of
+             * it. You can still see who you travelled with; you just cannot
+             * open it or read what was said.
+             *
+             * Rendered as a plain div rather than a disabled Link, because
+             * there is no such thing as a disabled anchor: a Link with an
+             * onClick that preventDefaults is still focusable, still announced
+             * as a link, and still openable with a middle click.
+             */
+            const closed = thread.access === 'locked' || thread.access === 'erased';
+            const row = (
+              <>
                 <Avatar src={thread.imageUrl} name={thread.title} size="md" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="truncate text-[14px] font-medium text-ink">
-                      {thread.title}
-                    </p>
+                    <p className="truncate text-[14px] font-medium text-ink">{thread.title}</p>
                     <span className="shrink-0 text-[11px] text-ink-subtle">
                       {formatRelative(thread.updatedAt)}
                     </span>
                   </div>
                   <p className="truncate text-[12.5px] text-ink-muted">
-                    {thread.lastMessage?.content ?? 'No messages yet'}
+                    {closed
+                      ? 'This conversation has closed'
+                      : (thread.lastMessage?.content ?? 'No messages yet')}
                   </p>
                 </div>
-                {thread.unreadCount > 0 ? (
+                {closed ? (
+                  <Lock className="h-3.5 w-3.5 shrink-0 text-ink-subtle" aria-hidden />
+                ) : thread.unreadCount > 0 ? (
                   <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[10px] font-bold text-brand-fg">
                     {thread.unreadCount > 9 ? '9+' : thread.unreadCount}
                   </span>
                 ) : null}
-              </Link>
-            </li>
-          ))}
+              </>
+            );
+
+            return (
+              <li key={thread.id}>
+                {closed ? (
+                  <div
+                    className="flex cursor-not-allowed items-center gap-3 px-4 py-3.5 opacity-60"
+                    aria-label={`${thread.title} — conversation closed`}
+                  >
+                    {row}
+                  </div>
+                ) : (
+                  <Link
+                    href={`/chat/${thread.id}`}
+                    className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surface-sunken"
+                  >
+                    {row}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

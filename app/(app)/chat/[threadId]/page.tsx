@@ -2,7 +2,7 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,7 +40,23 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         )}
       </div>
 
-      {thread ? (
+      {/**
+       * Typing the URL must not get you in either. The list already refuses to
+       * link here, but a closed conversation reachable by address would make
+       * the lock a matter of navigation rather than of access — and the API
+       * would refuse the messages anyway, leaving an empty thread with a
+       * composer and no explanation.
+       */}
+      {thread && (thread.access === 'locked' || thread.access === 'erased') ? (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-surface px-6 py-14 text-center">
+          <Lock className="h-5 w-5 text-ink-subtle" aria-hidden />
+          <p className="text-[14px] font-medium text-ink">This conversation has closed</p>
+          <p className="max-w-xs text-[13px] leading-relaxed text-ink-muted">
+            Squad chats close a few hours after the trip ends. You can still see who you
+            travelled with.
+          </p>
+        </div>
+      ) : thread ? (
         <ChatThreadView contextType={thread.contextType} contextId={thread.contextId} />
       ) : (
         <Skeleton className="h-[460px] w-full rounded-lg" />

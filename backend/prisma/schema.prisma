@@ -593,6 +593,20 @@ model Squad {
   /// lifecycle evaluation, so if reading counted as activity then any squad
   /// somebody glanced at would postpone its own expiry indefinitely.
   lastActivityAt DateTime?
+  /// When the squad reached a terminal state, however it got there.
+  ///
+  /// Null while live. Set once, on the transition into completed/cancelled —
+  /// never recomputed, because the chat retention windows are measured from it
+  /// and a value that moved would silently extend or shorten them.
+  ///
+  /// `updatedAt` cannot serve this: any later write bumps it, so a squad
+  /// touched by a cleanup job would look like it had just ended.
+  ///
+  /// Nullable and additive, so on MongoDB existing squads simply read null.
+  /// A squad that ended before this field existed has no anchor and is treated
+  /// as still-readable rather than retroactively erased — see
+  /// services/squadChatRetention.ts.
+  endedAt       DateTime?
   /// Denormalised counter so map markers and list cards do not need a join.
   memberCount   Int       @default(0)
   /// Centre of the squad, used for map clustering and "nearby" queries.

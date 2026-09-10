@@ -2,6 +2,7 @@ import type { ChatThread } from '@prisma/client';
 import prisma from '../utils/prisma.js';
 import { squadMemberHasAccess } from '../config/features.js';
 import { ACTIVE_MEMBER_STATUSES, LIVE_SQUAD_STATUSES } from './squads.js';
+import { CHAT_RETENTION, chatAccess, type ChatAccess } from './squadChatRetention.js';
 
 /**
  * Thread resolution. A conversation is identified by what it is attached to,
@@ -243,37 +244,51 @@ export interface PostGate {
  * @param memberStatus  the caller's SquadMember.status, or null if no row
  */
 export function squadPostDenial(
-  squad: { name: string; status: string } | null,
+  squad: { name: string; status: string; endedAt: Date | null } | null,
   memberStatus: string | null,
+  now: Date = new Date(),
 ): PostDenial | null {
   if (!squad) {
     return { status: 404, message: 'Conversation not found', code: 'not-found' };
   }
 
   /**
-   * Terminal squad: history stays readable, but nobody may add to it — not the
-   * leader, not a member, not a stale client that still has the page open.
+   * Past the grace window the conversation is closed outright — no reading, no
+   * writing, for anybody.
    *
-   * Terminal, not "anything other than active". A squad that has merely started
-   * is the one people most need to be talking in — "I'm five minutes away", "I'm
-   * at the wrong gate" — and testing against 'active' alone would have cut the
-   * conversation off at exactly the moment it mattered.
+   * This used to cut writes off the instant the squad reached a terminal state.
+   * That was too sharp: ending is exactly when people settle up, say where they
+   * left a bag, and say goodbye. Chat now stays usable for
+   * CHAT_RETENTION.LOCK_HOURS after the squad ends and then shuts completely.
+   * See services/squadChatRetention.ts for the three states.
    */
-  if (!LIVE_SQUAD_STATUSES.includes(squad.status as 'active')) {
+  const access = chatAccess(squad, now);
+  if (access !== 'open') {
     return {
       status: 403,
-      message: `${squad.name} has ended. You can still read the messages, but nobody can send new ones.`,
-      code: 'squad-ended',
+      message: `${squad.name} ended more than ${CHAT_RETENTION.LOCK_HOURS} hours ago. This conversation is closed.`,
+      code: 'squad-chat-closed',
     };
   }
 
-  // Left or removed members keep their history and lose the microphone.
-  if (!memberStatus || !ACTIVE_MEMBER_STATUSES.includes(memberStatus as 'active')) {
-    return {
-      status: 403,
-      message: 'You are no longer a member of this squad.',
-      code: 'not-a-member',
-    };
+  /**
+   * Membership is only required while the squad is live.
+   *
+   * Ending a squad releases every member — `releaseSquad` sets them all to
+   * `left` — so re-checking active membership after that point would deny
+   * everyone and close the grace window at the moment it opened. Inside the
+   * window, having been in the squad is enough; `canAccessThread` has already
+   * established that from `participantIds`.
+   */
+  if (LIVE_SQUAD_STATUSES.includes(squad.status as 'active')) {
+    // Left or removed members keep their history and lose the microphone.
+    if (!memberStatus || !ACTIVE_MEMBER_STATUSES.includes(memberStatus as 'active')) {
+      return {
+        status: 403,
+        message: 'You are no longer a member of this squad.',
+        code: 'not-a-member',
+      };
+    }
   }
 
   return null;
@@ -308,7 +323,7 @@ export async function canPostToThread(threadId: string, userId: string): Promise
   const [squad, membership] = await Promise.all([
     prisma.squad.findUnique({
       where: { id: thread.contextId },
-      select: { name: true, status: true },
+      select: { name: true, status: true, endedAt: true },
     }),
     prisma.squadMember.findUnique({
       where: { squadId_userId: { squadId: thread.contextId, userId } },
@@ -318,4 +333,66 @@ export async function canPostToThread(threadId: string, userId: string): Promise
 
   const denial = squadPostDenial(squad, membership?.status ?? null);
   return denial ? { thread: null, denial } : { thread, denial: null };
+}
+
+/**
+ * Read-side counterpart to `canPostToThread`: may this conversation be opened?
+ *
+ * Kept beside the write gate rather than inlined in the route, because the two
+ * must agree. A thread the list renders as locked that still serves its
+ * messages when asked directly is not locked at all — it is only hidden, and
+ * the retention rule would be a UI convention rather than a guarantee.
+ *
+ * Non-squad threads have no lifecycle of their own here and are always open.
+ */
+export async function threadReadAccess(
+  thread: ChatThread,
+  now: Date = new Date(),
+): Promise<ChatAccess> {
+  if (thread.contextType !== 'squad') return 'open';
+
+  const squad = await prisma.squad.findUnique({
+    where: { id: thread.contextId },
+    select: { status: true, endedAt: true },
+  });
+
+  // A squad row that no longer exists cannot be measured. Treat it as open and
+  // let the ordinary not-found paths handle it, rather than inventing an
+  // expiry for something whose end date is unknown.
+  if (!squad) return 'open';
+
+  return chatAccess(squad, now);
+}
+
+/**
+ * Access for many threads at once, for the list endpoint.
+ *
+ * One query for every squad involved rather than one per row: the thread list
+ * is the most-loaded screen in the app, and a per-row lookup there is how a
+ * list of twenty conversations becomes twenty-one round trips.
+ */
+export async function threadReadAccessMap(
+  threads: ChatThread[],
+  now: Date = new Date(),
+): Promise<Map<string, ChatAccess>> {
+  const access = new Map<string, ChatAccess>();
+
+  const squadThreads = threads.filter((t) => t.contextType === 'squad');
+  for (const thread of threads) {
+    if (thread.contextType !== 'squad') access.set(thread.id, 'open');
+  }
+  if (squadThreads.length === 0) return access;
+
+  const squads = await prisma.squad.findMany({
+    where: { id: { in: squadThreads.map((t) => t.contextId) } },
+    select: { id: true, status: true, endedAt: true },
+  });
+  const byId = new Map(squads.map((s) => [s.id, s]));
+
+  for (const thread of squadThreads) {
+    const squad = byId.get(thread.contextId);
+    access.set(thread.id, squad ? chatAccess(squad, now) : 'open');
+  }
+
+  return access;
 }

@@ -10,6 +10,7 @@ import {
 } from '../services/squads.js';
 import { formatPlate, isValidPlate, normalisePlate, findModel } from '../data/vehicles.js';
 import { squadPostDenial } from '../services/threads.js';
+import { CHAT_RETENTION, chatAccess } from '../services/squadChatRetention.js';
 import { calculateDistance, calculateDistanceMetres } from '../utils/helpers.js';
 
 /**
@@ -197,7 +198,15 @@ describe('vehicle catalogue', () => {
  * squad, and a member who has left.
  */
 describe('squad chat write gate', () => {
-  const live = { name: 'Taramani Exam Squad', status: 'active' };
+  const live = { name: 'Taramani Exam Squad', status: 'active', endedAt: null };
+
+  /** A fixed clock, so the grace-window cases are not relative to test runtime. */
+  const NOW = new Date('2026-08-14T12:00:00.000Z');
+  const endedHoursAgo = (hours: number, status = 'completed') => ({
+    ...live,
+    status,
+    endedAt: new Date(NOW.getTime() - hours * 3600 * 1000),
+  });
 
   it('lets an active member of an active squad post', () => {
     assert.equal(squadPostDenial(live, 'active'), null);
@@ -224,20 +233,48 @@ describe('squad chat write gate', () => {
     assert.equal(denial?.code, 'not-a-member');
   });
 
-  it('refuses every writer once the squad is cancelled', () => {
-    for (const status of ['active', 'travelling', 'arrived']) {
-      const denial = squadPostDenial({ ...live, status: 'cancelled' }, status);
-      assert.equal(denial?.code, 'squad-ended');
+  it('keeps chat open for a grace window after the squad ends', () => {
+    /**
+     * Ending is when people settle up, say where they left a bag, and say
+     * goodbye. Cutting writes off at the instant of the terminal transition —
+     * which is what this did — took the conversation away at the moment it was
+     * most in use.
+     */
+    for (const status of ['completed', 'cancelled']) {
+      assert.equal(squadPostDenial(endedHoursAgo(1, status), 'active', NOW), null);
+    }
+  });
+
+  it('lets a released member post inside the grace window', () => {
+    // Ending a squad sets every member to `left`, so requiring active
+    // membership after the end would close the window at the moment it opened.
+    assert.equal(squadPostDenial(endedHoursAgo(2), 'left', NOW), null);
+  });
+
+  it('closes the conversation once the grace window has passed', () => {
+    for (const status of ['completed', 'cancelled']) {
+      const denial = squadPostDenial(endedHoursAgo(CHAT_RETENTION.LOCK_HOURS + 1, status), 'active', NOW);
+      assert.equal(denial?.code, 'squad-chat-closed');
       assert.equal(denial?.status, 403);
     }
   });
 
-  it('refuses writers once the squad is completed', () => {
-    assert.equal(squadPostDenial({ ...live, status: 'completed' }, 'active')?.code, 'squad-ended');
+  it('closes exactly at the boundary, not a moment later', () => {
+    assert.equal(squadPostDenial(endedHoursAgo(CHAT_RETENTION.LOCK_HOURS - 0.01), 'active', NOW), null);
+    assert.equal(
+      squadPostDenial(endedHoursAgo(CHAT_RETENTION.LOCK_HOURS), 'active', NOW)?.code,
+      'squad-chat-closed',
+    );
+  });
+
+  it('leaves a squad that ended before endedAt existed alone', () => {
+    // Null anchor: nothing to measure from, so it stays readable rather than
+    // being retroactively closed because a column was added later.
+    assert.equal(squadPostDenial({ ...live, status: 'completed', endedAt: null }, 'active', NOW), null);
   });
 
   it('names the squad in the refusal so the client can explain it', () => {
-    const denial = squadPostDenial({ ...live, status: 'cancelled' }, 'active');
+    const denial = squadPostDenial(endedHoursAgo(CHAT_RETENTION.LOCK_HOURS + 1), 'active', NOW);
     assert.ok(denial!.message.includes('Taramani Exam Squad'));
   });
 
@@ -265,8 +302,62 @@ describe('squad chat write gate', () => {
   });
 
   it('checks the squad lifecycle before membership', () => {
-    // A cancelled squad refuses even someone whose membership is immaculate,
-    // and says so as "ended" rather than blaming the member.
-    assert.equal(squadPostDenial({ ...live, status: 'cancelled' }, 'active')?.code, 'squad-ended');
+    // A closed conversation refuses even someone whose membership is
+    // immaculate, and says so as "closed" rather than blaming the member.
+    assert.equal(
+      squadPostDenial(endedHoursAgo(CHAT_RETENTION.LOCK_HOURS + 1, 'cancelled'), 'active', NOW)?.code,
+      'squad-chat-closed',
+    );
+  });
+});
+
+describe('squad chat retention', () => {
+  const NOW = new Date('2026-08-14T12:00:00.000Z');
+  const HOUR = 3600 * 1000;
+  const DAY = 24 * HOUR;
+  const ended = (msAgo: number, status = 'completed') => ({
+    status,
+    endedAt: new Date(NOW.getTime() - msAgo),
+  });
+
+  it('leaves a live squad open however long it has been running', () => {
+    for (const status of ['active', 'in_progress']) {
+      assert.equal(chatAccess({ status, endedAt: null }, NOW), 'open');
+    }
+  });
+
+  it('ignores a stale endedAt on a squad that is live again', () => {
+    // status wins: endedAt is only meaningful once the squad is terminal.
+    assert.equal(chatAccess({ status: 'active', endedAt: new Date(0) }, NOW), 'open');
+  });
+
+  it('stays open through the grace window, then locks', () => {
+    assert.equal(chatAccess(ended(CHAT_RETENTION.LOCK_HOURS * HOUR - 1), NOW), 'open');
+    assert.equal(chatAccess(ended(CHAT_RETENTION.LOCK_HOURS * HOUR), NOW), 'locked');
+  });
+
+  it('stays locked — not erased — until the erase window is reached', () => {
+    assert.equal(chatAccess(ended(CHAT_RETENTION.ERASE_DAYS * DAY - 1), NOW), 'locked');
+    assert.equal(chatAccess(ended(CHAT_RETENTION.ERASE_DAYS * DAY), NOW), 'erased');
+  });
+
+  it('keeps a gap between losing access and losing the data', () => {
+    /**
+     * The whole point of the two windows. Locking is instant and reversible;
+     * deletion is neither. The days in between are what make a harassment
+     * report actionable after the reporter has lost access to the evidence.
+     */
+    assert.ok(CHAT_RETENTION.ERASE_DAYS * 24 > CHAT_RETENTION.LOCK_HOURS);
+  });
+
+  it('treats a squad with no endedAt as open, whatever its status', () => {
+    // Ended before the column existed. Retroactively erasing those would be an
+    // unpleasant surprise, and the number of them only shrinks.
+    assert.equal(chatAccess({ status: 'completed', endedAt: null }, NOW), 'open');
+    assert.equal(chatAccess({ status: 'cancelled', endedAt: null }, NOW), 'open');
+  });
+
+  it('applies to cancelled squads exactly as to completed ones', () => {
+    assert.equal(chatAccess(ended(CHAT_RETENTION.LOCK_HOURS * HOUR, 'cancelled'), NOW), 'locked');
   });
 });

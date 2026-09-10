@@ -4,7 +4,18 @@ import prisma from '../utils/prisma.js';
 import { identify } from '../middleware/identity.js';
 import { AuthRequest } from '../types/express.js';
 import { ok, fail } from '../utils/respond.js';
-import { canAccessThread, canPostToThread, resolveThread, type ContextType } from '../services/threads.js';
+import {
+  canAccessThread,
+  canPostToThread,
+  resolveThread,
+  threadReadAccess,
+  threadReadAccessMap,
+  type ContextType,
+} from '../services/threads.js';
+import {
+  CHAT_RETENTION,
+  sweepErasedChatsInBackground,
+} from '../services/squadChatRetention.js';
 import { getIO } from '../services/live.js';
 import { notify } from '../services/notifications.js';
 import { markSquadActivity } from '../services/squadLifecycle.js';
@@ -63,6 +74,15 @@ router.get('/threads', identify, async (req: AuthRequest, res: Response) => {
     });
     const byId = new Map(participants.map((p) => [p.id, p]));
 
+    // Retention runs from a read because there is no timer available on Cloud
+    // Run. Throttled and never awaited — see squadChatRetention.
+    sweepErasedChatsInBackground();
+
+    // One query for every squad involved, not one per row — this is the
+    // most-loaded screen in the app, and a per-row lookup turns a list of
+    // twenty conversations into twenty-one round trips.
+    const access = await threadReadAccessMap(threads);
+
     const items = await Promise.all(
       threads.map(async (thread) => {
         const since = readAt.get(thread.id);
@@ -76,15 +96,25 @@ router.get('/threads', identify, async (req: AuthRequest, res: Response) => {
         });
 
         const last = latest.get(thread.id);
+        const threadAccess = access.get(thread.id) ?? 'open';
+        const closed = threadAccess !== 'open';
+
+        /**
+         * A closed conversation still appears, showing who you travelled with
+         * — that is the point of leaving the row behind. What it must not do is
+         * leak the conversation: the preview and the unread badge are dropped,
+         * because a list that still shows the last message has not closed
+         * anything, it has just made it harder to scroll to.
+         */
         return {
           ...thread,
-          unreadCount,
+          unreadCount: closed ? 0 : unreadCount,
+          access: threadAccess,
           participants: thread.participantIds
             .map((id) => byId.get(id))
             .filter((u): u is NonNullable<typeof u> => Boolean(u)),
-          lastMessage: last
-            ? { ...last, sender: senders.get(last.senderId) ?? null }
-            : null,
+          lastMessage:
+            closed || !last ? null : { ...last, sender: senders.get(last.senderId) ?? null },
         };
       }),
     );
@@ -116,7 +146,12 @@ router.post('/threads/resolve', identify, async (req: AuthRequest, res: Response
       select: USER_SUMMARY,
     });
 
-    return ok(res, { ...thread, participants, unreadCount: 0, lastMessage: null });
+    // `access` tells the client whether to render the composer and the message
+    // list. Advisory only — the endpoints enforce it — but it saves the UI
+    // re-deriving a rule that lives in squadChatRetention.
+    const access = await threadReadAccess(thread);
+
+    return ok(res, { ...thread, participants, unreadCount: 0, lastMessage: null, access });
   } catch (error) {
     console.error('[chat/threads/resolve]', error);
     return fail(res, 500, 'Failed to open the conversation');
@@ -133,7 +168,12 @@ router.get('/threads/:id', identify, async (req: AuthRequest, res: Response) => 
       select: USER_SUMMARY,
     });
 
-    return ok(res, { ...thread, participants, unreadCount: 0, lastMessage: null });
+    // `access` tells the client whether to render the composer and the message
+    // list. Advisory only — the endpoints enforce it — but it saves the UI
+    // re-deriving a rule that lives in squadChatRetention.
+    const access = await threadReadAccess(thread);
+
+    return ok(res, { ...thread, participants, unreadCount: 0, lastMessage: null, access });
   } catch (error) {
     console.error('[chat/threads/:id]', error);
     return fail(res, 500, 'Failed to load the conversation');
@@ -145,6 +185,23 @@ router.get('/threads/:id/messages', identify, async (req: AuthRequest, res: Resp
   try {
     const thread = await canAccessThread(req.params.id, req.user!.userId);
     if (!thread) return fail(res, 404, 'Conversation not found');
+
+    /**
+     * A closed conversation serves nothing, not even to a participant.
+     *
+     * Enforced here and not only in the client: a thread the list renders as
+     * locked that still answers this endpoint when asked directly is not
+     * locked, it is merely hidden — and the retention promise would be a UI
+     * convention rather than something that actually holds.
+     */
+    if ((await threadReadAccess(thread)) !== 'open') {
+      return fail(
+        res,
+        403,
+        `This conversation closed ${CHAT_RETENTION.LOCK_HOURS} hours after the squad ended.`,
+        'squad-chat-closed',
+      );
+    }
 
     const limit = Math.min(Number(req.query.limit) || 40, 100);
     const cursor = req.query.cursor ? new Date(String(req.query.cursor)) : null;

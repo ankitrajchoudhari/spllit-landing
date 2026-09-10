@@ -282,7 +282,15 @@ export async function syncSquadLifecycle<T extends LifecycleSquad & { id: string
 
   const claim = await prisma.squad.updateMany({
     where: { id: squad.id, status: squad.status },
-    data: { status: decision.status, isActive: isLiveStatus(decision.status) },
+    data: {
+      status: decision.status,
+      isActive: isLiveStatus(decision.status),
+      // Stamped only on the way into a terminal state, and only by the
+      // instance that won the claim above — so it is written exactly once.
+      // Chat retention measures both its windows from this. See
+      // services/squadChatRetention.ts.
+      ...(TERMINAL.includes(decision.status) ? { endedAt: now } : {}),
+    },
   });
 
   if (claim.count === 0) {

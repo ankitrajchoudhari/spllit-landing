@@ -505,7 +505,11 @@ router.patch('/:id/status', identify, async (req: AuthRequest, res: Response) =>
 
     const updated = await prisma.squad.update({
       where: { id: squad.id },
-      data: { status: next, isActive: false },
+      // endedAt anchors both chat retention windows — the lock and the erase.
+      // Set here as well as in syncSquadLifecycle so a squad ended by hand and
+      // one that expired on its own leave the same state behind, which is the
+      // same rule releaseSquad already follows.
+      data: { status: next, isActive: false, endedAt: new Date() },
     });
 
     /**

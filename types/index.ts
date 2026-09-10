@@ -489,6 +489,19 @@ export interface ChatMessage {
   failed?: boolean;
 }
 
+/**
+ * Whether a conversation can still be used.
+ *
+ * `open` is everything live, plus a grace window after a squad ends. `locked`
+ * means the squad ended long enough ago that the conversation is closed — the
+ * thread still lists who you travelled with, but it cannot be opened. `erased`
+ * is the same to a viewer; it only differs in that the messages are gone.
+ *
+ * The server enforces this; the field exists so the client does not have to
+ * re-derive the rule. See backend services/squadChatRetention.ts.
+ */
+export type ChatAccess = 'open' | 'locked' | 'erased';
+
 export interface ChatThread {
   id: string;
   contextType: ChatContextType;
@@ -499,6 +512,8 @@ export interface ChatThread {
   unreadCount: number;
   participants: UserSummary[];
   updatedAt: string;
+  /** Absent on older responses, which are treated as open. */
+  access?: ChatAccess;
 }
 
 // --- Notifications --------------------------------------------------------
