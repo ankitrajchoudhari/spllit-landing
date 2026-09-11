@@ -3,6 +3,14 @@
 Snapshot taken 2026-08-07, before any Firestore work begins. This is the
 reference point the Firestore user migration is measured against.
 
+> **Superseded in one respect, kept as written.** The Cloudflare Worker in
+> front of the container (`backend/edge/worker.ts`, `backend/wrangler.jsonc`)
+> was removed on 2026-09-12: response headers showed `api.spllit.app` resolving
+> to Cloud Run, with Cloudflare acting only as a proxy, so the Worker was a
+> second deployment of the same Express app that nothing reached. §1 and §9
+> below describe the architecture as it was on the snapshot date. Everything
+> else still holds. Current architecture: `DEPLOY.md`.
+
 Every number here was measured against the working tree, not estimated. Where a
 requested section describes something that does not exist, it says so — an
 absent subsystem is a finding, not a gap in the report.

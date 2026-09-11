@@ -291,9 +291,10 @@ missing variable degrades to working rather than to a blank console.
 
 ### DNS
 
-The brief assumed Vercel. **There is no Vercel** — the frontend runs on
-Cloudflare Workers via OpenNext, and the leftover `vercel.json` at the repo root
-is not what ships. So:
+The console is on Cloudflare Workers regardless of where the main site lives.
+(Checked 2026-09-12: `spllit.app` is in fact served by Vercel, and CI also
+publishes a Cloudflare Worker for it that nothing points at — see the note at
+the top of `DEPLOY.md`. That is the main site's problem, not this one.) So:
 
 1. Cloudflare dashboard → Workers & Pages → `spllit-admin` → Settings → Domains
    → **Add custom domain** → `admin.spllit.app`.

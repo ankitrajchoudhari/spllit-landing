@@ -1,19 +1,35 @@
 #!/usr/bin/env node
 /**
- * Deploy the Spllit API to Cloud Run, in the same Google project as Firebase.
+ * Provision — and if asked, rotate — the Cloud Run service behind api.spllit.app.
  *
- *   npm run gcloud:deploy
+ *   npm run gcloud:bootstrap             # provision / re-apply, never overwrites a secret
+ *   npm run gcloud:bootstrap -- --rotate # also push changed values from backend/.env
  *
- * Cloud Run rather than Cloud Functions. Functions are request-scoped: the
- * instance handling a request is not guaranteed to be the one that handled the
- * last, and Socket.IO keeps room membership, presence and live positions in
- * process memory. Chat would work in testing and fall apart with two users.
- * Cloud Run runs the container as a long-lived server, which is what the
- * Express + Socket.IO app already is.
+ * ## This is not the deploy
  *
- * `gcloud run deploy --source .` builds through Cloud Build, so no Docker
- * daemon is needed locally — the same reason the Azure path exists, except
- * this one bills to the project already paying for Firebase Auth.
+ * Deploying is `git push origin main`; .github/workflows/deploy-backend.yml
+ * builds and rolls out, then gates on /health/ready and a Socket.IO handshake.
+ * That workflow deliberately passes no scaling, env or secret flags, because
+ * `gcloud run deploy` only changes what it is given — so omitting them carries
+ * the live configuration forward instead of restating it.
+ *
+ * This script is for what that workflow cannot do: enabling APIs, creating the
+ * Secret Manager entries, granting the runtime identity access to them, and
+ * setting the scaling shape. Run it when standing the service up, or after
+ * deliberately changing one of those. Then go back to pushing.
+ *
+ * ## Why it will not quietly overwrite your secrets
+ *
+ * The earlier version of this file read backend/.env, pushed a new version of
+ * every secret in it, and deployed with --set-secrets and --set-env-vars. Both
+ * of those flags *replace the whole set*: anything attached out of band — a key
+ * added from the console, a value rotated by somebody else — was detached on
+ * the next run. A DATABASE_URL went missing exactly that way, and the symptom
+ * was every authenticated request failing while the health check stayed green.
+ *
+ * So: --update-secrets and --update-env-vars, which are additive. And values
+ * are pushed only under --rotate, after comparing against what is live, because
+ * a laptop holding a stale .env is otherwise a rollback waiting to happen.
  *
  * Overridable: GCP_PROJECT, GCP_REGION, GCP_SERVICE
  */
@@ -24,17 +40,22 @@ import { dirname, join } from 'node:path';
 import dotenv from 'dotenv';
 
 const backendDir = join(dirname(fileURLToPath(import.meta.url)), '..');
+const rotate = process.argv.includes('--rotate');
 
-let env;
+let env = {};
 try {
   env = dotenv.parse(readFileSync(join(backendDir, '.env'), 'utf8'));
 } catch {
-  console.error('Could not read backend/.env — the app cannot start without its secrets.');
-  process.exit(1);
+  // Only fatal when we are being asked to push values out of it.
+  if (rotate) {
+    console.error('--rotate needs backend/.env, and it could not be read.');
+    process.exit(1);
+  }
+  console.log('No backend/.env — working from what is already in Secret Manager.\n');
 }
 
 /** Defaults to the Firebase project already in .env, so both halves agree. */
-const PROJECT = process.env.GCP_PROJECT ?? env.FIREBASE_PROJECT_ID;
+const PROJECT = process.env.GCP_PROJECT ?? env.FIREBASE_PROJECT_ID ?? 'spllit-app-94194';
 /** Mumbai. Closest region to the campuses these requests come from. */
 const REGION = process.env.GCP_REGION ?? 'asia-south1';
 const SERVICE = process.env.GCP_SERVICE ?? 'spllit-api';
@@ -60,6 +81,8 @@ const SECRETS = {
   RESEND_API_KEY: 'spllit-resend-api-key',
   RESEND_WEBHOOK_SECRET: 'spllit-resend-webhook-secret',
 };
+
+/** Without these the container starts and then fails every real request. */
 const REQUIRED = [
   'DATABASE_URL',
   'JWT_SECRET',
@@ -79,7 +102,6 @@ const PLAIN_ENV = {
   JWT_EXPIRES_IN: '1h',
   JWT_REFRESH_EXPIRES_IN: '7d',
 };
-
 
 /**
  * Same normalisation as src/utils/firebaseAdmin.ts, applied before upload.
@@ -138,19 +160,11 @@ if (!account.ok || !account.out) {
   process.exit(1);
 }
 
-if (!PROJECT) {
-  console.error('No project. Set GCP_PROJECT, or FIREBASE_PROJECT_ID in backend/.env.');
-  process.exit(1);
-}
-
-const missing = REQUIRED.filter((k) => !env[k]);
-if (missing.length) {
-  console.error('Missing (or empty) in backend/.env:\n  ' + missing.join('\n  '));
-  process.exit(1);
-}
-
 console.log(`\nProject ${PROJECT} · region ${REGION} · service ${SERVICE}`);
-console.log(`Signed in as ${account.out}\n`);
+console.log(`Signed in as ${account.out}`);
+console.log(rotate
+  ? 'Mode: rotate — changed values in backend/.env will be pushed.\n'
+  : 'Mode: provision — existing secret values are left alone. Pass --rotate to push changes.\n');
 
 // ---- 1. APIs --------------------------------------------------------------
 
@@ -174,35 +188,83 @@ gcloud(['services', 'enable',
  */
 console.log('▸ Secrets');
 const secretFlags = [];
+const absent = [];
+
 for (const [key, id] of Object.entries(SECRETS)) {
-  const value = key === 'FIREBASE_PRIVATE_KEY' ? cleanPrivateKey(env[key] ?? '') : env[key];
-  if (!value) {
-    console.log(`  ${key}: not set, skipping`);
+  const exists = gcloud(['secrets', 'describe', id, '--project', PROJECT, '--format=value(name)'],
+                        { capture: true }).ok;
+
+  const local = key === 'FIREBASE_PRIVATE_KEY' && env[key]
+    ? cleanPrivateKey(env[key])
+    : env[key];
+
+  if (exists) {
+    // Bind it whether or not this machine has a copy of the value. A secret
+    // managed entirely outside this laptop is a normal, preferable state.
+    secretFlags.push(`${key}=${id}:latest`);
+
+    if (!rotate || !local) {
+      console.log(`  ${key} -> ${id} (kept)`);
+      continue;
+    }
+
+    // Compare before writing. Adding a version identical to the live one is
+    // churn; adding one that differs, out of a .env nobody has refreshed in a
+    // month, is a rollback nobody asked for. So say which of the two it is.
+    const live = gcloud(['secrets', 'versions', 'access', 'latest', '--secret', id,
+      '--project', PROJECT, '--format=value(payload.data)'], { capture: true });
+    // gcloud prints the payload base64url-encoded.
+    const current = live.ok && live.out
+      ? Buffer.from(live.out.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')
+      : null;
+
+    if (current !== null && current === local) {
+      console.log(`  ${key} -> ${id} (unchanged)`);
+      continue;
+    }
+
+    const added = gcloud(['secrets', 'versions', 'add', id, '--data-file=-', '--project', PROJECT],
+                         { capture: true, input: local });
+    if (!added.ok) {
+      console.error(`  could not add a version to ${id}:\n${added.err}`);
+      process.exit(1);
+    }
+    console.log(`  ${key} -> ${id} (new version pushed)`);
     continue;
   }
 
-  const exists = gcloud(['secrets', 'describe', id, '--project', PROJECT, '--format=value(name)'],
-                        { capture: true }).ok;
-  if (!exists) {
-    const created = gcloud(['secrets', 'create', id,
-      '--replication-policy', 'automatic', '--project', PROJECT], { capture: true });
-    if (!created.ok) {
-      console.error(`  could not create ${id}:\n${created.err}`);
-      process.exit(1);
-    }
+  // No secret yet. Creating one needs a value, and the only value we have is
+  // whatever is in the local .env.
+  if (!local) {
+    absent.push(key);
+    console.log(`  ${key}: no secret and no local value, skipping`);
+    continue;
   }
 
-  // Always add a version: re-running after rotating a value in .env should
-  // actually roll it out, not silently keep the old one.
-  const added = gcloud(['secrets', 'versions', 'add', id, '--data-file=-', '--project', PROJECT],
-                       { capture: true, input: value });
-  if (!added.ok) {
-    console.error(`  could not add a version to ${id}:\n${added.err}`);
+  const created = gcloud(['secrets', 'create', id,
+    '--replication-policy', 'automatic', '--project', PROJECT], { capture: true });
+  if (!created.ok) {
+    console.error(`  could not create ${id}:\n${created.err}`);
     process.exit(1);
   }
-
+  const seeded = gcloud(['secrets', 'versions', 'add', id, '--data-file=-', '--project', PROJECT],
+                        { capture: true, input: local });
+  if (!seeded.ok) {
+    console.error(`  could not seed ${id}:\n${seeded.err}`);
+    process.exit(1);
+  }
   secretFlags.push(`${key}=${id}:latest`);
-  console.log(`  ${key} → ${id}`);
+  console.log(`  ${key} -> ${id} (created)`);
+}
+
+const missing = REQUIRED.filter((key) => absent.includes(key));
+if (missing.length) {
+  console.error(
+    '\nRefusing to deploy. These have no Secret Manager entry and no value in backend/.env,' +
+    '\nso the container would start and then fail every authenticated request:\n  ' +
+    missing.join('\n  '),
+  );
+  process.exit(1);
 }
 
 // ---- 3. let the runtime service account read them -------------------------
@@ -226,6 +288,14 @@ if (projectNumber) {
 
 // ---- 4. build in the cloud and deploy -------------------------------------
 
+/**
+ * `gcloud run deploy --source .` builds through Cloud Build, so no Docker
+ * daemon is needed locally.
+ *
+ * Cloud Run rather than Cloud Functions: functions are request-scoped, and
+ * Socket.IO keeps room membership, presence and live positions in process
+ * memory. Chat would work in testing and fall apart with two users.
+ */
 console.log('\n▸ Building through Cloud Build and deploying (first run takes several minutes)');
 const envFlag = Object.entries(PLAIN_ENV).map(([k, v]) => `${k}=${v}`).join(',');
 
@@ -240,30 +310,26 @@ const deploy = gcloud(['run', 'deploy', SERVICE,
   '--allow-unauthenticated',
 
   /**
-   * BOTH pinned to 1, matching max_instances in wrangler.jsonc and
-   * instance_count in .do/app.yaml. Socket.IO holds rooms, presence and live
-   * positions in process memory; Cloud Run's session affinity is explicitly
-   * best-effort, so with more than one instance two users in the same squad
-   * can land on different ones and silently stop seeing each other. It breaks
-   * under exactly the traffic that causes it. A Redis adapter comes first.
-   *
-   * min 1 also keeps it warm — scaling to zero would drop every open socket.
-   */
-  /**
    * Scale to zero — a deliberate cost choice, not an oversight.
    *
-   * The trade is real and worth stating, because the symptom looks like a
-   * bug when you hit it: when the last instance shuts down, every open
-   * Socket.IO connection goes with it. Chat, typing indicators and live
-   * position stop until someone's request wakes the container again, and
-   * the first request after idle carries the cold start.
+   * The trade is real and worth stating, because the symptom looks like a bug
+   * when you hit it: when the last instance shuts down, every open Socket.IO
+   * connection goes with it. Chat, typing indicators and live position stop
+   * until someone's request wakes the container again, and the first request
+   * after idle carries the cold start.
    *
-   * That is acceptable while the priority is a zero/near-zero bill. The
-   * client reconnects automatically (lib/live/socket.ts sets
-   * reconnection: true), so the cost is a delay rather than a dead session.
+   * That is acceptable while the priority is a near-zero bill. The client
+   * reconnects on its own (lib/live/socket.ts sets reconnection: true), so the
+   * cost is a delay rather than a dead session.
    *
-   * Set this to 1 — and drop --cpu-throttling below — when live chat
-   * staying up matters more than the monthly bill.
+   * max 1 is a correctness bound rather than a cost one: Socket.IO holds rooms,
+   * presence and live positions in process memory, and Cloud Run's session
+   * affinity is explicitly best-effort, so two users in one squad can land on
+   * different instances and silently stop seeing each other. A Redis adapter
+   * comes before raising it.
+   *
+   * Set min to 1 — and drop --cpu-throttling below — when live chat staying up
+   * matters more than the monthly bill.
    */
   '--min-instances', '0',
   '--max-instances', '1',
@@ -274,26 +340,25 @@ const deploy = gcloud(['run', 'deploy', SERVICE,
   '--timeout', '3600',
 
   /**
-   * CPU only while a request is in flight — the cheaper billing mode, and
-   * the other half of the scale-to-zero decision above.
+   * CPU only while a request is in flight — the cheaper billing mode, and the
+   * other half of the scale-to-zero decision above.
    *
    * The cost: Socket.IO's heartbeat and the directions-cache sweep in
-   * services/directions.ts run on timers, and those stall the moment a
-   * request finishes. Idle connections can die without an error the client
-   * can act on; it reconnects, but not instantly.
+   * services/directions.ts run on timers, and those stall the moment a request
+   * finishes. Idle connections can die without an error the client can act on;
+   * it reconnects, but not instantly.
    *
    * Pairs with --min-instances. Change both together or neither.
    */
   '--cpu-throttling',
 
-  // CPU outside request handling, for the directions-cache sweep in
-  // services/directions.ts and Socket.IO's heartbeats. Throttled CPU stalls
-  // both between requests, which looks like random dropped connections.
-
   '--cpu', '1',
   '--memory', '512Mi',
-  '--set-env-vars', envFlag,
-  ...(secretFlags.length ? ['--set-secrets', secretFlags.join(',')] : []),
+
+  // update-, not set-. See the header: the set- forms replace the whole set,
+  // detaching anything configured outside this script.
+  '--update-env-vars', envFlag,
+  ...(secretFlags.length ? ['--update-secrets', secretFlags.join(',')] : []),
 ]);
 
 if (!deploy.ok) {
@@ -309,15 +374,13 @@ const url = gcloud(['run', 'services', 'describe', SERVICE,
   '--project', PROJECT, '--region', REGION, '--format=value(status.url)'],
   { capture: true }).out;
 
-console.log('\n─────────────────────────────────────────────');
+console.log('\n─────────────────────────────');
 if (url) {
   console.log(`API is live at:  ${url}`);
-  console.log(`Health check:    curl ${url}/health`);
-  console.log('\nPoint the frontend at it (BUILD-time vars, then rebuild):');
-  console.log(`  NEXT_PUBLIC_API_URL=${url}/api`);
-  console.log(`  NEXT_PUBLIC_SOCKET_URL=${url}`);
+  console.log(`Readiness:       curl ${url}/health/ready`);
+  console.log('\nRoutine deploys from here are: git push origin main');
 } else {
   console.log('Deployed, but could not read the URL. Try:');
   console.log(`  gcloud run services describe ${SERVICE} --region ${REGION} --format='value(status.url)'`);
 }
-console.log('─────────────────────────────────────────────\n');
+console.log('─────────────────────────────\n');

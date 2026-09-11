@@ -1,316 +1,150 @@
-# Spllit Backend - Ride Matching & Real-Time Chat
+# Spllit API
 
-Backend server for Spllit ride-matching platform with real-time chat, location sharing, and smart matching algorithm.
+Express + Socket.IO + Prisma, on MongoDB Atlas. Runs as a single long-lived
+container on Cloud Run at `api.spllit.app`.
 
-## 🚀 Deploy to Render
+Deploying is `git push origin main` — see [`../DEPLOY.md`](../DEPLOY.md). This
+file is about running and changing it locally.
 
-**Ready to deploy?** Your backend is fully configured for Render!
+## Running it
 
-👉 **[Click here for complete deployment guide](./DEPLOYMENT_COMPLETE.md)**
-
-**Quick Deploy:**
 ```bash
-./deploy-to-render.sh  # Generates secrets and shows next steps
-```
-
-**Your Service:** https://dashboard.render.com/web/srv-d6o6nji4d50c73fdl27g
-
-**Documentation:**
-- [Complete Deployment Guide](./DEPLOYMENT_COMPLETE.md)
-- [Quick Reference](./RENDER_QUICK_REFERENCE.md)
-- [Detailed Setup](./RENDER_SETUP.md)
-- [Frontend Configuration](../FRONTEND_RENDER_CONFIG.md)
-
----
-
-## Features
-
-✅ **JWT Authentication** - Secure user registration and login  
-✅ **Ride Matching Algorithm** - Smart matching based on destination, time, and preferences  
-✅ **Real-Time Chat** - Socket.IO powered messaging with typing indicators  
-✅ **Location Sharing** - Live GPS tracking for matched users  
-✅ **Online Status** - Real-time presence detection  
-✅ **Privacy First** - Phone numbers are hashed, never shared  
-✅ **PostgreSQL Database** - Scalable data storage with Prisma ORM  
-
-## Tech Stack
-
-- **Runtime:** Node.js with TypeScript
-- **Framework:** Express.js
-- **Database:** PostgreSQL (Supabase recommended)
-- **ORM:** Prisma
-- **Real-time:** Socket.IO
-- **Auth:** JWT with bcrypt
-- **Validation:** Zod
-
-## Prerequisites
-
-- Node.js 18+ and npm
-- PostgreSQL database (or Supabase account)
-- GitHub Student Developer Pack (recommended for free resources)
-
-## Quick Start
-
-### 1. Install Dependencies
-
-\`\`\`bash
 cd backend
 npm install
-\`\`\`
+cp .env.example .env      # then fill in the values below
+npm run prisma:push       # creates indexes; MongoDB makes collections lazily
+npm run dev               # tsx watch, http://localhost:3001
+```
 
-### 2. Set Up Database
+`npm run prisma:push`, not `prisma migrate`. Prisma's migration engine does not
+support MongoDB — there is no migration history and no SQL. Additive, nullable
+fields need nothing at all; `db push` is for indexes and for fields with a
+required shape.
 
-**Option A: Using Supabase (Recommended)**
+## Authentication
 
-1. Sign up at [Supabase](https://supabase.com/github-students) with GitHub Student Pack
-2. Create a new project
-3. Go to Settings → Database → Connection String
-4. Copy the connection string (transaction pooler)
+Firebase, verified server-side in `middleware/identity.ts`. The client sends a
+Firebase ID token; the middleware verifies it against the project's public keys
+and looks the account up by `firebaseUid`.
 
-**Option B: Local PostgreSQL**
+The two failures are kept apart on purpose, because they have different fixes
+and got conflated once already:
 
-\`\`\`bash
-# Install PostgreSQL
-sudo apt install postgresql postgresql-contrib
+- token invalid, expired or from the wrong project → **401**
+- token fine, database unreachable → **503**
 
-# Create database
-sudo -u postgres createdb spllit_db
-\`\`\`
+Returning 401 for a database outage sends everyone to the login screen, where
+signing in again cannot help.
 
-### 3. Configure Environment
+The `JWT_*` secrets still exist for the legacy `/api/auth` password routes.
 
-\`\`\`bash
-# Copy example env file
-cp .env.example .env
+## Layout
 
-# Edit .env and update:
-# - DATABASE_URL with your PostgreSQL/Supabase connection string
-# - JWT_SECRET with a random secret (use: openssl rand -base64 32)
-# - JWT_REFRESH_SECRET with another random secret
-\`\`\`
+```
+src/
+  server.ts          route mounting, CORS, rate limits, /health
+  routes/            one file per surface; admin-console/* is the operator API
+  services/          the logic worth testing — email policy, retention, matching
+  middleware/        identity, requireAdmin, rate limiting, perf
+  utils/             prisma client, firebase admin, geo
+  __tests__/         node:test, run with `npm test`
+scripts/             one-off operational tools, run by hand
+prisma/schema.prisma
+```
 
-### 4. Run Database Migrations
+## Health
 
-\`\`\`bash
-npm run prisma:generate
-npm run prisma:migrate
-\`\`\`
+| Endpoint | Answers |
+|---|---|
+| `/health` | the process is up. No dependencies — so the wiring tests can run without a database. |
+| `/health/ready` | the process is up **and** MongoDB answers. 503 otherwise. |
 
-### 5. Start Development Server
+CI gates deploys on `/health/ready`. A deploy carrying a broken `DATABASE_URL`
+once passed a liveness check green while every authenticated request was
+failing, because the process was indeed up and answering.
 
-\`\`\`bash
-npm run dev
-\`\`\`
+## There are no timers
 
-Server will start on http://localhost:3001
+The container scales to zero and CPU is throttled between requests, so
+`setInterval` is not a thing you can rely on here. Anything time-based is either
+derived when it is read or swept opportunistically on a nearby request —
+`services/squadChatRetention.ts` is the reference for the pattern.
 
-## API Endpoints
+Work that must happen whether or not anyone is using the app goes behind
+`/api/maintenance/*`, guarded by `MAINTENANCE_KEY`, and is called by Cloud
+Scheduler. Without that key the routes 404, so an install that has not set one
+up is inert rather than open.
 
-### Authentication
+## Scripts
 
-\`\`\`
-POST   /api/auth/register    - Register new user
-POST   /api/auth/login       - Login user
-POST   /api/auth/refresh     - Refresh access token
-\`\`\`
+```bash
+npm test                 # node:test, src/__tests__/*.test.ts
+npm run build            # prisma generate && tsc
+npm run gcloud:logs      # tail Cloud Run
 
-### Rides
+node scripts/make-admin.mjs you@example.com        # the admin bootstrap
+node scripts/audit-user-active.mjs                 # report on isActive; --fix to repair
+node scripts/diagnose-ride-visibility.mjs <id>     # why can't this person see that squad
+```
 
-\`\`\`
-POST   /api/rides            - Create new ride
-GET    /api/rides/search     - Search for matching rides
-GET    /api/rides/my         - Get current user's rides
-PUT    /api/rides/:id        - Update ride status
-DELETE /api/rides/:id        - Delete ride
-\`\`\`
+`scripts/gcloud-bootstrap.mjs` provisions the Cloud Run service and its Secret
+Manager entries. It is **not** the deploy — see `../DEPLOY.md`.
 
-### Matches
+## Environment
 
-\`\`\`
-POST   /api/matches          - Create a match
-GET    /api/matches/my       - Get user's matches
-GET    /api/matches/:id/messages - Get chat messages
-PUT    /api/matches/:id/complete - Mark match as completed
-\`\`\`
+Required. Without these the container starts and then fails every real request,
+which is worse than refusing to start:
 
-### Users
-
-\`\`\`
-GET    /api/users/me         - Get current user profile
-PUT    /api/users/me         - Update profile
-GET    /api/users/:id        - Get user profile by ID
-\`\`\`
-
-## Socket.IO Events
-
-### Client → Server
-
-\`\`\`javascript
-// Join match rooms
-socket.emit('join_matches', { matchIds: ['match_id_1', 'match_id_2'] });
-
-// Send message
-socket.emit('send_message', {
-  matchId: 'match_id',
-  content: 'Hello!',
-  type: 'text'
-});
-
-// Typing indicator
-socket.emit('typing', { matchId: 'match_id', isTyping: true });
-
-// Share location
-socket.emit('share_location', {
-  matchId: 'match_id',
-  latitude: 13.0827,
-  longitude: 80.2707,
-  accuracy: 10
-});
-
-// Stop sharing location
-socket.emit('stop_location');
-
-// Mark message as read
-socket.emit('mark_read', { messageId: 'msg_id' });
-\`\`\`
-
-### Server → Client
-
-\`\`\`javascript
-// New message received
-socket.on('new_message', (message) => { /* ... */ });
-
-// User typing
-socket.on('user_typing', ({ userId, isTyping }) => { /* ... */ });
-
-// Location update
-socket.on('location_update', ({ userId, latitude, longitude }) => { /* ... */ });
-
-// User online/offline
-socket.on('user_status', ({ userId, status }) => { /* ... */ });
-
-// Message read
-socket.on('message_read', ({ messageId, userId }) => { /* ... */ });
-
-// New match created
-socket.on('match_created_{userId}', ({ match }) => { /* ... */ });
-
-// Error
-socket.on('error', ({ message }) => { /* ... */ });
-\`\`\`
-
-## Database Schema
-
-- **User** - User accounts with hashed credentials
-- **Ride** - Ride creation and search data
-- **Match** - Connections between users
-- **Message** - Chat message history
-- **Location** - Live location tracking data
-- **Block** - User blocking for safety
-
-## Matching Algorithm
-
-The smart matching algorithm considers:
-
-1. **Destination Proximity** - Within 2km radius (configurable)
-2. **Time Window** - Within ±30 minutes (configurable)
-3. **Gender Preference** - Matches based on user preferences
-4. **College/Institute** - Same institution preferred
-5. **Scoring** - Prioritizes by time difference, then distance
-
-## Development
-
-\`\`\`bash
-# Run in development mode with hot reload
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Open Prisma Studio (database GUI)
-npm run prisma:studio
-
-# Poll Testmail for a Firebase verification email
-npm run testmail:verify -- --subject verification --from firebase
-
-# Poll a specific Testmail tag inbox (recommended)
-npm run testmail:verify -- --tag signup --subject verification --from firebase
-\`\`\`
-
-## Deployment
-
-### Railway (Recommended with GitHub Student Pack)
-
-1. Install Railway CLI: \`npm i -g @railway/cli\`
-2. Login: \`railway login\`
-3. Initialize: \`railway init\`
-4. Add MongoDB service (or use MongoDB Atlas URI)
-5. Set environment variables in Railway dashboard
-6. Deploy: \`railway up\`
-
-### Render (Free Tier)
-
-1. Create account at [Render](https://render.com)
-2. Create new Web Service
-3. Connect GitHub repository
-4. Set build command: \`cd backend && npm install && npm run build\`
-5. Set start command: \`cd backend && npm start\`
-6. Add MongoDB `DATABASE_URL` in environment variables
-7. Set environment variables
-
-## Environment Variables
-
-\`\`\`env
-PORT=3001
-NODE_ENV=production
+```env
 DATABASE_URL=mongodb+srv://...
-JWT_SECRET=your_secret_here
-JWT_REFRESH_SECRET=your_refresh_secret_here
-JWT_EXPIRES_IN=1h
-JWT_REFRESH_EXPIRES_IN=7d
-FRONTEND_URL=https://yourdomain.com
-GOOGLE_CLIENT_ID=your_google_oauth_client_id.apps.googleusercontent.com
-TESTMAIL_API_KEY=your_testmail_api_key
-TESTMAIL_NAMESPACE=your_testmail_namespace
-# Optional default tag/mailbox if you omit --tag
-# TESTMAIL_MAILBOX=signup
-TESTMAIL_BASE_URL=https://api.testmail.app/api/json
-TESTMAIL_TIMEOUT_MS=120000
-TESTMAIL_POLL_INTERVAL_MS=5000
-\`\`\`
+JWT_SECRET=
+JWT_REFRESH_SECRET=
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+MAPBOX_SECRET_TOKEN=sk....
+```
 
-## Security Best Practices
+Optional, each degrading one feature rather than breaking the app:
 
-✅ Phone numbers are hashed before storage  
-✅ Passwords hashed with bcrypt (10 rounds)  
-✅ JWT tokens with expiration  
-✅ CORS configured for specific origin  
-✅ Input validation with Zod  
-✅ SQL injection prevention via Prisma ORM  
+```env
+RESEND_API_KEY=            # transactional email; see docs/EMAIL-SYSTEM.md
+RESEND_WEBHOOK_SECRET=     # delivery webhooks, Svix-signed
+CAMPAIGN_EMAIL_FROM=       # must be a separate sending domain from transactional
+MAINTENANCE_KEY=           # /api/maintenance/*
+RAZORPAY_KEY_ID=           # the squad join fee; endpoints answer 503 without it
+RAZORPAY_KEY_SECRET=
+OPENAI_API_KEY=            # /api/ai
+```
+
+`MAPBOX_SECRET_TOKEN` is the `sk.…` token and is not interchangeable with the
+browser's `pk.…` one: route computation server-side must not burn the public
+token's quota, and the secret token must never reach a browser.
+
+## Security notes
+
+- Phone numbers are hashed before storage.
+- Rate limits are two-tier: a global per-client budget protecting the single
+  container, and a far tighter one on `/api/auth`, because those endpoints mint
+  credentials and 600 guesses in a quarter hour is a working brute-force attempt.
+- Security headers are written by hand rather than pulling in helmet — this
+  serves JSON, so most of helmet's surface either does not apply or belongs at
+  the edge.
+- There is no in-app path to create the first admin, by design. Use
+  `scripts/make-admin.mjs`.
+- The Resend webhook route is mounted **before** `express.json`, and that
+  ordering is load-bearing: the Svix signature covers the exact bytes sent, and
+  a parsed body cannot be turned back into them.
 
 ## Troubleshooting
 
-**Database connection error:**
-- Check DATABASE_URL format
-- Ensure database is accessible
-- Verify credentials
+**"Invalid token" on every authenticated request** — usually a mangled
+`FIREBASE_PRIVATE_KEY`. It is a multi-line PEM, and shells mangle multi-line
+values differently. `utils/firebaseAdmin.ts` normalises it; the bootstrap script
+cleans it before upload so what is stored is the key and nothing else.
 
-**Socket.IO not connecting:**
-- Check CORS settings
-- Verify JWT token is being sent
-- Check FRONTEND_URL environment variable
+**Socket.IO drops** — expected while `--min-instances` is 0. The last instance
+shutting down takes every open connection with it. The client reconnects.
 
-**Prisma errors:**
-- Run \`npm run prisma:generate\` after schema changes
-- Run \`npm run prisma:push\` to sync schema with MongoDB
-
-## Support
-
-For issues or questions, check the main repository README or create an issue.
-
-## License
-
-ISC
+**Prisma client out of date after a schema edit** — `npm run prisma:generate`.
+`postinstall` runs it too.

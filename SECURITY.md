@@ -70,13 +70,13 @@ backend/.env (❌ NEVER commit - add to .gitignore)
 ### DO ✅
 - ✅ Keep `.env.local` only on your local machine
 - ✅ Use `.env.example` for placeholder values
-- ✅ Store production secrets in Render/Railway dashboard
+- ✅ Store production secrets in Secret Manager (backend) and the host’s build-time variables (frontend)
 - ✅ Regenerate API keys if ever exposed
 - ✅ Review `.gitignore` before committing
 - ✅ Use the pre-commit hook to catch accidents
 
 ### DON'T ❌
-- ❌ Ever commit `.env`, `.env.local`, or `.env.render` to git
+- ❌ Ever commit `.env` or `.env.local` to git
 - ❌ Share API keys in messages, code reviews, or email
 - ❌ Print secrets in console.log or error messages
 - ❌ Push `.env` files to any branch (even private repos)
@@ -147,17 +147,32 @@ git commit -m "Remove accidentally staged .env.local"
 
 ## 📋 DEPLOYMENT SECURITY
 
-### Render Deployment:
-1. Go to Dashboard → Settings → Environment
-2. Add each secret as an environment variable
-3. They are encrypted in transit and at rest
-4. NEVER create a `.env` file on Render servers
+### Backend — Google Secret Manager
 
-### Railway Deployment:
-1. Go to Project → Variables
-2. Add each secret individually
-3. Railway encrypts and manages them securely
-4. NEVER use `.env` files on Railway
+The Cloud Run service reads its secrets as references, never as env-var
+literals. `backend/scripts/gcloud-bootstrap.mjs` creates them and grants the
+runtime service account `secretAccessor`.
+
+1. `cd backend && npm run gcloud:bootstrap` — creates anything missing.
+2. To rotate: change the value in `backend/.env`, then
+   `npm run gcloud:bootstrap -- --rotate`. It diffs against the live value and
+   reports `kept`, `unchanged` or `new version pushed`.
+3. NEVER put a `.env` file in the container image. `.dockerignore` excludes it;
+   check that before changing the Dockerfile.
+4. The deploy workflow passes **no** secret flags. `--set-secrets` replaces the
+   whole set and detaches anything attached out of band — that is how a live
+   `DATABASE_URL` went missing once.
+
+### Frontend — build-time variables
+
+`NEXT_PUBLIC_*` values are compiled into the browser bundle, so they must be set
+in the **build** environment (GitHub Actions repository secrets for the CI
+builds, the host dashboard for host-triggered ones). Setting them as runtime
+variables does nothing to a bundle that was already built.
+
+None of them are secret — anyone can read them in devtools. That is why they
+are restricted at the provider instead: Firebase → Authorized domains, Mapbox
+→ URL restrictions.
 
 ---
 

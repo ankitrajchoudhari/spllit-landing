@@ -8,14 +8,19 @@ waitlist surfaces.
 ## Architecture
 
 ```
-Next.js 15 (App Router, strict TS)          ← this repo, /app /components /lib
-        │  HTTPS (React Query)   │  WebSocket (Socket.IO)
-        ▼                        ▼
-Cloudflare Workers (edge)   Express + Socket.IO on Render   ← backend/
-        │  cached reads, auth     │  writes, business logic
+Next.js 16 (App Router, strict TS)   ← this repo, /app /components /lib
+   spllit.app, on Vercel
+        │  HTTPS (React Query)  │  WebSocket (Socket.IO)
         └────────────┬────────────┘
                      ▼
+  Express + Socket.IO on Cloud Run   ← backend/
+        api.spllit.app
+                     │
+                     ▼
               MongoDB (Prisma)
+
+  admin.spllit.app — Cloudflare Workers   ← admin/
+        talks to the same API
 ```
 
 **Firebase is the identity provider only** — Google Sign-In and Phone OTP.
@@ -35,7 +40,7 @@ application data lives in MongoDB behind the Express API, and the live layer
 | `lib/map/` | Shared map config, layer registry, domain→marker adapters. |
 | `lib/live/` | Socket.IO client and live-data hooks. |
 | `types/` | Domain types, mirroring `backend/prisma/schema.prisma`. |
-| `backend/` | Express API, Prisma schema, Cloudflare Workers edge. |
+| `backend/` | Express API, Prisma schema, operational scripts. |
 
 Data flow is one-directional: **component → hook → service → API**. Components
 never call `fetch` or the API client themselves.

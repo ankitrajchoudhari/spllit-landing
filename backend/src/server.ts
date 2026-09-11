@@ -407,8 +407,13 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start server
-const isRender = Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL || process.env.RENDER_SERVICE_ID);
-const PORT = Number(isRender ? 10000 : (process.env.PORT || 3001));
+/**
+ * Cloud Run sets PORT. Nothing else is special-cased any more: the Render
+ * branch that used to live here pinned 10000 for a host this service no longer
+ * runs on, and an inert conditional in the startup path is a thing people have
+ * to reason about before concluding it does nothing.
+ */
+const PORT = Number(process.env.PORT || 3001);
 
 /**
  * Tests import this module for the wired `app` and bind their own ephemeral

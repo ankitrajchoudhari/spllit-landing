@@ -14,17 +14,9 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "cf:dev": "wrangler dev",
-    "cf:deploy": "wrangler deploy",
-    "cf:typecheck": "tsc --noEmit -p edge/tsconfig.json",
-    "cf:secrets": "wrangler secret list",
-    "cf:tail": "wrangler tail",
     "test": "tsx --test src/__tests__/*.test.ts",
-    "cf:secrets:push": "node scripts/cf-secrets.mjs",
-    "azure:deploy": "node scripts/azure-deploy.mjs",
-    "azure:logs": "az containerapp logs show -n spllit-api -g spllit --follow",
-    "gcloud:deploy": "node scripts/gcloud-deploy.mjs",
-    "gcloud:logs": "gcloud run services logs tail spllit-api --region asia-south1"
+    "gcloud:logs": "gcloud run services logs tail spllit-api --region asia-south1",
+    "gcloud:bootstrap": "node scripts/gcloud-bootstrap.mjs"
   },
   "keywords": [
     "ride-sharing",
@@ -60,7 +52,6 @@
     "@types/node": "^22.10.2",
     "prisma": "^6.19.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "wrangler": "^4.119.0"
+    "typescript": "^5.7.2"
   }
 }
