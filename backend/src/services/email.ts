@@ -343,7 +343,29 @@ export async function emailWelcome(params: { userId: string }): Promise<void> {
 
   if (sent) {
     await recordEmailSent({ userId: params.userId, category: EMAIL_CATEGORIES.WELCOME });
+    return;
   }
+
+  /**
+   * The provider refused. Release the claim so the next visit tries again.
+   *
+   * This used to keep the flag, on the reasoning that a missing welcome is a
+   * non-event and a duplicate is what reads as broken. That was defensible when
+   * the welcome had one chance anyway — but once the bootstrap path started
+   * retrying whenever `welcomedAt` is null, keeping it here made the two
+   * failure modes disagree: a quiet-hours refusal healed itself and a
+   * five-second Resend outage lost the message permanently. The transient one
+   * should not be the unrecoverable one.
+   *
+   * Safe against duplicates because the idempotency key above is the user id:
+   * Resend honours it for 24 hours, so a retry inside that window cannot
+   * produce a second message even if this send did in fact arrive and only the
+   * response was lost.
+   */
+  await prisma.user.updateMany({
+    where: { id: params.userId, welcomedAt: { not: null } },
+    data: { welcomedAt: null },
+  });
 }
 
 /**
