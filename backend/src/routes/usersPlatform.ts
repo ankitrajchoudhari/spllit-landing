@@ -204,14 +204,34 @@ router.post('/me/bootstrap', async (req: AuthRequest, res: Response) => {
        * is a no-op on the overwhelmingly common path.
        */
       if (decoded.email_verified) {
-        const { count } = await prisma.user.updateMany({
+        await prisma.user.updateMany({
           where: { id: existing.id, emailVerified: false },
           data: { emailVerified: true },
         });
 
-        // Only on the transition, and emailWelcome itself refuses a second one
-        // — so this cannot greet somebody who was welcomed at signup.
-        if (count === 1) void emailWelcome({ userId: existing.id });
+        /**
+         * Attempted whenever a verified account has never been welcomed, not
+         * only on the moment of transition.
+         *
+         * Tying it to the transition made the welcome a single attempt with no
+         * retry, and it has several ordinary ways to be refused — quiet hours
+         * most of all. Somebody signing up at 3am would be refused once and
+         * never considered again, which is a strange thing to have built into
+         * a message whose entire job is to arrive once.
+         *
+         * Safe to run on every bootstrap: `emailWelcome` claims `welcomedAt`
+         * with a guarded update, so an already-welcomed account matches nothing
+         * and the call costs one no-op write. A refusal releases the claim, so
+         * the next visit tries again — which is what makes this self-healing
+         * rather than merely repeated.
+         */
+        const state = await prisma.user.findUnique({
+          where: { id: existing.id },
+          select: { welcomedAt: true },
+        });
+        if (state && state.welcomedAt === null) {
+          void emailWelcome({ userId: existing.id });
+        }
       }
 
       return ok(res, existing);
