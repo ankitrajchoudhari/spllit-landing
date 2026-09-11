@@ -144,7 +144,7 @@ emits hundreds of messages looks exactly like a compromised one.
 | Category | Goes to | Trigger |
 |---|---|---|
 | `join-request` | squad leader / ride host | somebody asks to join |
-| `request-accepted` | the asker | a leader or co-leader lets them in |
+| `request-accepted` | the asker | a leader, co-leader or ride host lets them in |
 | `trip-created` | the creator | they create a squad or ride |
 | `welcome` | a new account | first creation, once |
 | `campaign` | everyone reachable | an admin writes and sends one |
@@ -161,12 +161,28 @@ two destinations, the squad they just joined and everything else they have on.
 carries the join code — the one thing they cannot reconstruct from memory and
 will want to paste into a group chat five minutes later.
 
-The squad `join-request` mail carries **two** buttons, "Add to squad" and
-"Decline". Both are ordinary links to the same decision page and differ only in
-a `#fragment`, which the page reads to decide which button to put forward.
-Nothing is decided by opening either one — see Phase 3. The ride version has a
-single button on purpose: rides have no accept-or-decline decision anywhere in
-the product, so a "Decline" link would point at something that cannot be done.
+Both `join-request` mails — squad and ride — carry **two** buttons, an accept
+and a "Decline". Both are ordinary links to the same decision page and differ
+only in a `#fragment`, which the page reads to decide which button to put
+forward. Nothing is decided by opening either one; see Phase 3.
+
+The two differ in what the URL carries. A squad link carries a hashed,
+single-use token; a ride link carries the plain Match id. That is not a weaker
+check — the ride routes re-read the ride, require `ride.userId === caller`, and
+require the request to still be `pending`, so guessing an id earns a stranger a
+404. The squad token exists because it must also be *revocable* and single-use;
+a ride request needs neither, because answering it changes the status and a
+second attempt finds nothing pending.
+
+### Everything is addressed by name
+
+Every message opens "Hi Ankit," — first name only, taken from the recipient's
+own row. A missing or unusable name (blank, or the address-shaped one a
+phone-only account can carry) drops the line entirely rather than falling back
+to "Hi there": a generic greeting is the tell of a bulk send, and the heading
+underneath already says what happened. The welcome message passes no name to the
+template because its heading already greets them, and two greetings in one
+message reads as a bug.
 
 - **Fail-closed.** Without `RESEND_API_KEY` nothing sends and nothing throws.
   An install that has not configured mail is quiet, not broken.

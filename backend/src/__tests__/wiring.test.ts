@@ -82,6 +82,16 @@ describe('ride matching routes', () => {
   it('mounts candidates', () => expectGated('GET', '/api/rides/abc123/candidates'));
   it('mounts invite', () => expectGated('POST', '/api/rides/abc123/invite'));
 
+  /**
+   * The seat-request decision. Worth pinning: `/:id/requests` and
+   * `/:id/requests/:matchId` sit after `/:id/join` and `/:id/leave` on the same
+   * router, and a route added above `/:id/candidates` would shadow it. A 401
+   * proves each one reached its own handler behind auth.
+   */
+  it('mounts the request list', () => expectGated('GET', '/api/rides/abc123/requests'));
+  it('mounts one request', () => expectGated('GET', '/api/rides/abc123/requests/m1'));
+  it('mounts the decision', () => expectGated('POST', '/api/rides/abc123/requests/m1'));
+
   it('matches /search before the legacy /:id catch-all', async () => {
     // Both routers are mounted on /api/rides. If ordering regressed, /search
     // would be read as a ride id and answer differently.

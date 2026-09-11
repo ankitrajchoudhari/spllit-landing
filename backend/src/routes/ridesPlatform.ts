@@ -7,7 +7,11 @@ import { AuthRequest } from '../types/express.js';
 import { ok, fail, boundingBox, parseCoords } from '../utils/respond.js';
 import { calculateDistance, calculateDistanceMetres } from '../utils/helpers.js';
 import { notify } from '../services/notifications.js';
-import { emailRideJoinRequested, emailTripCreated } from '../services/email.js';
+import {
+  emailRideJoinRequested,
+  emailRideRequestAccepted,
+  emailTripCreated,
+} from '../services/email.js';
 import { getIO, getLivePosition } from '../services/live.js';
 import { getRoute } from '../services/directions.js';
 import {
@@ -1320,7 +1324,7 @@ router.post('/:id/join', identify, async (req: AuthRequest, res: Response) => {
     });
 
     if (!existing) {
-      await prisma.match.create({
+      const created = await prisma.match.create({
         data: {
           rideId: ride.id,
           user1Id: ride.userId,
@@ -1354,6 +1358,9 @@ router.post('/:id/join', identify, async (req: AuthRequest, res: Response) => {
         rideId: ride.id,
         rideLabel: `${ride.origin} to ${ride.destination}`,
         requesterName: requester?.name ?? 'Someone',
+        // Lets the two buttons in the mail point at this request rather than
+        // at the ride, so the host answers the person they were told about.
+        matchId: created.id,
       }).catch(() => undefined);
     }
 
@@ -1384,6 +1391,215 @@ router.post('/:id/leave', identify, async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('[rides/leave]', error);
     return fail(res, 500, 'Failed to leave the ride');
+  }
+});
+
+/**
+ * Answering a request for a seat.
+ *
+ * ## Why this exists
+ *
+ * `POST /:id/join` has always created a pending Match and told the host about
+ * it. Nothing ever let the host answer: the routes that did are in
+ * `routes/matches.ts`, which sits behind `deprecated()`, and no screen offered
+ * it. A rider could ask and then wait forever, and a host could see the request
+ * and have no way to act on it. These three routes close that.
+ *
+ * ## Why a match id is enough to put in an email
+ *
+ * The squad equivalent mints a hashed, single-use token. This does not, and the
+ * difference is deliberate rather than a shortcut.
+ *
+ * A squad token has to be unguessable because it is what *names* a pending
+ * request to somebody who may not otherwise find it, and revocable so a
+ * forwarded mail cannot be replayed. Here the identifier confers nothing: every
+ * route below re-reads the ride, requires `ride.userId === caller`, and requires
+ * the match to still be `pending`. Guessing a match id earns an attacker a 404,
+ * because they are not the host. The session authorises and the id only
+ * identifies — the same rule as the squad flow, reached with less machinery.
+ *
+ * A link for an already-answered request fails on its own: the status is no
+ * longer `pending`, so there is nothing to spend and nothing to revoke.
+ */
+
+/** One message for every refusal below. See `pendingRequestFor`. */
+const REQUEST_CLOSED = 'This request is no longer open.';
+
+/** The requester, for rendering a decision. */
+const REQUESTER_SUMMARY = {
+  id: true,
+  name: true,
+  username: true,
+  profilePhoto: true,
+  college: true,
+  rating: true,
+} as const;
+
+/**
+ * Loads a pending request and proves the caller may answer it.
+ *
+ * Returns null for every failure, and the callers turn that into one 404 with
+ * one message. Distinguishing "no such ride" from "not your ride" from "already
+ * answered" would let anyone probe which rides and requests exist, and the host
+ * cannot act differently on any of them anyway.
+ */
+async function pendingRequestFor(rideId: string, matchId: string, callerId: string) {
+  const ride = await prisma.ride.findUnique({ where: { id: rideId } });
+  if (!ride || ride.userId !== callerId) return null;
+
+  const match = await prisma.match.findFirst({
+    where: { id: matchId, rideId: ride.id, status: 'pending' },
+    select: { id: true, user2Id: true },
+  });
+  if (!match) return null;
+
+  return { ride, match };
+}
+
+/** GET /api/rides/:id/requests — everyone still waiting on this host. */
+router.get('/:id/requests', identify, async (req: AuthRequest, res: Response) => {
+  try {
+    const ride = await prisma.ride.findUnique({ where: { id: req.params.id } });
+    if (!ride) return fail(res, 404, 'Ride not found');
+    if (ride.userId !== req.user!.userId) {
+      return fail(res, 403, 'Only the host can see who has asked', 'forbidden');
+    }
+
+    const matches = await prisma.match.findMany({
+      where: { rideId: ride.id, status: 'pending' },
+      select: { id: true, user2Id: true, matchedAt: true },
+      orderBy: { matchedAt: 'asc' },
+    });
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: matches.map((m) => m.user2Id) } },
+      select: REQUESTER_SUMMARY,
+    });
+    const byId = new Map(users.map((u) => [u.id, u]));
+
+    const taken = await prisma.match.count({
+      where: { rideId: ride.id, status: 'accepted' },
+    });
+
+    return ok(res, {
+      seatsLeft: Math.max(ride.seats - taken, 0),
+      requests: matches.map((match) => ({
+        id: match.id,
+        askedAt: match.matchedAt,
+        requester: byId.get(match.user2Id) ?? null,
+      })),
+    });
+  } catch (error) {
+    console.error('[rides/requests]', error);
+    return fail(res, 500, 'Failed to load the requests');
+  }
+});
+
+/** GET /api/rides/:id/requests/:matchId — one request, for the decision page. */
+router.get('/:id/requests/:matchId', identify, async (req: AuthRequest, res: Response) => {
+  try {
+    const found = await pendingRequestFor(req.params.id, req.params.matchId, req.user!.userId);
+    if (!found) return fail(res, 404, REQUEST_CLOSED, 'request-closed');
+
+    const requester = await prisma.user.findUnique({
+      where: { id: found.match.user2Id },
+      select: REQUESTER_SUMMARY,
+    });
+
+    const taken = await prisma.match.count({
+      where: { rideId: found.ride.id, status: 'accepted' },
+    });
+
+    return ok(res, {
+      ride: {
+        id: found.ride.id,
+        origin: found.ride.origin,
+        destination: found.ride.destination,
+        departureTime: found.ride.departureTime,
+      },
+      matchId: found.match.id,
+      seatsLeft: Math.max(found.ride.seats - taken, 0),
+      requester,
+    });
+  } catch (error) {
+    console.error('[rides/request detail]', error);
+    return fail(res, 500, 'Failed to load the request');
+  }
+});
+
+/** POST /api/rides/:id/requests/:matchId — { decision: approve | reject } */
+router.post('/:id/requests/:matchId', identify, async (req: AuthRequest, res: Response) => {
+  try {
+    const decision = String(req.body?.decision ?? '');
+    if (!['approve', 'reject'].includes(decision)) {
+      return fail(res, 400, 'Decision must be approve or reject');
+    }
+
+    const found = await pendingRequestFor(req.params.id, req.params.matchId, req.user!.userId);
+    if (!found) return fail(res, 404, REQUEST_CLOSED, 'request-closed');
+    const { ride, match } = found;
+
+    /**
+     * Capacity is checked here, not when the request was made.
+     *
+     * Requests queue. Four people can ask for the last seat and all four are
+     * legitimate at the time they ask — the ride only fills when the host says
+     * yes. Checking at request time would refuse people for a seat still free.
+     */
+    if (decision === 'approve') {
+      const taken = await prisma.match.count({
+        where: { rideId: ride.id, status: 'accepted' },
+      });
+      if (taken >= ride.seats) {
+        return fail(res, 409, 'This ride is full', 'ride-full');
+      }
+    }
+
+    /**
+     * Guarded on `status: 'pending'` rather than the id alone, so two requests
+     * arriving together cannot both admit the same person — the second updates
+     * nothing and is refused. Accepting twice would seat one rider against two
+     * seats.
+     */
+    const { count } = await prisma.match.updateMany({
+      where: { id: match.id, status: 'pending' },
+      data: { status: decision === 'approve' ? 'accepted' : 'rejected' },
+    });
+    if (count === 0) return fail(res, 404, REQUEST_CLOSED, 'request-closed');
+
+    await notify({
+      userId: match.user2Id,
+      type: 'ride.accepted',
+      title:
+        decision === 'approve'
+          ? 'You have a seat'
+          : 'Not this time',
+      body: `${ride.origin} to ${ride.destination}`,
+      href: decision === 'approve' ? `/rides/${ride.id}` : '/rides',
+      data: { rideId: ride.id },
+    });
+
+    /**
+     * Email only on approval — the rule the squad path already follows. Mailing
+     * somebody to say they were turned down adds nothing they can act on, and
+     * is exactly the kind of message that earns a spam complaint.
+     */
+    if (decision === 'approve') {
+      void emailRideRequestAccepted({
+        userId: match.user2Id,
+        rideId: ride.id,
+        rideLabel: `${ride.origin} to ${ride.destination}`,
+        decidedById: req.user!.userId,
+      }).catch(() => undefined);
+    }
+
+    getIO()?.to(`ride:${ride.id}`).emit('ride:passengers-changed', { rideId: ride.id });
+    getIO()?.to(`user:${match.user2Id}`).emit('ride:passengers-changed', { rideId: ride.id });
+
+    return ok(res, { id: match.id, decision });
+  } catch (error) {
+    console.error('[rides/request decision]', error);
+    return fail(res, 500, 'Failed to record the decision');
   }
 });
 

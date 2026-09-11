@@ -161,4 +161,42 @@ export const ridesService = {
   join: (id: string, seats = 1) => api.post<Ride>(`/rides/${id}/join`, { seats }),
 
   leave: (id: string) => api.post<Ride>(`/rides/${id}/leave`),
+
+  /**
+   * Answering a request for a seat. Host only — the server re-checks that on
+   * every call, so these are not the boundary, only the path to it.
+   */
+  requests: (id: string) => api.get<RideRequests>(`/rides/${id}/requests`),
+
+  request: (id: string, matchId: string) =>
+    api.get<RideRequestDetail>(`/rides/${id}/requests/${matchId}`),
+
+  decide: (id: string, matchId: string, decision: 'approve' | 'reject') =>
+    api.post<{ id: string; decision: string }>(`/rides/${id}/requests/${matchId}`, { decision }),
 };
+
+/** Somebody waiting on a host's answer. */
+export interface RideRequest {
+  id: string;
+  askedAt: string;
+  requester: {
+    id: string;
+    name: string;
+    username?: string | null;
+    profilePhoto?: string | null;
+    college?: string | null;
+    rating?: number | null;
+  } | null;
+}
+
+export interface RideRequests {
+  seatsLeft: number;
+  requests: RideRequest[];
+}
+
+export interface RideRequestDetail {
+  ride: { id: string; origin: string; destination: string; departureTime: string };
+  matchId: string;
+  seatsLeft: number;
+  requester: RideRequest['requester'];
+}

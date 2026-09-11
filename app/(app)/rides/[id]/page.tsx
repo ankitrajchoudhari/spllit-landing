@@ -2,7 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MessageCircle, Phone, UserPlus, Users } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Phone, UserPlus, Users, UserCheck } from 'lucide-react';
 
 import {
   formatCountdown,
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarStack } from '@/components/ui/avatar';
 import { RideCandidates } from '@/components/host/ride-candidates';
+import { RideRequests } from '@/components/host/ride-requests';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SkeletonMap, Skeleton } from '@/components/ui/skeleton';
@@ -217,6 +218,19 @@ export default function RideDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </dl>
       </div>
+
+      {/* Host-only, and above "riders going your way" on purpose: somebody who
+          has already asked is waiting on an answer, while a candidate has not
+          asked for anything. Answering people who are waiting comes first. */}
+      {isHost && ride.status !== 'completed' && ride.status !== 'cancelled' ? (
+        <div className="rounded-lg border border-line bg-surface p-5">
+          <h2 className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-ink">
+            <UserCheck className="h-4 w-4 text-ink-subtle" />
+            Asking for a seat
+          </h2>
+          <RideRequests rideId={ride.id} />
+        </div>
+      ) : null}
 
       {/* Host-only: who is looking to travel this exact route. The endpoint
           refuses anyone else, so this is presentation, not the gate. */}

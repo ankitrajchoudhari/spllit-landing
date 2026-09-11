@@ -66,6 +66,14 @@ function escapeHtml(value: string): string {
 
 interface SendInput {
   to: string;
+  /**
+   * The recipient's name, for the greeting.
+   *
+   * Optional because a name is not guaranteed — an account can reach here with
+   * an address and nothing else — and a message that says "Hi ," is worse than
+   * one that opens with the heading. `greeting()` decides.
+   */
+  name?: string;
   subject: string;
   heading: string;
   body: string;
@@ -89,6 +97,25 @@ interface SendInput {
 }
 
 /**
+ * "Hi Ankit," — or nothing at all.
+ *
+ * First name only. Stored names run to three and four words, and "Hi Ankit Raj
+ * Choudhari," reads like a bank rather than the app four of your friends use.
+ *
+ * Returns empty for a missing or unusable name rather than falling back to
+ * "Hi there" — a generic greeting is the tell of a bulk send, and the heading
+ * underneath already says what happened. Anything that looks like an address is
+ * refused too, because accounts created from a phone number can carry one, and
+ * "Hi ankit@gmail.com," is worse than no greeting at all.
+ */
+function greeting(name?: string): string {
+  const first = (name ?? '').trim().split(/\s+/)[0] ?? '';
+  if (first.length < 2 || first.length > 24) return '';
+  if (first.includes('@') || /\d{3}/.test(first)) return '';
+  return first;
+}
+
+/**
  * One layout for every message.
  *
  * Deliberately plain: a table-free single column, system fonts, no images. The
@@ -101,7 +128,12 @@ function render(input: SendInput, appUrl: string): string {
   return `<!doctype html>
 <html><body style="margin:0;padding:24px;background:#eaece7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:28px;">
-    <p style="margin:0 0 20px;font-size:18px;font-weight:600;color:#101211;">Spllit</p>
+    <p style="margin:0 0 20px;font-size:18px;font-weight:600;color:#101211;">Spllit</p>${
+      greeting(input.name)
+        ? `
+    <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#4e544f;">Hi ${escapeHtml(greeting(input.name))},</p>`
+        : ''
+    }
     <h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#101211;">${escapeHtml(input.heading)}</h1>
     <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4e544f;">${escapeHtml(input.body)}</p>
     <a href="${escapeHtml(input.actionUrl)}" style="display:inline-block;background:#00c853;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 22px;border-radius:999px;">${escapeHtml(input.actionLabel)}</a>${
@@ -123,7 +155,9 @@ function render(input: SendInput, appUrl: string): string {
 
 /** Plain-text alternative. A message with no text part scores worse in filters. */
 function renderText(input: SendInput, appUrl: string): string {
+  const hi = greeting(input.name);
   return [
+    ...(hi ? [`Hi ${hi},`, ''] : []),
     input.heading,
     '',
     input.body,
@@ -186,6 +220,26 @@ async function send(input: SendInput): Promise<boolean> {
   } catch (error) {
     console.error('[email] send failed', error);
     return false;
+  }
+}
+
+/**
+ * A display name for one user id, or null.
+ *
+ * Shared by both acceptance messages so they cannot word the same fact two
+ * ways. Every failure — missing row, blank name, database hiccup — returns
+ * null, and the callers fall back to impersonal wording rather than withholding
+ * the message: being told you are in matters more than being told by whom.
+ */
+async function nameOf(userId: string): Promise<string | null> {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+    return user?.name?.trim() || null;
+  } catch {
+    return null;
   }
 }
 
@@ -275,6 +329,7 @@ export async function emailJoinRequested(params: {
 
   const sent = await send({
     to: to.email,
+    name: to.name,
     subject: `${params.requesterName} wants to join ${params.squadName}`,
     heading: 'Someone wants to join your squad',
     body: `${params.requesterName} has asked to join ${params.squadName}. Choose below and we will take you there to confirm.`,
@@ -327,24 +382,13 @@ export async function emailRequestAccepted(params: {
   if (!to) return;
 
   /**
-   * A missing name is not a reason to withhold the message, so every failure
-   * here falls back to the impersonal wording rather than returning.
+   * A missing name is not a reason to withhold the message — see `nameOf`.
    */
-  let deciderName: string | null = null;
-  if (params.decidedById) {
-    try {
-      const decider = await prisma.user.findUnique({
-        where: { id: params.decidedById },
-        select: { name: true },
-      });
-      deciderName = decider?.name?.trim() || null;
-    } catch {
-      deciderName = null;
-    }
-  }
+  const deciderName = params.decidedById ? await nameOf(params.decidedById) : null;
 
   const sent = await send({
     to: to.email,
+    name: to.name,
     subject: deciderName
       ? `${deciderName} added you to ${params.squadName}`
       : `You're in — ${params.squadName}`,
@@ -448,6 +492,7 @@ export async function emailTripCreated(params: {
 
   const sent = await send({
     to: to.email,
+    name: to.name,
     subject: isSquad ? `Your squad is live — ${params.title}` : `Your ride is posted — ${params.title}`,
     heading: `Your ${noun} is live`,
     body: lines.join(' '),
@@ -466,19 +511,28 @@ export async function emailTripCreated(params: {
 }
 
 /**
- * Tells a ride's host that somebody wants a seat.
+ * Tells a ride's host that somebody wants a seat, and offers both answers.
  *
- * Deliberately has **one** button where the squad equivalent has two. Rides
- * have no accept-or-decline decision anywhere in the product — the in-app
- * routes for it are deprecated and no screen offers it — so a "Decline" button
- * here would be a link to a thing that cannot be done. It opens the ride, which
- * is where the host can see who asked.
+ * Same shape as the squad version, and the same rule: the two buttons are
+ * ordinary links to one decision page and differ only in a `#fragment`, which
+ * never reaches the server. Mail is fetched by scanners before a person reads
+ * it, so nothing may be decided by a link being opened.
+ *
+ * The URL carries the match id where the squad one carries a hashed token.
+ * That is safe here because the id authorises nothing — the route re-reads the
+ * ride, requires the caller to be its host, and requires the request to still
+ * be pending. See the block above the routes in routes/ridesPlatform.ts.
  */
 export async function emailRideJoinRequested(params: {
   hostId: string;
   rideId: string;
   rideLabel: string;
   requesterName: string;
+  /**
+   * The pending Match. Without it both buttons fall back to the ride page,
+   * where the host can still answer — the mail must go out either way.
+   */
+  matchId?: string;
 }): Promise<void> {
   const cfg = config();
   if (!cfg) return;
@@ -486,13 +540,20 @@ export async function emailRideJoinRequested(params: {
   const to = await recipientFor(params.hostId, EMAIL_CATEGORIES.JOIN_REQUEST, params.rideId);
   if (!to) return;
 
+  const base = params.matchId
+    ? `${cfg.appUrl}/rides/${params.rideId}/requests/${params.matchId}`
+    : `${cfg.appUrl}/rides/${params.rideId}`;
+
   const sent = await send({
     to: to.email,
+    name: to.name,
     subject: `${params.requesterName} wants a seat — ${params.rideLabel}`,
     heading: 'Someone wants a seat on your ride',
-    body: `${params.requesterName} has asked to join ${params.rideLabel}. Open the ride to see who they are.`,
-    actionLabel: 'Open the ride',
-    actionUrl: `${cfg.appUrl}/rides/${params.rideId}`,
+    body: `${params.requesterName} has asked to join ${params.rideLabel}. Choose below and we will take you there to confirm.`,
+    actionLabel: 'Give them a seat',
+    actionUrl: params.matchId ? `${base}#approve` : base,
+    secondaryLabel: 'Decline',
+    secondaryUrl: params.matchId ? `${base}#decline` : base,
     idempotencyKey: `ride-join-requested:${params.rideId}:${params.requesterName}:${params.hostId}`,
   });
 
@@ -500,6 +561,54 @@ export async function emailRideJoinRequested(params: {
     await recordEmailSent({
       userId: params.hostId,
       category: EMAIL_CATEGORIES.JOIN_REQUEST,
+      scopeId: params.rideId,
+    });
+  }
+}
+
+/**
+ * Tells a rider they have a seat, and who gave it to them.
+ *
+ * Same category as the squad acceptance — mandatory, and exempt from quiet
+ * hours. It answers something the person asked for and then went to sleep
+ * wondering about, and being left unsure whether you have a lift tomorrow is
+ * worse than an email at 1am that does not buzz your phone.
+ */
+export async function emailRideRequestAccepted(params: {
+  userId: string;
+  rideId: string;
+  rideLabel: string;
+  decidedById?: string;
+}): Promise<void> {
+  const cfg = config();
+  if (!cfg) return;
+
+  const to = await recipientFor(params.userId, EMAIL_CATEGORIES.REQUEST_ACCEPTED, params.rideId);
+  if (!to) return;
+
+  const hostName = params.decidedById ? await nameOf(params.decidedById) : null;
+
+  const sent = await send({
+    to: to.email,
+    name: to.name,
+    subject: hostName
+      ? `${hostName} gave you a seat — ${params.rideLabel}`
+      : `You have a seat — ${params.rideLabel}`,
+    heading: 'You have a seat',
+    body: hostName
+      ? `${hostName} accepted your request to join ${params.rideLabel}. Open the ride to see the pickup point and message your host.`
+      : `Your request to join ${params.rideLabel} was accepted. Open the ride to see the pickup point and message your host.`,
+    actionLabel: 'Open the ride',
+    actionUrl: `${cfg.appUrl}/rides/${params.rideId}`,
+    secondaryLabel: 'Open Spllit',
+    secondaryUrl: cfg.appUrl,
+    idempotencyKey: `ride-request-accepted:${params.rideId}:${params.userId}`,
+  });
+
+  if (sent) {
+    await recordEmailSent({
+      userId: params.userId,
+      category: EMAIL_CATEGORIES.REQUEST_ACCEPTED,
       scopeId: params.rideId,
     });
   }
@@ -552,6 +661,13 @@ export async function emailWelcome(params: { userId: string }): Promise<void> {
 
   const sent = await send({
     to: to.email,
+    /**
+     * Deliberately no `name` here, where every other message passes one.
+     *
+     * The heading below already greets them by name, and the template adds
+     * "Hi Ankit," above the heading when given one — so passing it produces
+     * "Hi Ankit, / Welcome, Ankit". One greeting per message.
+     */
     subject: 'Welcome to Spllit',
     heading: `Welcome, ${first}`,
     body: 'Spllit is how students travelling the same way find each other. Post a ride, start a squad, or see what is already heading where you are going.',
