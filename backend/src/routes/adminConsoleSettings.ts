@@ -158,8 +158,25 @@ async function broadcastCap(): Promise<number> {
 /** Most recipients one named-list send may have. */
 const MAX_NAMED_RECIPIENTS = 200;
 
+/**
+ * `isActive` is deliberately absent from every audience below.
+ *
+ * It reads like a reachability flag and is not one. The Firebase bootstrap path
+ * never checks it, so accounts marked inactive sign in and use Spllit normally
+ * — 205 of 229 accounts carry `false`, eight of them used the app in the last
+ * week, and no code path in this repository sets it. Whatever wrote it, it does
+ * not describe whether somebody can be reached.
+ *
+ * Filtering on it meant "everyone onboarded" quietly meant 24 people out of
+ * 229, and a broadcast reporting success had delivered to a tenth of its
+ * audience. `onboarded` is the meaningful filter here and stays.
+ *
+ * If a real suspension concept is wanted later, it needs a field that actually
+ * gates sign-in — and then this is where it belongs. Reinstating this filter
+ * before that exists would only restore a silent one-in-ten broadcast.
+ */
 function audienceWhere(audience: Audience, college: string, userIds: string[] = []) {
-  const base: Record<string, unknown> = { isActive: true };
+  const base: Record<string, unknown> = {};
   const monthAgo = new Date(Date.now() - 30 * 86_400_000);
 
   switch (audience) {
@@ -173,19 +190,16 @@ function audienceWhere(audience: Audience, college: string, userIds: string[] = 
      * somebody who has not finished onboarding — which is frequently the exact
      * person a console operator needs to reach.
      */
+    /**
+     * Named individuals, filtered on nothing but the list.
+     *
+     * Not even `onboarded`, which every case below applies: those narrow a
+     * population, where somebody half-registered is noise. This is a list an
+     * admin typed on purpose, and somebody stuck in onboarding is frequently
+     * the exact person a console operator needs to reach. The picker badges the
+     * unusual states so it stays a choice rather than an accident.
+     */
     case 'users':
-      /**
-       * `isActive` is excluded deliberately, not by oversight.
-       *
-       * It does not mean what the name suggests — the Firebase bootstrap path
-       * never checks it, so accounts marked inactive sign in and use the app
-       * normally. Filtering on it here made a picker that lists everybody feed
-       * a send that quietly refused most of them: a broadcast to three named
-       * students delivered to none and reported nothing wrong.
-       *
-       * The console badges the unusual states in the picker, so including
-       * somebody stays a choice rather than an accident.
-       */
       return { id: { in: userIds.slice(0, MAX_NAMED_RECIPIENTS) } };
     case 'active':
       return { ...base, onboarded: true, lastSeen: { gte: monthAgo } };
