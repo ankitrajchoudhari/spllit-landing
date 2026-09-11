@@ -12,6 +12,12 @@ import { formatPlate, isValidPlate, normalisePlate, findModel } from '../data/ve
 import { squadPostDenial } from '../services/threads.js';
 import { CHAT_RETENTION, chatAccess } from '../services/squadChatRetention.js';
 import { calculateDistance, calculateDistanceMetres } from '../utils/helpers.js';
+import {
+  EMAIL_CATEGORIES,
+  OPTIONAL_CATEGORIES,
+  QUIET_HOURS,
+  isQuietHour,
+} from '../services/emailPolicy.js';
 
 /**
  * Unit tests for the pure logic — the parts where a wrong answer is silent.
@@ -359,5 +365,54 @@ describe('squad chat retention', () => {
 
   it('applies to cancelled squads exactly as to completed ones', () => {
     assert.equal(chatAccess(ended(CHAT_RETENTION.LOCK_HOURS * HOUR, 'cancelled'), NOW), 'locked');
+  });
+});
+
+describe('email categories', () => {
+  it('gives every category a distinct id', () => {
+    const ids = Object.values(EMAIL_CATEGORIES);
+    assert.equal(new Set(ids).size, ids.length);
+  });
+
+  /**
+   * A category missing from this list cannot be switched off — the preference
+   * is read but `mayEmail` ignores it for anything not listed here, so the
+   * toggle would appear in Settings and silently do nothing.
+   */
+  it('lets somebody switch off everything that is not an answer they asked for', () => {
+    for (const category of [
+      EMAIL_CATEGORIES.JOIN_REQUEST,
+      EMAIL_CATEGORIES.TRIP_CREATED,
+      EMAIL_CATEGORIES.WELCOME,
+      EMAIL_CATEGORIES.CAMPAIGN,
+    ]) {
+      assert.ok(OPTIONAL_CATEGORIES.includes(category), `${category} should be optional`);
+    }
+  });
+
+  /**
+   * The answer to a request is the one thing a person cannot turn off, because
+   * being silently left out of a squad they asked to join is worse than an
+   * unwanted email.
+   */
+  it('keeps the acceptance answer mandatory', () => {
+    assert.ok(!OPTIONAL_CATEGORIES.includes(EMAIL_CATEGORIES.REQUEST_ACCEPTED));
+  });
+});
+
+describe('quiet hours', () => {
+  /** 2026-09-12T18:00:00Z is 11:30pm in Kolkata — inside the window. */
+  const lateNight = new Date('2026-09-12T18:00:00Z');
+  /** Same day, 09:30 Kolkata. */
+  const morning = new Date('2026-09-12T04:00:00Z');
+
+  it('wraps midnight rather than treating the window as a range', () => {
+    assert.equal(isQuietHour(lateNight, 'Asia/Kolkata'), true);
+    assert.equal(isQuietHour(morning, 'Asia/Kolkata'), false);
+    assert.ok(QUIET_HOURS.START > QUIET_HOURS.END);
+  });
+
+  it('treats an unknown timezone as daytime rather than silencing somebody forever', () => {
+    assert.equal(isQuietHour(lateNight, 'Not/AZone'), false);
   });
 });

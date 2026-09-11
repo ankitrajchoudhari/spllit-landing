@@ -139,6 +139,27 @@ emits hundreds of messages looks exactly like a compromised one.
 
 `services/email.ts`. Deliberately small, and deliberately best-effort.
 
+### The messages
+
+| Category | Goes to | Trigger |
+|---|---|---|
+| `join-request` | squad leader / ride host | somebody asks to join |
+| `request-accepted` | the asker | a leader lets them in |
+| `trip-created` | the creator | they create a squad or ride |
+| `welcome` | a new account | first creation, once |
+| `campaign` | everyone reachable | an admin writes and sends one |
+
+`trip-created` is a receipt, so it goes to the creator and nobody else, and it
+carries the join code — the one thing they cannot reconstruct from memory and
+will want to paste into a group chat five minutes later.
+
+The squad `join-request` mail carries **two** buttons, "Add to squad" and
+"Decline". Both are ordinary links to the same decision page and differ only in
+a `#fragment`, which the page reads to decide which button to put forward.
+Nothing is decided by opening either one — see Phase 3. The ride version has a
+single button on purpose: rides have no accept-or-decline decision anywhere in
+the product, so a "Decline" link would point at something that cannot be done.
+
 - **Fail-closed.** Without `RESEND_API_KEY` nothing sends and nothing throws.
   An install that has not configured mail is quiet, not broken.
 - **Verified addresses only.** `User.emailVerified` must be true. Sending to an
@@ -266,6 +287,12 @@ Scoped per squad, so a busy squad does not silence a quiet one.
 `Asia/Kolkata`. `request-accepted` ignores them: it answers something the person
 asked for and went to sleep wondering about, and email does not buzz a phone the
 way a push does. A welcome message is the opposite and waits.
+
+`trip-created` ignores them too, and for a sharper reason: quiet hours do not
+*delay* a message here, they cancel it — there is no queue and nothing flushes
+one. Holding a receipt until morning means never sending it, and students plan
+tomorrow's trip at 11pm, squarely inside the window. A confirmation that arrives
+for some squads and not others is worse than one that never arrives at all.
 
 ### Still not built
 

@@ -7,6 +7,7 @@ import { AuthRequest } from '../types/express.js';
 import { ok, fail, boundingBox, parseCoords } from '../utils/respond.js';
 import { calculateDistance, calculateDistanceMetres } from '../utils/helpers.js';
 import { notify } from '../services/notifications.js';
+import { emailRideJoinRequested, emailTripCreated } from '../services/email.js';
 import { getIO, getLivePosition } from '../services/live.js';
 import { getRoute } from '../services/directions.js';
 import {
@@ -250,6 +251,19 @@ router.post('/', identify, async (req: AuthRequest, res: Response) => {
           : {}),
       },
     });
+
+    /**
+     * Not awaited. The ride exists and the response is owed now; a slow mail
+     * provider must not hold the request open, and a failed send must not turn
+     * a successful creation into a 500.
+     */
+    void emailTripCreated({
+      userId: req.user!.userId,
+      kind: 'ride',
+      id: ride.id,
+      title: `${ride.origin} to ${ride.destination}`,
+      whenAt: ride.departureTime,
+    }).catch(() => undefined);
 
     const { byId, passengersByRide } = await hydrate([ride.id]);
     return ok(res, shape(ride, byId, passengersByRide), 201);
@@ -1329,6 +1343,18 @@ router.post('/:id/join', identify, async (req: AuthRequest, res: Response) => {
         href: `/rides/${ride.id}`,
         data: { rideId: ride.id },
       });
+
+      /**
+       * The in-app notification above is the source of truth; this is a copy
+       * that may or may not arrive, and is guarded inside `existing` so a
+       * repeated join call cannot mail the host twice.
+       */
+      void emailRideJoinRequested({
+        hostId: ride.userId,
+        rideId: ride.id,
+        rideLabel: `${ride.origin} to ${ride.destination}`,
+        requesterName: requester?.name ?? 'Someone',
+      }).catch(() => undefined);
     }
 
     const { byId, passengersByRide } = await hydrate([ride.id]);

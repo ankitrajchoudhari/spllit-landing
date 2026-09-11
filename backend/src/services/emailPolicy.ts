@@ -20,6 +20,8 @@ export const EMAIL_CATEGORIES = {
   JOIN_REQUEST: 'join-request',
   /** Your request was accepted. */
   REQUEST_ACCEPTED: 'request-accepted',
+  /** A receipt for a squad or ride you just created. */
+  TRIP_CREATED: 'trip-created',
   /** Sent once, when an account is first created. */
   WELCOME: 'welcome',
   /** An announcement written by an admin and sent to many people at once. */
@@ -37,11 +39,24 @@ export type EmailCategory = (typeof EMAIL_CATEGORIES)[keyof typeof EMAIL_CATEGOR
  * A welcome message is the opposite — it can wait, and arriving seconds after
  * signup at 3am reads as automated.
  */
-const IGNORES_QUIET_HOURS: readonly string[] = [EMAIL_CATEGORIES.REQUEST_ACCEPTED];
+const IGNORES_QUIET_HOURS: readonly string[] = [
+  EMAIL_CATEGORIES.REQUEST_ACCEPTED,
+  /**
+   * A receipt for something the person did *this second*.
+   *
+   * Quiet hours here do not delay the message, they cancel it — there is no
+   * queue and nothing flushes one, so holding a receipt until morning means it
+   * is simply never sent. And students plan tomorrow's trip at 11pm, which is
+   * precisely inside the window. A confirmation that arrives for some squads
+   * and not others is worse than no confirmation at all.
+   */
+  EMAIL_CATEGORIES.TRIP_CREATED,
+];
 
 /** Categories a person may switch off. Transactional answers are not optional. */
 export const OPTIONAL_CATEGORIES: readonly string[] = [
   EMAIL_CATEGORIES.JOIN_REQUEST,
+  EMAIL_CATEGORIES.TRIP_CREATED,
   EMAIL_CATEGORIES.WELCOME,
   EMAIL_CATEGORIES.CAMPAIGN,
 ];

@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Check, X } from 'lucide-react';
@@ -42,6 +42,36 @@ interface TokenView {
   } | null;
 }
 
+/**
+ * Which button the email sent this person here to press.
+ *
+ * Carried in the URL fragment, and a fragment specifically: it never appears in
+ * the request line or in `Referer`, so the leader's intent leaks neither to the
+ * server nor to anything this page loads — and a mail scanner that fetches the
+ * link communicates no choice at all. It decides emphasis and nothing else;
+ * nothing is submitted until a person presses a button.
+ *
+ * `useSyncExternalStore` rather than reading `window` in an effect: the server
+ * snapshot is `null`, so the first client render matches the server's and there
+ * is no hydration mismatch to paper over — and no state written during an
+ * effect, which React 19 rightly rejects.
+ */
+function useEmailIntent(): 'approve' | 'reject' | null {
+  const hash = useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener('hashchange', onChange);
+      return () => window.removeEventListener('hashchange', onChange);
+    },
+    () => window.location.hash,
+    () => '',
+  );
+
+  const value = hash.replace('#', '').toLowerCase();
+  if (value === 'approve') return 'approve';
+  if (value === 'decline' || value === 'reject') return 'reject';
+  return null;
+}
+
 export default function JoinRequestDecisionPage({
   params,
 }: {
@@ -50,6 +80,8 @@ export default function JoinRequestDecisionPage({
   const { id, token } = use(params);
   const router = useRouter();
   const [done, setDone] = useState<'approve' | 'reject' | null>(null);
+
+  const intent = useEmailIntent();
 
   const request = useQuery({
     queryKey: ['join-request-token', token],
@@ -139,8 +171,13 @@ export default function JoinRequestDecisionPage({
         </p>
       ) : null}
 
+      {/* Declining is the one that cannot be undone from here, so when the
+          email sent them to decline it becomes the primary button and adding
+          steps back. Order never changes — only emphasis — because a button
+          that moves between renders is how people press the wrong one. */}
       <div className="flex gap-3">
         <Button
+          variant={intent === 'reject' ? 'secondary' : 'primary'}
           className="flex-1"
           loading={decide.isPending && decide.variables === 'approve'}
           disabled={decide.isPending}
@@ -149,7 +186,7 @@ export default function JoinRequestDecisionPage({
           Add to squad
         </Button>
         <Button
-          variant="secondary"
+          variant={intent === 'reject' ? 'primary' : 'secondary'}
           className="flex-1"
           loading={decide.isPending && decide.variables === 'reject'}
           disabled={decide.isPending}
@@ -160,6 +197,9 @@ export default function JoinRequestDecisionPage({
       </div>
 
       <p className="text-[12px] leading-relaxed text-ink-subtle">
+        {intent
+          ? 'Nothing has happened yet — press a button above to confirm. '
+          : null}
         You are signed in, so this decision is recorded as yours. Forwarding the
         email does not let anyone else answer for you.
       </p>

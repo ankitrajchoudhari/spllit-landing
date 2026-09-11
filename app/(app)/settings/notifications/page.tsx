@@ -27,6 +27,11 @@ const COPY: Record<string, { label: string; description: string }> = {
     description:
       'Emailed to you as the leader, so you can answer without opening the app. At most one per squad every half hour.',
   },
+  'trip-created': {
+    label: 'When you create a squad or ride',
+    description:
+      'A receipt with the join code and the link, sent to you and nobody else. Comes straight through, including during quiet hours.',
+  },
   welcome: {
     label: 'Welcome message',
     description: 'Sent once, when an account is first created.',

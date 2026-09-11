@@ -10,7 +10,7 @@ import { mergeMeetingPoint, toStoredGeoPoint } from '../services/geoPoint.js';
 import { z } from 'zod';
 import { calculateDistance } from '../utils/helpers.js';
 import { notify } from '../services/notifications.js';
-import { emailJoinRequested } from '../services/email.js';
+import { emailJoinRequested, emailTripCreated } from '../services/email.js';
 import { createJoinRequestToken, revokeTokensForRequest } from '../services/joinRequestTokens.js';
 import { getIO } from '../services/live.js';
 import {
@@ -761,6 +761,22 @@ router.post('/', identify, requireVerifiedInstitute, async (req: AuthRequest, re
     await prisma.squadMember.create({
       data: { squadId: squad.id, userId: req.user!.userId, role: 'leader', status: 'active' },
     });
+
+    /**
+     * Not awaited, and that is the rule this module already follows elsewhere:
+     * the squad is created and the response is owed now. A slow or broken mail
+     * provider must not hold the request open or turn a successful creation
+     * into a 500. `emailTripCreated` swallows its own errors; the `catch` is
+     * belt and braces against an unhandled rejection taking the process down.
+     */
+    void emailTripCreated({
+      userId: req.user!.userId,
+      kind: 'squad',
+      id: squad.id,
+      title: squad.name,
+      joinCode: squad.joinCode,
+      whenAt: squad.meetingAt,
+    }).catch(() => undefined);
 
     return ok(res, squad, 201);
   } catch (error) {

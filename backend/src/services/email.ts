@@ -9,10 +9,11 @@ import {
 /**
  * Transactional email, over Resend.
  *
- * Two messages exist and no more: a leader is told somebody asked to join, and
- * an asker is told they were let in. Every additional type is another way to
- * end up in spam, so the list grows only when a push notification genuinely
- * cannot serve instead. See docs/EMAIL-SYSTEM.md.
+ * The list is short on purpose — every additional type is another way to end up
+ * in spam, so it grows only when a push notification genuinely cannot serve
+ * instead. What is here: a leader is told somebody asked to join, an asker is
+ * told they were let in, a creator gets a receipt for the squad or ride they
+ * just made, and an account is welcomed once. See docs/EMAIL-SYSTEM.md.
  *
  * Explicitly *not* services/emailService.ts, which sends CSV campaigns through
  * a Gmail or Zoho mailbox. Transactional mail needs delivery webhooks, a
@@ -71,6 +72,16 @@ interface SendInput {
   actionLabel: string;
   actionUrl: string;
   /**
+   * An optional second choice, shown beside the first.
+   *
+   * Only for messages that genuinely present two answers — the join request
+   * being the one. Both are ordinary links to the same decision page; neither
+   * decides anything on its own. See `emailJoinRequested` for why that
+   * separation is not negotiable.
+   */
+  secondaryLabel?: string;
+  secondaryUrl?: string;
+  /**
    * Stable per (event, recipient) so a retry cannot send twice. Resend honours
    * this for 24h, which is longer than any retry window here.
    */
@@ -93,8 +104,16 @@ function render(input: SendInput, appUrl: string): string {
     <p style="margin:0 0 20px;font-size:18px;font-weight:600;color:#101211;">Spllit</p>
     <h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#101211;">${escapeHtml(input.heading)}</h1>
     <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4e544f;">${escapeHtml(input.body)}</p>
-    <a href="${escapeHtml(input.actionUrl)}" style="display:inline-block;background:#00c853;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 22px;border-radius:999px;">${escapeHtml(input.actionLabel)}</a>
-    <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#7b817c;">
+    <a href="${escapeHtml(input.actionUrl)}" style="display:inline-block;background:#00c853;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 22px;border-radius:999px;">${escapeHtml(input.actionLabel)}</a>${
+      input.secondaryLabel && input.secondaryUrl
+        ? `
+    <a href="${escapeHtml(input.secondaryUrl)}" style="display:inline-block;margin-left:8px;background:#ffffff;color:#4e544f;text-decoration:none;font-size:15px;font-weight:600;padding:11px 21px;border:1px solid #d7dad6;border-radius:999px;">${escapeHtml(input.secondaryLabel)}</a>`
+        : ''
+    }
+    <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#4e544f;">
+      Or <a href="${escapeHtml(appUrl)}" style="color:#0a7d34;font-weight:600;">open the Spllit web app</a>.
+    </p>
+    <p style="margin:12px 0 0;font-size:12px;line-height:1.6;color:#7b817c;">
       You are receiving this because you use Spllit.
       <a href="${escapeHtml(appUrl)}/settings/notifications" style="color:#7b817c;">Manage notifications</a>.
     </p>
@@ -110,6 +129,11 @@ function renderText(input: SendInput, appUrl: string): string {
     input.body,
     '',
     `${input.actionLabel}: ${input.actionUrl}`,
+    ...(input.secondaryLabel && input.secondaryUrl
+      ? [`${input.secondaryLabel}: ${input.secondaryUrl}`]
+      : []),
+    '',
+    `Open the Spllit web app: ${appUrl}`,
     '',
     `Manage notifications: ${appUrl}/settings/notifications`,
   ].join('\n');
@@ -195,12 +219,28 @@ async function recipientFor(
 }
 
 /**
- * Tells a leader that somebody has asked to join.
+ * Tells a leader that somebody has asked to join, and offers both answers.
  *
- * The link goes to the squad page, not to an accept action — accepting from a
- * link is Phase 3, and doing it before the token design is reviewed would mean
- * a URL that admits a stranger to a live-location group. See
- * docs/EMAIL-SYSTEM.md.
+ * ## Two buttons, neither of which decides anything
+ *
+ * "Add to squad" and "Decline" are both ordinary links to the same decision
+ * page, differing only in a `#fragment` that tells the page which button to
+ * put forward. That indirection is the entire safety property and it is not
+ * decoration:
+ *
+ *   - **A fragment never leaves the browser.** It is not in the request line
+ *     and not in `Referer`, so the choice cannot leak to anything the page
+ *     loads — and, more importantly, a scanner fetching the URL sends the
+ *     server no opinion at all.
+ *   - **Mail is read by machines first.** Outlook Safe Links, Gmail's proxy and
+ *     corporate antivirus all fetch URLs found in mail before a person sees
+ *     them. A link that admitted somebody on GET would admit them minutes after
+ *     sending, to a group sharing live location, with the leader never having
+ *     opened the message.
+ *
+ * So the page still requires a session and still makes the leader press the
+ * button; the email just means they arrive with the right one under the cursor.
+ * See services/joinRequestTokens.ts and docs/EMAIL-SYSTEM.md.
  */
 export async function emailJoinRequested(params: {
   leaderId: string;
@@ -220,24 +260,28 @@ export async function emailJoinRequested(params: {
   const to = await recipientFor(params.leaderId, EMAIL_CATEGORIES.JOIN_REQUEST, params.squadId);
   if (!to) return;
 
+  /**
+   * The token is in the path, not a query string. Query strings travel in the
+   * `Referer` header to anything the destination page loads, and this one names
+   * a pending decision.
+   *
+   * Without a token there is nothing specific to open, so both buttons collapse
+   * to the squad page and the leader decides there. Minting a token must never
+   * be able to stop the mail going out.
+   */
+  const base = params.token
+    ? `${cfg.appUrl}/squads/${params.squadId}/requests/${params.token}`
+    : `${cfg.appUrl}/squads/${params.squadId}`;
+
   const sent = await send({
     to: to.email,
     subject: `${params.requesterName} wants to join ${params.squadName}`,
     heading: 'Someone wants to join your squad',
-    body: `${params.requesterName} has asked to join ${params.squadName}. Open the squad to see who they are and decide.`,
-    actionLabel: 'Review the request',
-    /**
-     * The token is in the path, not a query string. Query strings travel in the
-     * `Referer` header to anything the destination page loads, and this one
-     * names a pending decision.
-     *
-     * The link only opens the request; it authorises nothing. The page requires
-     * a session and the decision is a POST — see services/joinRequestTokens.ts
-     * for why a GET here would be answered by a mail scanner.
-     */
-    actionUrl: params.token
-      ? `${cfg.appUrl}/squads/${params.squadId}/requests/${params.token}`
-      : `${cfg.appUrl}/squads/${params.squadId}`,
+    body: `${params.requesterName} has asked to join ${params.squadName}. Choose below and we will take you there to confirm.`,
+    actionLabel: 'Add to squad',
+    actionUrl: params.token ? `${base}#approve` : base,
+    secondaryLabel: 'Decline',
+    secondaryUrl: params.token ? `${base}#decline` : base,
     // One request produces one email to one leader, however many times the
     // notification path runs.
     idempotencyKey: `join-requested:${params.squadId}:${params.requesterName}:${params.leaderId}`,
@@ -281,6 +325,141 @@ export async function emailRequestAccepted(params: {
       userId: params.userId,
       category: EMAIL_CATEGORIES.REQUEST_ACCEPTED,
       scopeId: params.squadId,
+    });
+  }
+}
+
+/**
+ * A departure time as a person would say it, in India.
+ *
+ * Hard-coded to Asia/Kolkata rather than the recipient's stored timezone,
+ * because the time being described is a physical meeting on a campus in India —
+ * it does not move when the reader is abroad. A student on exchange reading
+ * "7:30 pm" wants the time their friends will be standing there, not 2pm their
+ * own time.
+ */
+function formatWhen(at?: Date | null): string | null {
+  if (!at || Number.isNaN(at.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(at);
+  } catch {
+    // A formatting failure must not cost the whole email.
+    return null;
+  }
+}
+
+/**
+ * Confirms to somebody that the thing they just made exists.
+ *
+ * A receipt, not an announcement: it goes to the creator and nobody else, and
+ * it carries the join code because that is the one piece of information they
+ * cannot reconstruct from memory and will want to paste into a group chat five
+ * minutes later.
+ *
+ * Idempotent on the squad or ride id alone. Creation happens once, so a second
+ * send for the same id can only be a retry of the same event — never a new one
+ * worth telling somebody about.
+ */
+export async function emailTripCreated(params: {
+  userId: string;
+  /** Which surface made it. Changes the wording and the link, nothing else. */
+  kind: 'squad' | 'ride';
+  id: string;
+  /** Squad name, or "Origin → Destination" for a ride. */
+  title: string;
+  /** Squads only, and only when there is one. */
+  joinCode?: string | null;
+  /** Meeting or departure time. Formatted here so both callers agree. */
+  whenAt?: Date | null;
+}): Promise<void> {
+  const cfg = config();
+  if (!cfg) return;
+
+  const to = await recipientFor(params.userId, EMAIL_CATEGORIES.TRIP_CREATED, params.id);
+  if (!to) return;
+
+  const isSquad = params.kind === 'squad';
+  const noun = isSquad ? 'squad' : 'ride';
+
+  /**
+   * Assembled as sentences rather than one template string with holes in it:
+   * a ride has no join code and a squad may have no time set, and a body
+   * reading "Share the code  with anyone" is the kind of thing that ships.
+   */
+  const lines = [
+    isSquad
+      ? `${params.title} is live. People at your college can find it now, and you will get an email when somebody asks to join.`
+      : `${params.title} is posted. You will get an email when somebody asks for a seat.`,
+  ];
+  const whenLabel = formatWhen(params.whenAt);
+  if (whenLabel) lines.push(`Leaving ${whenLabel}.`);
+  if (isSquad && params.joinCode) {
+    lines.push(`Join code: ${params.joinCode} — share it to pull someone in directly.`);
+  }
+
+  const sent = await send({
+    to: to.email,
+    subject: isSquad ? `Your squad is live — ${params.title}` : `Your ride is posted — ${params.title}`,
+    heading: `Your ${noun} is live`,
+    body: lines.join(' '),
+    actionLabel: isSquad ? 'Open the squad' : 'Open the ride',
+    actionUrl: `${cfg.appUrl}/${isSquad ? 'squads' : 'rides'}/${params.id}`,
+    idempotencyKey: `trip-created:${params.kind}:${params.id}`,
+  });
+
+  if (sent) {
+    await recordEmailSent({
+      userId: params.userId,
+      category: EMAIL_CATEGORIES.TRIP_CREATED,
+      scopeId: params.id,
+    });
+  }
+}
+
+/**
+ * Tells a ride's host that somebody wants a seat.
+ *
+ * Deliberately has **one** button where the squad equivalent has two. Rides
+ * have no accept-or-decline decision anywhere in the product — the in-app
+ * routes for it are deprecated and no screen offers it — so a "Decline" button
+ * here would be a link to a thing that cannot be done. It opens the ride, which
+ * is where the host can see who asked.
+ */
+export async function emailRideJoinRequested(params: {
+  hostId: string;
+  rideId: string;
+  rideLabel: string;
+  requesterName: string;
+}): Promise<void> {
+  const cfg = config();
+  if (!cfg) return;
+
+  const to = await recipientFor(params.hostId, EMAIL_CATEGORIES.JOIN_REQUEST, params.rideId);
+  if (!to) return;
+
+  const sent = await send({
+    to: to.email,
+    subject: `${params.requesterName} wants a seat — ${params.rideLabel}`,
+    heading: 'Someone wants a seat on your ride',
+    body: `${params.requesterName} has asked to join ${params.rideLabel}. Open the ride to see who they are.`,
+    actionLabel: 'Open the ride',
+    actionUrl: `${cfg.appUrl}/rides/${params.rideId}`,
+    idempotencyKey: `ride-join-requested:${params.rideId}:${params.requesterName}:${params.hostId}`,
+  });
+
+  if (sent) {
+    await recordEmailSent({
+      userId: params.hostId,
+      category: EMAIL_CATEGORIES.JOIN_REQUEST,
+      scopeId: params.rideId,
     });
   }
 }
