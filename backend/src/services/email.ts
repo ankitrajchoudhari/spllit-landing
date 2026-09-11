@@ -298,8 +298,35 @@ export async function emailWelcome(params: { userId: string }): Promise<void> {
   const cfg = config();
   if (!cfg) return;
 
+  /**
+   * Claim the welcome before sending it.
+   *
+   * The guard is `welcomedAt: null` inside the update, so of two callers
+   * arriving together exactly one wins — the signup path and the
+   * verification-retry path below can genuinely race. Claiming first means the
+   * loser sends nothing, where a read-then-write check would have both send.
+   *
+   * The cost of claiming first is that a failed send leaves the flag set and
+   * the person never welcomed. That is the right way round: a missing welcome
+   * is a non-event, and a duplicate is the thing that reads as broken.
+   */
+  const { count } = await prisma.user.updateMany({
+    where: { id: params.userId, welcomedAt: null },
+    data: { welcomedAt: new Date() },
+  });
+  if (count !== 1) return;
+
   const to = await recipientFor(params.userId, EMAIL_CATEGORIES.WELCOME);
-  if (!to) return;
+  if (!to) {
+    // Refused — unverified, suppressed, or switched off. Release the claim so a
+    // later verification can still trigger it; otherwise an email/password user
+    // who verifies next week would be marked welcomed having received nothing.
+    await prisma.user.updateMany({
+      where: { id: params.userId, welcomedAt: { not: null } },
+      data: { welcomedAt: null },
+    });
+    return;
+  }
 
   const first = to.name?.trim().split(/\s+/)[0] || 'there';
 
@@ -371,4 +398,105 @@ export async function sendTestEmail(
   });
 
   return ok ? { sent: true } : { sent: false, reason: 'Resend refused the message — see logs' };
+}
+
+/**
+ * Whether a campaign may be sent at all.
+ *
+ * Campaigns require their own From address, and are refused without one. The
+ * subdomain split exists because sending reputation is per-domain: an
+ * announcement is by far the likeliest message to be reported as spam — it is
+ * unsolicited by definition, however welcome — and a complaint against it must
+ * not be able to stop "your request was accepted" arriving.
+ *
+ * Defaulting to the transactional sender would be the convenient choice and the
+ * wrong one: the damage is invisible for weeks and then permanent.
+ */
+export function campaignSenderConfigured(): boolean {
+  return Boolean(config() && process.env.CAMPAIGN_EMAIL_FROM?.trim());
+}
+
+/**
+ * Sends one announcement to up to a hundred people.
+ *
+ * Resend's batch endpoint, one request per batch rather than one per person:
+ * a hundred sequential POSTs is a hundred chances to be rate-limited halfway
+ * through a broadcast with no record of where it stopped.
+ *
+ * Every recipient gets their own message — `to` is a single address per entry —
+ * so nobody sees anybody else's address. A campaign sent with a shared To or CC
+ * is a data breach rather than a mistake.
+ */
+export async function sendCampaignMessage(params: {
+  campaignId: string;
+  subject: string;
+  body: string;
+  recipients: { email: string; name: string }[];
+}): Promise<boolean> {
+  const cfg = config();
+  const from = process.env.CAMPAIGN_EMAIL_FROM?.trim();
+  if (!cfg || !from || params.recipients.length === 0) return false;
+
+  const unsubscribe = `${cfg.appUrl}/settings/notifications`;
+
+  const payload = params.recipients.map((person) => ({
+    from,
+    to: [person.email],
+    reply_to: cfg.replyTo,
+    subject: params.subject,
+    html: render(
+      {
+        to: person.email,
+        subject: params.subject,
+        heading: params.subject,
+        body: params.body,
+        actionLabel: 'Open Spllit',
+        actionUrl: cfg.appUrl,
+        idempotencyKey: '',
+      },
+      cfg.appUrl,
+    ),
+    text: renderText(
+      {
+        to: person.email,
+        subject: params.subject,
+        heading: params.subject,
+        body: params.body,
+        actionLabel: 'Open Spllit',
+        actionUrl: cfg.appUrl,
+        idempotencyKey: '',
+      },
+      cfg.appUrl,
+    ),
+    headers: {
+      // Required of bulk senders by Gmail and Yahoo, and this is the message
+      // type the requirement was written for.
+      'List-Unsubscribe': `<mailto:${cfg.replyTo}?subject=unsubscribe>, <${unsubscribe}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
+  }));
+
+  try {
+    const response = await fetch('https://api.resend.com/emails/batch', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${cfg.apiKey}`,
+        'Content-Type': 'application/json',
+        // Per batch, so a retry of the same batch cannot double-send it.
+        'Idempotency-Key': `campaign:${params.campaignId}:${params.recipients[0]?.email ?? '0'}`,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      console.error(`[campaign] Resend refused (${response.status}): ${detail.slice(0, 300)}`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[campaign] batch send failed', error);
+    return false;
+  }
 }

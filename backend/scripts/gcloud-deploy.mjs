@@ -73,6 +73,8 @@ const REQUIRED = [
 /** Non-secret config. FRONTEND_URL drives the CORS allowlist in server.ts. */
 const PLAIN_ENV = {
   NODE_ENV: 'production',
+  // Not a secret: it is the From address printed on every campaign.
+  ...(process.env.CAMPAIGN_EMAIL_FROM ? { CAMPAIGN_EMAIL_FROM: process.env.CAMPAIGN_EMAIL_FROM } : {}),
   FRONTEND_URL: 'https://spllit.app',
   JWT_EXPIRES_IN: '1h',
   JWT_REFRESH_EXPIRES_IN: '7d',

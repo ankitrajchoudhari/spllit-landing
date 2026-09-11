@@ -186,6 +186,34 @@ router.post('/me/bootstrap', async (req: AuthRequest, res: Response) => {
         where: { id: existing.id, firebaseUid: null },
         data: { firebaseUid: decoded.uid },
       });
+
+      /**
+       * Catch up on a verification that happened after signup.
+       *
+       * `emailVerified` was written once, at creation, from the token of that
+       * moment — fine for Google, which verifies before the account exists, and
+       * wrong for everybody else. An email/password user is created with
+       * `email_verified: false`, clicks Firebase's verification link a minute
+       * later, and Spllit never hears about it: the column stays false forever,
+       * and the address becomes permanently unmailable rather than merely
+       * unverified. That silently disables every email for that account, not
+       * just the welcome.
+       *
+       * The token carries the current answer on every bootstrap, so this is the
+       * natural place to notice. Guarded on the stored value being false, so it
+       * is a no-op on the overwhelmingly common path.
+       */
+      if (decoded.email_verified) {
+        const { count } = await prisma.user.updateMany({
+          where: { id: existing.id, emailVerified: false },
+          data: { emailVerified: true },
+        });
+
+        // Only on the transition, and emailWelcome itself refuses a second one
+        // — so this cannot greet somebody who was welcomed at signup.
+        if (count === 1) void emailWelcome({ userId: existing.id });
+      }
+
       return ok(res, existing);
     }
 

@@ -31,6 +31,10 @@ const COPY: Record<string, { label: string; description: string }> = {
     label: 'Welcome message',
     description: 'Sent once, when an account is first created.',
   },
+  campaign: {
+    label: 'Announcements from Spllit',
+    description: 'Occasional news about the app. Never marketing from anyone else.',
+  },
 };
 
 export default function NotificationSettingsPage() {
@@ -138,7 +142,8 @@ export default function NotificationSettingsPage() {
               off is worse than no control. */}
           <p className="px-1 text-[12.5px] leading-relaxed text-ink-subtle">
             You will always be emailed when a request of yours is accepted, and about
-            anything affecting your account. Spllit never sends marketing email.
+            anything affecting your account — those are answers to things you asked for.
+            Everything else, including announcements, is above and can be switched off.
           </p>
         </>
       )}

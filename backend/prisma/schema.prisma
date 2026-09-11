@@ -66,6 +66,13 @@ model User {
   /// twice. Self-referral is rejected at write time.
   referredBy        String?
   referredAt        DateTime?
+  /// When the welcome email was sent, and the proof it was sent exactly once.
+  ///
+  /// Not derivable from anything else: EmailSendLog is swept after two hours
+  /// because it exists for rate limiting, and Resend's idempotency key only
+  /// covers 24h. Neither can answer "has this person ever been welcomed" a
+  /// month later, which is precisely the question the retry path asks.
+  welcomedAt        DateTime?
   rating            Float     @default(0)
   totalRides        Int       @default(0)
   role              String    @default("user") // user, admin, subadmin
@@ -857,6 +864,36 @@ model ThreadMessage {
   /// serve it. This is the highest-volume collection in Spllit, which makes it
   /// the one where a scan hurts soonest.
   @@index([createdAt])
+}
+
+/// One announcement, and what happened to it.
+///
+/// Kept because a broadcast is the one email nobody can take back: it exists so
+/// that "what did we send, to how many, and who pressed send" has an answer six
+/// months later, when somebody asks why they got it.
+model Campaign {
+  id          String    @id @default(cuid()) @map("_id")
+  subject     String
+  body        String
+  /// Admin user id. Not a relation — the record must survive the account.
+  createdBy   String
+  createdName String?
+  /// draft | sending | sent | failed
+  status      String    @default("draft")
+  /// How many the audience query matched when sending began.
+  audience    Int       @default(0)
+  /// Accepted by the provider. Delivery is a separate question, answered by
+  /// webhooks rather than by this number.
+  sent        Int       @default(0)
+  /// Refused before sending: suppressed, unverified, or opted out.
+  skipped     Int       @default(0)
+  failed      Int       @default(0)
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([status])
 }
 
 /// Addresses Spllit must never email again.

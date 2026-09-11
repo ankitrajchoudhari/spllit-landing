@@ -22,6 +22,8 @@ export const EMAIL_CATEGORIES = {
   REQUEST_ACCEPTED: 'request-accepted',
   /** Sent once, when an account is first created. */
   WELCOME: 'welcome',
+  /** An announcement written by an admin and sent to many people at once. */
+  CAMPAIGN: 'campaign',
 } as const;
 
 export type EmailCategory = (typeof EMAIL_CATEGORIES)[keyof typeof EMAIL_CATEGORIES];
@@ -41,6 +43,7 @@ const IGNORES_QUIET_HOURS: readonly string[] = [EMAIL_CATEGORIES.REQUEST_ACCEPTE
 export const OPTIONAL_CATEGORIES: readonly string[] = [
   EMAIL_CATEGORIES.JOIN_REQUEST,
   EMAIL_CATEGORIES.WELCOME,
+  EMAIL_CATEGORIES.CAMPAIGN,
 ];
 
 export const QUIET_HOURS = { START: 22, END: 7 } as const;
@@ -180,6 +183,16 @@ export async function mayEmail(params: {
       select: { id: true },
     });
     if (recent) return { allowed: false, reason: 'cooling-off' };
+  }
+
+  /**
+   * The hourly cap is about not pestering one person with app events. A
+   * campaign is one message to everybody, so a busy squad must not silence it
+   * and it must not spend somebody's allowance for the day — it has its own
+   * limit, which is that an admin has to write it and press send.
+   */
+  if (params.category === EMAIL_CATEGORIES.CAMPAIGN) {
+    return { allowed: true, email: user.email, name: user.name };
   }
 
   const hourAgo = new Date(now.getTime() - 3600_000);

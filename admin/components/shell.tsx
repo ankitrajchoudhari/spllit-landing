@@ -12,6 +12,7 @@ import {
   Flag,
   Hash,
   LayoutDashboard,
+  Mail,
   LogOut,
   Menu,
   ScrollText,
@@ -63,6 +64,10 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/events', label: 'Events', icon: CalendarDays, permission: 'content.view' },
       { href: '/communities', label: 'Communities', icon: Hash, permission: 'content.view' },
       { href: '/notifications', label: 'Notifications', icon: Bell, permission: 'content.view' },
+      // Email, as opposed to the in-app broadcast on the Notifications page.
+      // Gated on notifications.send rather than content.view: reading what was
+      // sent is one thing, being able to mail everybody is another.
+      { href: '/campaigns', label: 'Campaigns', icon: Mail, permission: 'notifications.send' },
       { href: '/moderation', label: 'Moderation', icon: ShieldAlert, permission: 'moderation.view' },
     ],
   },

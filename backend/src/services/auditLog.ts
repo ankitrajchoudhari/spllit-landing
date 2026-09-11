@@ -29,6 +29,7 @@ export type AuditTargetType =
   | 'setting'
   | 'admin'
   | 'notification'
+  | 'campaign'
   | 'export';
 
 export interface AuditInput {
