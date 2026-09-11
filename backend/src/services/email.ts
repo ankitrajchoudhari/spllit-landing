@@ -1,4 +1,10 @@
 import prisma from '../utils/prisma.js';
+import {
+  EMAIL_CATEGORIES,
+  mayEmail,
+  recordEmailSent,
+  type EmailCategory,
+} from './emailPolicy.js';
 
 /**
  * Transactional email, over Resend.
@@ -160,21 +166,30 @@ async function send(input: SendInput): Promise<boolean> {
 }
 
 /**
- * Resolves a recipient, refusing anyone whose address is unverified.
+ * Resolves a recipient, or explains why there will not be one.
  *
- * Returns null rather than throwing — every caller is on a path where the real
- * work has already succeeded.
+ * Every rule lives in services/emailPolicy.ts — verified address, suppression
+ * list, the person's own preferences, quiet hours, the per-squad cool-off and
+ * the hourly cap. Keeping the decision in one module is what stops the newest
+ * message type being the one that forgot the suppression check.
+ *
+ * Returns null rather than throwing: every caller sits on a path where the real
+ * work has already committed.
  */
-async function verifiedRecipient(userId: string): Promise<{ email: string; name: string } | null> {
+async function recipientFor(
+  userId: string,
+  category: EmailCategory,
+  scopeId?: string,
+): Promise<{ email: string; name: string } | null> {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true, name: true, emailVerified: true },
-    });
-    if (!user?.email || !user.emailVerified) return null;
-    return { email: user.email, name: user.name };
+    const verdict = await mayEmail({ userId, category, scopeId });
+    if (!verdict.allowed) {
+      console.log(`[email] not sending ${category}: ${verdict.reason}`);
+      return null;
+    }
+    return { email: verdict.email!, name: verdict.name! };
   } catch (error) {
-    console.error('[email] could not resolve recipient', error);
+    console.error('[email] policy check failed', error);
     return null;
   }
 }
@@ -202,10 +217,10 @@ export async function emailJoinRequested(params: {
   const cfg = config();
   if (!cfg) return;
 
-  const to = await verifiedRecipient(params.leaderId);
+  const to = await recipientFor(params.leaderId, EMAIL_CATEGORIES.JOIN_REQUEST, params.squadId);
   if (!to) return;
 
-  await send({
+  const sent = await send({
     to: to.email,
     subject: `${params.requesterName} wants to join ${params.squadName}`,
     heading: 'Someone wants to join your squad',
@@ -227,6 +242,16 @@ export async function emailJoinRequested(params: {
     // notification path runs.
     idempotencyKey: `join-requested:${params.squadId}:${params.requesterName}:${params.leaderId}`,
   });
+
+  // Only a send that actually happened starts the cool-off. Logging a failure
+  // would let a broken provider silence this squad for half an hour.
+  if (sent) {
+    await recordEmailSent({
+      userId: params.leaderId,
+      category: EMAIL_CATEGORIES.JOIN_REQUEST,
+      scopeId: params.squadId,
+    });
+  }
 }
 
 /** Tells someone their request was accepted. */
@@ -238,10 +263,10 @@ export async function emailRequestAccepted(params: {
   const cfg = config();
   if (!cfg) return;
 
-  const to = await verifiedRecipient(params.userId);
+  const to = await recipientFor(params.userId, EMAIL_CATEGORIES.REQUEST_ACCEPTED, params.squadId);
   if (!to) return;
 
-  await send({
+  const sent = await send({
     to: to.email,
     subject: `You're in — ${params.squadName}`,
     heading: `You're in`,
@@ -250,6 +275,48 @@ export async function emailRequestAccepted(params: {
     actionUrl: `${cfg.appUrl}/squads/${params.squadId}`,
     idempotencyKey: `request-accepted:${params.squadId}:${params.userId}`,
   });
+
+  if (sent) {
+    await recordEmailSent({
+      userId: params.userId,
+      category: EMAIL_CATEGORIES.REQUEST_ACCEPTED,
+      scopeId: params.squadId,
+    });
+  }
+}
+
+/**
+ * Welcomes a new account, exactly once.
+ *
+ * Once is the whole requirement. The obvious hook — "they signed in with an
+ * email address" — fires on every sign-in, and a welcome message that arrives
+ * weekly reads as a broken system rather than a friendly one. The caller ties
+ * this to account *creation*, and the idempotency key is the user id so a retry
+ * of that same creation cannot produce a second one either.
+ */
+export async function emailWelcome(params: { userId: string }): Promise<void> {
+  const cfg = config();
+  if (!cfg) return;
+
+  const to = await recipientFor(params.userId, EMAIL_CATEGORIES.WELCOME);
+  if (!to) return;
+
+  const first = to.name?.trim().split(/\s+/)[0] || 'there';
+
+  const sent = await send({
+    to: to.email,
+    subject: 'Welcome to Spllit',
+    heading: `Welcome, ${first}`,
+    body: 'Spllit is how students travelling the same way find each other. Post a ride, start a squad, or see what is already heading where you are going.',
+    actionLabel: 'Open Spllit',
+    actionUrl: cfg.appUrl,
+    // The user id, so this message can only ever exist once per account.
+    idempotencyKey: `welcome:${params.userId}`,
+  });
+
+  if (sent) {
+    await recordEmailSent({ userId: params.userId, category: EMAIL_CATEGORIES.WELCOME });
+  }
 }
 
 /**
@@ -279,6 +346,17 @@ export async function sendTestEmail(
 
   if (!user) return { sent: false, reason: 'No Spllit user has that address' };
   if (!user.emailVerified) return { sent: false, reason: 'That address is not verified' };
+
+  // The suppression list is not advisory. An address that bounced or reported
+  // spam must not receive a test message either — that is precisely the send
+  // that would confirm to a provider we are not listening.
+  const suppressed = await prisma.emailSuppression.findUnique({
+    where: { email: address },
+    select: { reason: true },
+  });
+  if (suppressed) {
+    return { sent: false, reason: `That address is suppressed (${suppressed.reason})` };
+  }
 
   const ok = await send({
     to: address,

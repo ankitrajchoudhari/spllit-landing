@@ -6,6 +6,7 @@ import { sweepErasedChats } from '../services/squadChatRetention.js';
 import { sweepAllRead } from '../services/notificationRetention.js';
 import { isEmailConfigured, sendTestEmail } from '../services/email.js';
 import { sweepJoinRequestTokens } from '../services/joinRequestTokens.js';
+import { sweepEmailSendLog } from '../services/emailPolicy.js';
 
 /**
  * Scheduled maintenance, called by Cloud Scheduler rather than by a person.
@@ -216,6 +217,14 @@ router.post('/sweep', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[maintenance] join token sweep failed', error);
     results.joinTokens = { error: 'failed' };
+  }
+
+  try {
+    // Send-log rows older than the longest window that reads them.
+    results.emailLog = { deleted: await sweepEmailSendLog() };
+  } catch (error) {
+    console.error('[maintenance] email log sweep failed', error);
+    results.emailLog = { error: 'failed' };
   }
 
   console.log(`[maintenance] sweep: ${JSON.stringify(results)}`);

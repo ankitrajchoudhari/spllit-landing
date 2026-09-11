@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 
 import prisma from '../utils/prisma.js';
+import { emailWelcome } from '../services/email.js';
 import { identify } from '../middleware/identity.js';
 import { AuthRequest } from '../types/express.js';
 import { ok, fail, boundingBox } from '../utils/respond.js';
@@ -228,6 +229,21 @@ router.post('/me/bootstrap', async (req: AuthRequest, res: Response) => {
         },
         select: PROFILE_FIELDS,
       });
+
+      /**
+       * Welcome, once — tied to the row being created, not to signing in.
+       *
+       * This is the only place an account comes into existence, which is what
+       * makes "once" true. Hooking it to a sign-in would fire on every visit,
+       * and a welcome message that arrives weekly reads as a broken system.
+       * Note the P2002 branch below deliberately does *not* send: that path is
+       * two callers racing to create the same user, and the winner has already
+       * triggered this.
+       *
+       * Not awaited. The account exists; a mail failure must not turn a
+       * successful signup into an error the client retries.
+       */
+      void emailWelcome({ userId: created.id });
 
       return ok(res, created, 201);
     } catch (error) {

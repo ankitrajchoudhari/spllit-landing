@@ -859,6 +859,64 @@ model ThreadMessage {
   @@index([createdAt])
 }
 
+/// Addresses Spllit must never email again.
+///
+/// Fed by Resend's delivery webhooks. A hard bounce means the address does not
+/// exist; a complaint means somebody pressed "this is spam". Continuing to send
+/// to either is the single fastest way to have a sending domain blocked, and
+/// both are permanent decisions made by the receiving side rather than by us.
+///
+/// Keyed on the address, not the user: the same address may be reused by a
+/// different account, and the mailbox is what bounced.
+model EmailSuppression {
+  id        String   @id @default(cuid()) @map("_id")
+  email     String   @unique
+  /// bounce | complaint | unsubscribe | manual
+  reason    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([reason])
+}
+
+/// What a person wants to be emailed about.
+///
+/// Absent means "everything on" — a row is written only when somebody changes
+/// something, so the default costs no storage and no migration.
+model NotificationPref {
+  id         String   @id @default(cuid()) @map("_id")
+  userId     String   @unique
+  /// Category keys switched OFF. A list rather than a column per type, so
+  /// adding a category is not a schema change and an unknown key from an older
+  /// client is simply ignored.
+  emailOff   String[]
+  /// Whether to hold non-urgent mail overnight.
+  quietHours Boolean  @default(true)
+  /// IANA zone, e.g. Asia/Kolkata. Null falls back to the app's default.
+  timezone   String?
+  updatedAt  DateTime @updatedAt
+}
+
+/// One row per message actually sent.
+///
+/// Exists for rate limiting rather than for analytics, which is why it holds no
+/// content: the cool-off that stops five join requests becoming five emails
+/// needs to know when this recipient was last mailed about this squad, and the
+/// per-recipient hourly cap needs a count. Swept with the other retention jobs.
+model EmailSendLog {
+  id       String   @id @default(cuid()) @map("_id")
+  userId   String
+  /// Category key, e.g. join-request.
+  category String
+  /// What the message was about — a squad id — so the cool-off is per squad
+  /// rather than silencing every squad because one was busy.
+  scopeId  String?
+  sentAt   DateTime @default(now())
+
+  @@index([userId, sentAt])
+  @@index([userId, category, scopeId, sentAt])
+}
+
 /// A single-use link that identifies one pending join request.
 ///
 /// Emailed to a leader so they can answer a request without hunting for the

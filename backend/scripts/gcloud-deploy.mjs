@@ -58,6 +58,7 @@ const SECRETS = {
   // Transactional email. Also not REQUIRED — services/email.ts sends nothing
   // without it and throws nothing either. See docs/EMAIL-SYSTEM.md.
   RESEND_API_KEY: 'spllit-resend-api-key',
+  RESEND_WEBHOOK_SECRET: 'spllit-resend-webhook-secret',
 };
 const REQUIRED = [
   'DATABASE_URL',

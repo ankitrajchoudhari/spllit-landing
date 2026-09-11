@@ -34,6 +34,7 @@ import squadMemberRoutes from './routes/squadsMembers.js';
 import eventRoutes from './routes/events.js';
 import notificationRoutes from './routes/notifications.js';
 import maintenanceRoutes from './routes/maintenance.js';
+import emailWebhookRoutes from './routes/emailWebhooks.js';
 import waitlistRoutes from './routes/waitlist.js';
 import publicDataRoutes from './routes/publicData.js';
 import aiRoutes from './routes/ai.js';
@@ -140,6 +141,20 @@ app.use('/api/auth', (req: any, res: any, next: any) => {
   }
   next();
 });
+
+/**
+ * Delivery webhooks from Resend.
+ *
+ * Mounted *before* express.json, and that ordering is load-bearing: the Svix
+ * signature covers the exact bytes sent, and a body already parsed into an
+ * object cannot be turned back into them — JSON.parse followed by
+ * JSON.stringify does not round-trip key order or number formatting. The route
+ * takes a raw Buffer and parses the JSON itself.
+ *
+ * Outside /api because it is an integration endpoint called by one known third
+ * party, not part of the app's own surface.
+ */
+app.use('/webhooks', express.raw({ type: 'application/json', limit: '256kb' }), emailWebhookRoutes);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

@@ -216,17 +216,59 @@ the session proves *who is answering it*.
 
 ---
 
-## Phase 4 — preferences and suppression (not built)
+## Phase 4 — preferences and suppression (built)
 
-- Per-category preferences; unsubscribe writes to them.
-- Resend webhooks for bounces and complaints feed a suppression list that is
-  checked before every send. A hard bounce retried is how domains get blocked.
-- Unsubscribe must work without a session — the link is in an email.
+`services/emailPolicy.ts` is the single gate every message passes. Scattering
+these checks is how the newest message type becomes the one that forgot the
+suppression list.
 
-## Phase 5 — batching (not built)
+| Check | Refuses when |
+| --- | --- |
+| address | missing, unverified, or synthetic (`@firebase.local` — `.local` is not a real TLD, so every one is a guaranteed hard bounce) |
+| suppression | the address bounced hard or reported spam |
+| preference | the person switched that category off |
+| quiet hours | 22:00–07:00 local, unless the category is exempt |
+| cool-off | already mailed about this squad in the last 30 minutes |
+| hourly cap | six messages to one person in an hour, whatever the reason |
 
-Five join requests in ten minutes should be one email. Cloud Run has no timers,
-so this belongs on the existing Cloud Scheduler job that already calls
-`/api/maintenance/sweep`. Add quiet hours in the recipient's timezone, and skip
-email entirely to someone who has been active in-app in the last few minutes —
-they have already seen the notification.
+Suppression is checked *before* preferences: a complaint is the receiving side's
+decision and outranks anything the account holder configured.
+
+**Webhook.** `POST /webhooks/resend`, Svix-signed, mounted *before*
+`express.json` — the signature covers exact bytes, and parse-then-stringify does
+not round-trip them. Fails closed without `RESEND_WEBHOOK_SECRET`, because an
+unverified webhook lets anyone suppress any address, which is a denial of
+service on your own email. Timestamps older than five minutes are rejected, or a
+captured request could be replayed forever and every replay suppresses somebody.
+
+Only **hard** bounces suppress. A full mailbox is temporary, and silencing
+somebody permanently over it is worse than one retried message. Complaints have
+no soft form.
+
+**Preferences.** `GET`/`PATCH /api/notifications/preferences`. Only categories
+the server marks optional can be switched off — `request-accepted` is the answer
+to something the person asked for, and muting it would just leave them
+wondering. The timezone is validated by trying to use it, so an unknown zone
+cannot be stored and then silently ignored at send time.
+
+## Phase 5 — batching and quiet hours (built)
+
+**A cool-off, not a digest queue — and that is deliberate.** A digest has to be
+flushed by something, and the only scheduler here runs daily, so "five requests
+become one email" would also mean "the first request waits up to a day". That is
+worse than the problem it solves. Instead the first request mails immediately
+and the next thirty minutes are silent: the leader opens the email already sent
+and sees every pending request, because the page lists them all anyway.
+
+Scoped per squad, so a busy squad does not silence a quiet one.
+
+**Quiet hours** are 22:00–07:00 in the recipient's timezone, defaulting to
+`Asia/Kolkata`. `request-accepted` ignores them: it answers something the person
+asked for and went to sleep wondering about, and email does not buzz a phone the
+way a push does. A welcome message is the opposite and waits.
+
+### Still not built
+
+Skipping email to someone active in-app in the last few minutes. It needs a
+recency signal the policy does not read yet, and the hourly cap already bounds
+the damage.
