@@ -56,10 +56,26 @@ export interface RateLimitOptions {
   /** Distinguishes buckets so one limiter cannot exhaust another's budget. */
   name: string;
   message?: string;
+  /** Return true to let a request past without spending budget. */
+  skip?: (req: Request) => boolean;
 }
 
-export function rateLimit({ windowMs, max, name, message }: RateLimitOptions) {
+export function rateLimit({ windowMs, max, name, message, skip }: RateLimitOptions) {
   return function rateLimiter(req: Request, res: Response, next: NextFunction): void {
+    /**
+     * Lets a limiter apply to some requests on a path and not others.
+     *
+     * The broadcast limiter is the reason this exists: five sends per quarter
+     * hour is right for "notify everyone" and absurd for "tell these two
+     * students their ride is cancelled". The budget should follow how many
+     * people a request reaches, and a limiter keyed only on the path cannot
+     * see that — the caller can.
+     */
+    if (skip?.(req)) {
+      next();
+      return;
+    }
+
     const now = Date.now();
     sweep(now);
 

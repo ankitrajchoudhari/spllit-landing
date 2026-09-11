@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { RecipientPicker, type Recipient } from '@/components/recipient-picker';
 import { Send } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -26,7 +27,13 @@ const AUDIENCES = [
   { value: 'inactive', label: 'Lapsed (not seen in 30 days)' },
   { value: 'onboarding', label: 'Still onboarding' },
   { value: 'college', label: 'One college' },
+  // Named individuals. Exempt from the broadcast rate limit — see the skip in
+  // server.ts: the budget bounds reach, and a list bounds itself.
+  { value: 'users', label: 'Specific people' },
 ] as const;
+
+/** Matches MAX_NAMED_RECIPIENTS on the server, which enforces it. */
+const MAX_RECIPIENTS = 200;
 
 interface Preview {
   audience: string;
@@ -43,6 +50,7 @@ export function BroadcastComposer() {
 
   const [audience, setAudience] = useState<string>('all');
   const [college, setCollege] = useState('');
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [href, setHref] = useState('');
@@ -51,7 +59,7 @@ export function BroadcastComposer() {
 
   const sizeUp = useMutation({
     mutationFn: () =>
-      api<Preview>('/broadcast/preview', { method: 'POST', body: { audience, college } }),
+      api<Preview>('/broadcast/preview', { method: 'POST', body: { audience, college, userIds: recipients.map((person) => person.id) } }),
     onSuccess: setPreview,
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : 'Could not size the audience.'),
@@ -61,7 +69,7 @@ export function BroadcastComposer() {
     mutationFn: (reason: string) =>
       api<{ sent: number; failed: number }>('/broadcast', {
         method: 'POST',
-        body: { audience, college, title, body, href, reason },
+        body: { audience, college, title, body, href, reason, userIds: recipients.map((person) => person.id) },
       }),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -119,6 +127,10 @@ export function BroadcastComposer() {
           </select>
         </label>
 
+        {audience === 'users' ? (
+          <RecipientPicker selected={recipients} onChange={(next) => { setRecipients(next); invalidate(); }} max={MAX_RECIPIENTS} />
+        ) : null}
+
         {audience === 'college' ? (
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-semibold text-ink-muted">College</span>
@@ -170,7 +182,12 @@ export function BroadcastComposer() {
       <div className="flex flex-wrap items-center gap-3">
         <Button
           variant="secondary"
-          disabled={sizeUp.isPending || (audience === 'college' && !college.trim())}
+          disabled={
+            sizeUp.isPending ||
+            (audience === 'college' && !college.trim()) ||
+            // Sizing an empty list is a request that can only answer zero.
+            (audience === 'users' && recipients.length === 0)
+          }
           onClick={() => sizeUp.mutate()}
         >
           {sizeUp.isPending ? 'Counting…' : 'Check audience'}

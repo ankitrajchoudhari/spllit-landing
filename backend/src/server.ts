@@ -246,6 +246,22 @@ app.use(
     // recalled, so the cost of a runaway loop here is measured in people's
     // notification trays rather than in database load.
     message: 'Too many broadcasts. This is rate limited on purpose.',
+    /**
+     * Naming individual recipients is not a broadcast.
+     *
+     * The budget is meant to bound *reach*. Five per quarter hour is the right
+     * ceiling for "everyone onboarded" and a wall for "tell these three
+     * students their ride moved" — which is ordinary console work and was
+     * spending the same allowance. A named list is bounded by its own length,
+     * capped again in the handler, and still audited, so it does not need this.
+     *
+     * The preview is exempt for a simpler reason: it sends nothing.
+     */
+    skip: (req) => {
+      if (req.path.endsWith('/preview')) return true;
+      const body = req.body as { audience?: unknown; userIds?: unknown } | undefined;
+      return body?.audience === 'users' && Array.isArray(body?.userIds);
+    },
   }),
 );
 

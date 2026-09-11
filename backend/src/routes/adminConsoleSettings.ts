@@ -132,7 +132,7 @@ router.patch(
 // ---------------------------------------------------------------------------
 
 /** Who a broadcast can be aimed at. Each maps to a `where` below. */
-const AUDIENCES = ['all', 'active', 'inactive', 'onboarding', 'college'] as const;
+const AUDIENCES = ['all', 'active', 'inactive', 'onboarding', 'college', 'users'] as const;
 type Audience = (typeof AUDIENCES)[number];
 
 /**
@@ -155,11 +155,26 @@ async function broadcastCap(): Promise<number> {
   return getBounded('notifications.broadcast_cap', BROADCAST_CAP_DEFAULT, 1, 20_000);
 }
 
-function audienceWhere(audience: Audience, college: string) {
+/** Most recipients one named-list send may have. */
+const MAX_NAMED_RECIPIENTS = 200;
+
+function audienceWhere(audience: Audience, college: string, userIds: string[] = []) {
   const base: Record<string, unknown> = { isActive: true };
   const monthAgo = new Date(Date.now() - 30 * 86_400_000);
 
   switch (audience) {
+    /**
+     * Named individuals.
+     *
+     * Note this one does *not* require `onboarded` the way every audience
+     * below does. Those are queries over a population, where somebody halfway
+     * through signup is noise; this is a list an admin typed on purpose, and
+     * silently dropping a name they chose would be worse than including
+     * somebody who has not finished onboarding — which is frequently the exact
+     * person a console operator needs to reach.
+     */
+    case 'users':
+      return { ...base, id: { in: userIds.slice(0, MAX_NAMED_RECIPIENTS) } };
     case 'active':
       return { ...base, onboarded: true, lastSeen: { gte: monthAgo } };
     case 'inactive':
@@ -171,6 +186,23 @@ function audienceWhere(audience: Audience, college: string) {
     default:
       return { ...base, onboarded: true };
   }
+}
+
+
+/**
+ * The recipient ids on the request, cleaned.
+ *
+ * Deduplicated and capped here rather than trusted: the console sends what the
+ * operator picked, and a list is the one audience a client can make arbitrarily
+ * large by hand.
+ */
+function namedRecipients(body: unknown): string[] {
+  const raw = (body as { userIds?: unknown } | undefined)?.userIds;
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.map((id) => String(id)).filter(Boolean))].slice(
+    0,
+    MAX_NAMED_RECIPIENTS,
+  );
 }
 
 /**
@@ -191,8 +223,13 @@ router.post(
       const college = str(req.body?.college);
       if (audience === 'college' && !college) return fail(res, 400, 'A college is required.');
 
+      const namedIds = namedRecipients(req.body);
+      if (audience === 'users' && namedIds.length === 0) {
+        return fail(res, 400, 'Pick at least one person.');
+      }
+
       const [total, cap] = await Promise.all([
-        prisma.user.count({ where: audienceWhere(audience, college) }),
+        prisma.user.count({ where: audienceWhere(audience, college, namedIds) }),
         broadcastCap(),
       ]);
 
@@ -226,6 +263,12 @@ router.post(
 
       if (!AUDIENCES.includes(audience)) return fail(res, 400, 'Unknown audience.');
       if (audience === 'college' && !college) return fail(res, 400, 'A college is required.');
+
+      const namedIds = namedRecipients(req.body);
+      if (audience === 'users' && namedIds.length === 0) {
+        return fail(res, 400, 'Pick at least one person.');
+      }
+
       if (title.length < 3 || body.length < 3) {
         return fail(res, 400, 'A title and a message are required.');
       }
@@ -234,7 +277,7 @@ router.post(
       }
 
       const recipients = await prisma.user.findMany({
-        where: audienceWhere(audience, college),
+        where: audienceWhere(audience, college, namedIds),
         select: { id: true },
         take: await broadcastCap(),
       });
