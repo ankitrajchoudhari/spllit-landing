@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Car, LogOut, Star, Users } from 'lucide-react';
+import { Bell, Car, LogOut, Star, Users } from 'lucide-react';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -135,7 +135,17 @@ export function ProfileView({ userId }: { userId?: string }) {
             )}
           </div>
 
-          <div className="border-t border-line pt-5">
+          <div className="flex items-center gap-2 border-t border-line pt-5">
+            {/* The only route into settings today, and what the "Manage
+                notifications" link in every email points at — so it has to be
+                reachable from inside the app as well, or the email would be the
+                only way to find it. */}
+            <Link href="/settings/notifications">
+              <Button variant="ghost">
+                <Bell className="h-4 w-4" />
+                Notifications
+              </Button>
+            </Link>
             <Button variant="ghost" onClick={() => void signOut()}>
               <LogOut className="h-4 w-4" />
               Sign out
