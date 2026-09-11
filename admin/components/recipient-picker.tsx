@@ -25,6 +25,7 @@ interface Row {
   email: string;
   college: string;
   onboarded: boolean;
+  isActive: boolean;
 }
 
 interface UsersResponse {
@@ -145,6 +146,10 @@ export function RecipientPicker({
                           `users` case in adminConsoleSettings — and that is
                           worth seeing before you pick them. */}
                       {!row.onboarded ? <Badge tone="warn">onboarding</Badge> : null}
+                      {/* Not a refusal. `inactive` does not mean the account is
+                          unusable — those people sign in and use the app — but
+                          it is worth seeing before you pick them. */}
+                      {!row.isActive ? <Badge tone="warn">inactive</Badge> : null}
                       {picked ? <Check className="h-4 w-4 shrink-0 text-brand" /> : null}
                     </button>
                   </li>

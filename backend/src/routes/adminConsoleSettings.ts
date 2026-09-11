@@ -174,7 +174,19 @@ function audienceWhere(audience: Audience, college: string, userIds: string[] = 
      * person a console operator needs to reach.
      */
     case 'users':
-      return { ...base, id: { in: userIds.slice(0, MAX_NAMED_RECIPIENTS) } };
+      /**
+       * `isActive` is excluded deliberately, not by oversight.
+       *
+       * It does not mean what the name suggests — the Firebase bootstrap path
+       * never checks it, so accounts marked inactive sign in and use the app
+       * normally. Filtering on it here made a picker that lists everybody feed
+       * a send that quietly refused most of them: a broadcast to three named
+       * students delivered to none and reported nothing wrong.
+       *
+       * The console badges the unusual states in the picker, so including
+       * somebody stays a choice rather than an accident.
+       */
+      return { id: { in: userIds.slice(0, MAX_NAMED_RECIPIENTS) } };
     case 'active':
       return { ...base, onboarded: true, lastSeen: { gte: monthAgo } };
     case 'inactive':
