@@ -89,7 +89,7 @@ interface SendInput {
 }
 
 /**
- * One layout for both messages.
+ * One layout for every message.
  *
  * Deliberately plain: a table-free single column, system fonts, no images. The
  * elaborate version renders differently in every client and buys nothing for a
@@ -298,11 +298,27 @@ export async function emailJoinRequested(params: {
   }
 }
 
-/** Tells someone their request was accepted. */
+/**
+ * Tells someone their request was accepted, and by whom.
+ *
+ * The leader is named because "your request was accepted" reads as machinery
+ * and "Ankit added you" reads as a person letting you in — which is what
+ * actually happened, and which of the two a stranger about to share a cab with
+ * them would rather receive.
+ *
+ * Resolved here from an id rather than passed in as a string, so the two call
+ * sites that approve a request — the in-app one and the one behind the emailed
+ * link — cannot drift, and neither can forget.
+ *
+ * Note it is whoever *decided*, not the squad's leader. Admission is gated on
+ * `can.admitMembers`, which a co-leader also has, so naming the leader would
+ * credit the wrong person on every request a co-leader answers.
+ */
 export async function emailRequestAccepted(params: {
   userId: string;
   squadId: string;
   squadName: string;
+  decidedById?: string;
 }): Promise<void> {
   const cfg = config();
   if (!cfg) return;
@@ -310,13 +326,38 @@ export async function emailRequestAccepted(params: {
   const to = await recipientFor(params.userId, EMAIL_CATEGORIES.REQUEST_ACCEPTED, params.squadId);
   if (!to) return;
 
+  /**
+   * A missing name is not a reason to withhold the message, so every failure
+   * here falls back to the impersonal wording rather than returning.
+   */
+  let deciderName: string | null = null;
+  if (params.decidedById) {
+    try {
+      const decider = await prisma.user.findUnique({
+        where: { id: params.decidedById },
+        select: { name: true },
+      });
+      deciderName = decider?.name?.trim() || null;
+    } catch {
+      deciderName = null;
+    }
+  }
+
   const sent = await send({
     to: to.email,
-    subject: `You're in — ${params.squadName}`,
+    subject: deciderName
+      ? `${deciderName} added you to ${params.squadName}`
+      : `You're in — ${params.squadName}`,
     heading: `You're in`,
-    body: `Your request to join ${params.squadName} was accepted. Open the squad to see the meeting point and who else is going.`,
+    body: deciderName
+      ? `${deciderName} accepted your request to join ${params.squadName}. Open the squad to see the meeting point and who else is going.`
+      : `Your request to join ${params.squadName} was accepted. Open the squad to see the meeting point and who else is going.`,
     actionLabel: 'Open the squad',
     actionUrl: `${cfg.appUrl}/squads/${params.squadId}`,
+    // Two destinations, not one repeated: the squad they just joined, and
+    // everything else they have going on.
+    secondaryLabel: 'Open Spllit',
+    secondaryUrl: cfg.appUrl,
     idempotencyKey: `request-accepted:${params.squadId}:${params.userId}`,
   });
 

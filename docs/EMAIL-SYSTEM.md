@@ -144,10 +144,18 @@ emits hundreds of messages looks exactly like a compromised one.
 | Category | Goes to | Trigger |
 |---|---|---|
 | `join-request` | squad leader / ride host | somebody asks to join |
-| `request-accepted` | the asker | a leader lets them in |
+| `request-accepted` | the asker | a leader or co-leader lets them in |
 | `trip-created` | the creator | they create a squad or ride |
 | `welcome` | a new account | first creation, once |
 | `campaign` | everyone reachable | an admin writes and sends one |
+
+`request-accepted` names whoever admitted them — "Ankit added you to X" rather
+than "your request was accepted", because a person let you in and that is who a
+stranger about to share a cab would rather hear from. It names the **decider**,
+not the squad leader: admission is gated on `can.admitMembers`, which co-leaders
+also have, so crediting the leader would be wrong on every request a co-leader
+answers. It carries a second "Open Spllit" button beside "Open the squad" —
+two destinations, the squad they just joined and everything else they have on.
 
 `trip-created` is a receipt, so it goes to the creator and nobody else, and it
 carries the join code — the one thing they cannot reconstruct from memory and

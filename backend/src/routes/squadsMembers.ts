@@ -256,6 +256,7 @@ router.post('/:id/requests/:memberId', identify, async (req: AuthRequest, res: R
         userId: request.userId,
         squadId: squad.id,
         squadName: squad.name,
+        decidedById: req.user!.userId,
       });
     }
 
@@ -627,6 +628,7 @@ router.post('/join-requests/:token', identify, async (req: AuthRequest, res: Res
         userId: request.userId,
         squadId: squad.id,
         squadName: squad.name,
+        decidedById: req.user!.userId,
       });
     }
 
