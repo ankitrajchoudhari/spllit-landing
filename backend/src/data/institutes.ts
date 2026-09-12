@@ -7,8 +7,8 @@
  * convenience, never an authorisation boundary — so the two must be kept in
  * step, and this file is the one that matters.
  *
- * Matching is exact against the listed domains (including sub-domains listed
- * explicitly). Never suffix-match: "iitm.ac.in.attacker.com" must not pass.
+ * Matching accepts a listed domain **or any sub-domain of one** — see
+ * `emailMatchesInstitute` for why that is safe and what it is not.
  */
 export const INSTITUTE_DOMAINS: Record<string, string[]> = {
   // IITs
@@ -126,7 +126,33 @@ export const INSTITUTE_DOMAINS: Record<string, string[]> = {
   other: [],
 };
 
-/** Exact domain match only. */
+/**
+ * Does this address belong to this institute?
+ *
+ * Accepts a listed domain, or any sub-domain of one: `iitm.ac.in` therefore
+ * covers `ee.iitm.ac.in`, `ce.iitm.ac.in` and every other department and branch
+ * without each having to be discovered and added by hand. That enumeration was
+ * the actual failure mode — `study.iitm.ac.in` was missing for months and every
+ * BS-degree student was told their correct address was "not from IIT Madras".
+ *
+ * ## Why this is not the suffix-match this file used to warn against
+ *
+ * The danger is `endsWith(domain)` with no separator, which accepts
+ * `evil-iitm.ac.in` — an attacker-registered domain that merely ends in the
+ * right letters. The check below requires a literal dot before the listed
+ * domain, which is what makes it a sub-domain test rather than a string test:
+ *
+ *   evil-iitm.ac.in          → no '.' before iitm.ac.in     → refused
+ *   iitm.ac.in.attacker.com  → ends in .attacker.com        → refused
+ *   ee.iitm.ac.in            → '.iitm.ac.in'                → accepted
+ *
+ * What it does delegate is trust in the institution's own DNS: anyone who can
+ * receive mail at a sub-domain of iitm.ac.in is treated as being at IIT Madras.
+ * Every domain in this file is institution-owned, so that is exactly the
+ * intended meaning. It would not be safe for a domain the institution does not
+ * control, and nothing generic (gmail.com, a hosting provider) may be listed
+ * here for that reason.
+ */
 export function emailMatchesInstitute(email: string, instituteId: string): boolean {
   const domains = INSTITUTE_DOMAINS[instituteId];
   if (!domains || domains.length === 0) return false;
@@ -146,7 +172,11 @@ export function emailMatchesInstitute(email: string, instituteId: string): boole
   if (!local || !host) return false;
 
   const domain = host.trim().toLowerCase();
-  return domains.some((d) => domain === d.toLowerCase());
+  return domains.some((listed) => {
+    const d = listed.toLowerCase();
+    // The leading dot is the whole safety property. See above.
+    return domain === d || domain.endsWith(`.${d}`);
+  });
 }
 
 export function isKnownInstitute(instituteId: string): boolean {

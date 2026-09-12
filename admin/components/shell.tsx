@@ -24,6 +24,7 @@ import {
   Users,
   UsersRound,
   X,
+  MapPin,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
@@ -75,6 +76,9 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Platform',
     items: [
       { href: '/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics.view' },
+      // Next to Analytics rather than under Operations: it answers "what is the
+      // shape of demand", which is the same question as the rest of this group.
+      { href: '/activity', label: 'Activity', icon: MapPin, permission: 'analytics.view' },
       { href: '/explore', label: 'Explore', icon: Table2, permission: 'analytics.view' },
       { href: '/flags', label: 'Feature flags', icon: Flag, permission: 'settings.view' },
       { href: '/settings', label: 'Settings', icon: SlidersHorizontal, permission: 'settings.view' },

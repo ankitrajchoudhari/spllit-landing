@@ -12,6 +12,7 @@ import { formatPlate, isValidPlate, normalisePlate, findModel } from '../data/ve
 import { squadPostDenial } from '../services/threads.js';
 import { CHAT_RETENTION, chatAccess } from '../services/squadChatRetention.js';
 import { calculateDistance, calculateDistanceMetres } from '../utils/helpers.js';
+import { emailMatchesInstitute } from '../data/institutes.js';
 import {
   EMAIL_CATEGORIES,
   OPTIONAL_CATEGORIES,
@@ -414,5 +415,51 @@ describe('quiet hours', () => {
 
   it('treats an unknown timezone as daytime rather than silencing somebody forever', () => {
     assert.equal(isQuietHour(lateNight, 'Not/AZone'), false);
+  });
+});
+
+describe('institute email verification', () => {
+  it('accepts a listed domain', () => {
+    assert.equal(emailMatchesInstitute('a@iitm.ac.in', 'iitm'), true);
+    assert.equal(emailMatchesInstitute('a@study.iitm.ac.in', 'iitm'), true);
+  });
+
+  /**
+   * The reason this is not an enumerated list any more. A department or branch
+   * address must work without somebody first discovering it exists — that gap
+   * told every BS-degree student their correct address was not from IIT Madras.
+   */
+  it('accepts any sub-domain of a listed domain', () => {
+    assert.equal(emailMatchesInstitute('a@ee.iitm.ac.in', 'iitm'), true);
+    assert.equal(emailMatchesInstitute('a@cse.ds.study.iitm.ac.in', 'iitm'), true);
+    assert.equal(emailMatchesInstitute('a@alumni.iitm.ac.in', 'iitm'), true);
+  });
+
+  /**
+   * The attacks the leading dot exists to refuse. A look-alike domain an
+   * attacker can register must never read as the institute's own.
+   */
+  it('refuses a domain that merely ends in the right letters', () => {
+    assert.equal(emailMatchesInstitute('a@evil-iitm.ac.in', 'iitm'), false);
+    assert.equal(emailMatchesInstitute('a@notiitm.ac.in', 'iitm'), false);
+  });
+
+  it('refuses the institute domain used as a prefix of an attacker domain', () => {
+    assert.equal(emailMatchesInstitute('a@iitm.ac.in.attacker.com', 'iitm'), false);
+  });
+
+  it('does not let one institute verify against another', () => {
+    assert.equal(emailMatchesInstitute('a@iitd.ac.in', 'iitm'), false);
+    assert.equal(emailMatchesInstitute('a@ee.iitm.ac.in', 'iitd'), false);
+  });
+
+  it('refuses malformed addresses and institutes with no domain', () => {
+    assert.equal(emailMatchesInstitute('a@@iitm.ac.in', 'iitm'), false);
+    assert.equal(emailMatchesInstitute('iitm.ac.in', 'iitm'), false);
+    assert.equal(emailMatchesInstitute('a@iitm.ac.in', 'other'), false);
+  });
+
+  it('ignores case and surrounding space', () => {
+    assert.equal(emailMatchesInstitute('  A@EE.IITM.AC.IN  ', 'iitm'), true);
   });
 });

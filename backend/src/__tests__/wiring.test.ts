@@ -92,6 +92,13 @@ describe('ride matching routes', () => {
   it('mounts one request', () => expectGated('GET', '/api/rides/abc123/requests/m1'));
   it('mounts the decision', () => expectGated('POST', '/api/rides/abc123/requests/m1'));
 
+  /**
+   * Five routers share the /api/admin-console mount. A new one is only reachable
+   * if it was actually added to server.ts, and nothing else would notice a
+   * missing `app.use` — the page would simply 404 in production.
+   */
+  it('mounts the activity view', () => expectGated('GET', '/api/admin-console/activity'));
+
   it('matches /search before the legacy /:id catch-all', async () => {
     // Both routers are mounted on /api/rides. If ordering regressed, /search
     // would be read as a ride id and answer differently.

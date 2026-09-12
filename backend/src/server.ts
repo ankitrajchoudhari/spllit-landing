@@ -29,6 +29,7 @@ import adminConsoleRoutes from './routes/adminConsole.js';
 import adminConsoleOpsRoutes from './routes/adminConsoleOps.js';
 import adminConsoleSettingsRoutes from './routes/adminConsoleSettings.js';
 import adminConsoleCampaignRoutes from './routes/adminConsoleCampaigns.js';
+import adminConsoleActivityRoutes from './routes/adminConsoleActivity.js';
 import squadRoutes from './routes/squads.js';
 import squadPaymentRoutes from './routes/squadPayments.js';
 import squadMemberRoutes from './routes/squadsMembers.js';
@@ -384,6 +385,7 @@ app.use('/api/admin-console', adminConsoleOpsRoutes);
 app.use('/api/admin-console', adminConsoleSettingsRoutes);
 // Announcements. Same namespace, non-overlapping prefix.
 app.use('/api/admin-console', adminConsoleCampaignRoutes);
+app.use('/api/admin-console', adminConsoleActivityRoutes);
 app.use('/api/ai', aiRoutes);
 
 // Setup Socket.IO handlers

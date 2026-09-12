@@ -167,8 +167,14 @@ export function findInstituteByName(name: string | null | undefined): Institute 
 
 /**
  * Whether an email proves membership of an institute.
- * Exact domain or an explicitly listed sub-domain only — never a suffix match,
- * which "iitm.ac.in.attacker.com" would otherwise pass.
+ *
+ * A listed domain, or any sub-domain of one — so `iitm.ac.in` covers every
+ * department and branch without each being added by hand. The literal dot is
+ * what keeps that a sub-domain test rather than a string test:
+ * `evil-iitm.ac.in` and `iitm.ac.in.attacker.com` are both refused.
+ *
+ * Kept identical to backend/src/data/institutes.ts, which is the copy that
+ * authorises — this one only decides what the picker tells you.
  */
 export function emailMatchesInstitute(email: string, institute: Institute): boolean {
   if (institute.domains.length === 0) return false;
@@ -182,7 +188,10 @@ export function emailMatchesInstitute(email: string, institute: Institute): bool
   if (!local || !host) return false;
 
   const domain = host.trim().toLowerCase();
-  return institute.domains.some((d) => domain === d.toLowerCase());
+  return institute.domains.some((listed) => {
+    const d = listed.toLowerCase();
+    return domain === d || domain.endsWith(`.${d}`);
+  });
 }
 
 /** Ranked search over name, code and city. */
