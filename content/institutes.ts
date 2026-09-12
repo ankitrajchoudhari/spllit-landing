@@ -46,20 +46,16 @@ export const INSTITUTES: Institute[] = [
     // The online BS programme uses its own sub-domain and has far more
     // students than the residential campus — both must be accepted.
     // Kept in step with backend/src/data/institutes.ts — that copy is the one
-    // that authorises. `study.iitm.ac.in` is the BS-degree address.
-    domains: [
-      'iitm.ac.in',
-      'study.iitm.ac.in',
-      'smail.iitm.ac.in',
-      'student.onlinedegree.iitm.ac.in',
-      'ds.study.iitm.ac.in',
-    ],
+    // that authorises. One root entry covers every sub-domain IIT Madras
+    // issues — study., ds.study., smail. and onlinedegree. included — so
+    // there is nothing to keep adding as new cohorts appear.
+    domains: ['iitm.ac.in'],
     accent: IIT,
   },
   { id: 'iitd', name: 'IIT Delhi', code: 'IITD', city: 'New Delhi', type: 'IIT', domains: ['iitd.ac.in'], accent: IIT },
   { id: 'iitb', name: 'IIT Bombay', code: 'IITB', city: 'Mumbai', type: 'IIT', domains: ['iitb.ac.in'], accent: IIT },
   { id: 'iitk', name: 'IIT Kanpur', code: 'IITK', city: 'Kanpur', type: 'IIT', domains: ['iitk.ac.in'], accent: IIT },
-  { id: 'iitkgp', name: 'IIT Kharagpur', code: 'KGP', city: 'Kharagpur', type: 'IIT', domains: ['iitkgp.ac.in', 'kgpian.iitkgp.ac.in'], accent: IIT },
+  { id: 'iitkgp', name: 'IIT Kharagpur', code: 'KGP', city: 'Kharagpur', type: 'IIT', domains: ['iitkgp.ac.in'], accent: IIT },
   { id: 'iitr', name: 'IIT Roorkee', code: 'IITR', city: 'Roorkee', type: 'IIT', domains: ['iitr.ac.in'], accent: IIT },
   { id: 'iitg', name: 'IIT Guwahati', code: 'IITG', city: 'Guwahati', type: 'IIT', domains: ['iitg.ac.in'], accent: IIT },
   { id: 'iith', name: 'IIT Hyderabad', code: 'IITH', city: 'Hyderabad', type: 'IIT', domains: ['iith.ac.in'], accent: IIT },
@@ -81,7 +77,7 @@ export const INSTITUTES: Institute[] = [
 
   // --- NITs ---------------------------------------------------------------
   { id: 'nitt', name: 'NIT Tiruchirappalli', code: 'NITT', city: 'Tiruchirappalli', type: 'NIT', domains: ['nitt.edu'], accent: NIT },
-  { id: 'nitw', name: 'NIT Warangal', code: 'NITW', city: 'Warangal', type: 'NIT', domains: ['nitw.ac.in', 'student.nitw.ac.in'], accent: NIT },
+  { id: 'nitw', name: 'NIT Warangal', code: 'NITW', city: 'Warangal', type: 'NIT', domains: ['nitw.ac.in'], accent: NIT },
   { id: 'nitk', name: 'NIT Karnataka (Surathkal)', code: 'NITK', city: 'Mangaluru', type: 'NIT', domains: ['nitk.edu.in'], accent: NIT },
   { id: 'nitrkl', name: 'NIT Rourkela', code: 'NITR', city: 'Rourkela', type: 'NIT', domains: ['nitrkl.ac.in'], accent: NIT },
   { id: 'nitc', name: 'NIT Calicut', code: 'NITC', city: 'Kozhikode', type: 'NIT', domains: ['nitc.ac.in'], accent: NIT },
@@ -113,16 +109,16 @@ export const INSTITUTES: Institute[] = [
   { id: 'nitarp', name: 'NIT Arunachal Pradesh', code: 'NITAR', city: 'Jote', type: 'NIT', domains: ['nitap.ac.in'], accent: NIT },
 
   // --- IIITs --------------------------------------------------------------
-  { id: 'iiith', name: 'IIIT Hyderabad', code: 'IIITH', city: 'Hyderabad', type: 'IIIT', domains: ['iiit.ac.in', 'students.iiit.ac.in', 'research.iiit.ac.in'], accent: IIIT },
+  { id: 'iiith', name: 'IIIT Hyderabad', code: 'IIITH', city: 'Hyderabad', type: 'IIIT', domains: ['iiit.ac.in'], accent: IIIT },
   { id: 'iiitb', name: 'IIIT Bangalore', code: 'IIITB', city: 'Bengaluru', type: 'IIIT', domains: ['iiitb.ac.in', 'iiitb.org'], accent: IIIT },
-  { id: 'iiitd', name: 'IIIT Delhi', code: 'IIITD', city: 'New Delhi', type: 'IIIT', domains: ['iiitd.ac.in', 'student.iiitd.ac.in'], accent: IIIT },
+  { id: 'iiitd', name: 'IIIT Delhi', code: 'IIITD', city: 'New Delhi', type: 'IIIT', domains: ['iiitd.ac.in'], accent: IIIT },
   { id: 'iiita', name: 'IIIT Allahabad', code: 'IIITA', city: 'Prayagraj', type: 'IIIT', domains: ['iiita.ac.in'], accent: IIIT },
   { id: 'iiitg', name: 'IIIT Guwahati', code: 'IIITG', city: 'Guwahati', type: 'IIIT', domains: ['iiitg.ac.in'], accent: IIIT },
   { id: 'iiitdmj', name: 'IIITDM Jabalpur', code: 'IIITDM', city: 'Jabalpur', type: 'IIIT', domains: ['iiitdmj.ac.in'], accent: IIIT },
 
   // --- IISERs & research ---------------------------------------------------
   { id: 'iisc', name: 'IISc Bangalore', code: 'IISc', city: 'Bengaluru', type: 'IISER', domains: ['iisc.ac.in'], accent: IISER },
-  { id: 'iiserp', name: 'IISER Pune', code: 'IISERP', city: 'Pune', type: 'IISER', domains: ['iiserpune.ac.in', 'students.iiserpune.ac.in'], accent: IISER },
+  { id: 'iiserp', name: 'IISER Pune', code: 'IISERP', city: 'Pune', type: 'IISER', domains: ['iiserpune.ac.in'], accent: IISER },
   { id: 'iiserk', name: 'IISER Kolkata', code: 'IISERK', city: 'Kolkata', type: 'IISER', domains: ['iiserkol.ac.in'], accent: IISER },
   { id: 'iiserb', name: 'IISER Bhopal', code: 'IISERB', city: 'Bhopal', type: 'IISER', domains: ['iiserb.ac.in'], accent: IISER },
   { id: 'iiserm', name: 'IISER Mohali', code: 'IISERM', city: 'Mohali', type: 'IISER', domains: ['iisermohali.ac.in'], accent: IISER },
@@ -130,14 +126,14 @@ export const INSTITUTES: Institute[] = [
 
   // --- Universities --------------------------------------------------------
   { id: 'du', name: 'University of Delhi', code: 'DU', city: 'New Delhi', type: 'University', domains: ['du.ac.in'], accent: UNI },
-  { id: 'jnu', name: 'Jawaharlal Nehru University', code: 'JNU', city: 'New Delhi', type: 'University', domains: ['jnu.ac.in', 'mail.jnu.ac.in'], accent: UNI },
+  { id: 'jnu', name: 'Jawaharlal Nehru University', code: 'JNU', city: 'New Delhi', type: 'University', domains: ['jnu.ac.in'], accent: UNI },
   { id: 'jmi', name: 'Jamia Millia Islamia', code: 'JMI', city: 'New Delhi', type: 'University', domains: ['jmi.ac.in'], accent: UNI },
   { id: 'bhuni', name: 'Banaras Hindu University', code: 'BHU', city: 'Varanasi', type: 'University', domains: ['bhu.ac.in'], accent: UNI },
   { id: 'amu', name: 'Aligarh Muslim University', code: 'AMU', city: 'Aligarh', type: 'University', domains: ['amu.ac.in', 'myamu.ac.in'], accent: UNI },
   { id: 'vit', name: 'VIT Vellore', code: 'VIT', city: 'Vellore', type: 'University', domains: ['vit.ac.in', 'vitstudent.ac.in'], accent: UNI },
   { id: 'srm', name: 'SRM Institute of Science and Technology', code: 'SRM', city: 'Chennai', type: 'University', domains: ['srmist.edu.in', 'srmuniv.ac.in'], accent: UNI },
-  { id: 'manipal', name: 'Manipal Academy of Higher Education', code: 'MAHE', city: 'Manipal', type: 'University', domains: ['manipal.edu', 'learner.manipal.edu'], accent: UNI },
-  { id: 'bits', name: 'BITS Pilani', code: 'BITS', city: 'Pilani', type: 'University', domains: ['pilani.bits-pilani.ac.in', 'goa.bits-pilani.ac.in', 'hyderabad.bits-pilani.ac.in', 'bits-pilani.ac.in'], accent: UNI },
+  { id: 'manipal', name: 'Manipal Academy of Higher Education', code: 'MAHE', city: 'Manipal', type: 'University', domains: ['manipal.edu'], accent: UNI },
+  { id: 'bits', name: 'BITS Pilani', code: 'BITS', city: 'Pilani', type: 'University', domains: ['bits-pilani.ac.in'], accent: UNI },
   { id: 'annauniv', name: 'Anna University', code: 'AU', city: 'Chennai', type: 'University', domains: ['annauniv.edu'], accent: UNI },
   { id: 'ju', name: 'Jadavpur University', code: 'JU', city: 'Kolkata', type: 'University', domains: ['jadavpuruniversity.in'], accent: UNI },
   { id: 'dtu', name: 'Delhi Technological University', code: 'DTU', city: 'New Delhi', type: 'University', domains: ['dtu.ac.in'], accent: UNI },

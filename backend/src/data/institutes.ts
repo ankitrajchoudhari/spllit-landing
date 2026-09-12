@@ -13,23 +13,26 @@
 export const INSTITUTE_DOMAINS: Record<string, string[]> = {
   // IITs
   /**
-   * `study.iitm.ac.in` is the BS-degree students' address and was missing, so
-   * every one of them failed verification with "that address is not from IIT
-   * Madras" — a correct address rejected by an incomplete list. `ds.study…`
-   * was present, which is why the gap was easy to miss: the list looked like it
-   * already covered the online-degree cohort.
+   * One entry, not five.
+   *
+   * `study.iitm.ac.in`, `ds.study.iitm.ac.in`, `smail.iitm.ac.in` and
+   * `student.onlinedegree.iitm.ac.in` were all listed here, and all four were
+   * already covered by `iitm.ac.in` — `emailMatchesInstitute` accepts any
+   * sub-domain of a listed domain.
+   *
+   * They were removed because an enumeration teaches the wrong lesson. The
+   * original bug in this file was `study.iitm.ac.in` missing for months while
+   * every BS-degree student was told their correct address was "not from IIT
+   * Madras", and a list that looks exhaustive invites exactly that: someone
+   * adds a new cohort's sub-domain, forgets one, and it fails again. Listing
+   * the institution's root domain covers every sub-domain it will ever create,
+   * including ones nobody has heard of yet.
    */
-  iitm: [
-    'iitm.ac.in',
-    'study.iitm.ac.in',
-    'smail.iitm.ac.in',
-    'student.onlinedegree.iitm.ac.in',
-    'ds.study.iitm.ac.in',
-  ],
+  iitm: ['iitm.ac.in'],
   iitd: ['iitd.ac.in'],
   iitb: ['iitb.ac.in'],
   iitk: ['iitk.ac.in'],
-  iitkgp: ['iitkgp.ac.in', 'kgpian.iitkgp.ac.in'],
+  iitkgp: ['iitkgp.ac.in'],
   iitr: ['iitr.ac.in'],
   iitg: ['iitg.ac.in'],
   iith: ['iith.ac.in'],
@@ -51,7 +54,7 @@ export const INSTITUTE_DOMAINS: Record<string, string[]> = {
 
   // NITs
   nitt: ['nitt.edu'],
-  nitw: ['nitw.ac.in', 'student.nitw.ac.in'],
+  nitw: ['nitw.ac.in'],
   nitk: ['nitk.edu.in'],
   nitrkl: ['nitrkl.ac.in'],
   nitc: ['nitc.ac.in'],
@@ -83,16 +86,16 @@ export const INSTITUTE_DOMAINS: Record<string, string[]> = {
   nitarp: ['nitap.ac.in'],
 
   // IIITs
-  iiith: ['iiit.ac.in', 'students.iiit.ac.in', 'research.iiit.ac.in'],
+  iiith: ['iiit.ac.in'],
   iiitb: ['iiitb.ac.in', 'iiitb.org'],
-  iiitd: ['iiitd.ac.in', 'student.iiitd.ac.in'],
+  iiitd: ['iiitd.ac.in'],
   iiita: ['iiita.ac.in'],
   iiitg: ['iiitg.ac.in'],
   iiitdmj: ['iiitdmj.ac.in'],
 
   // IISc / IISERs
   iisc: ['iisc.ac.in'],
-  iiserp: ['iiserpune.ac.in', 'students.iiserpune.ac.in'],
+  iiserp: ['iiserpune.ac.in'],
   iiserk: ['iiserkol.ac.in'],
   iiserb: ['iiserb.ac.in'],
   iiserm: ['iisermohali.ac.in'],
@@ -100,19 +103,15 @@ export const INSTITUTE_DOMAINS: Record<string, string[]> = {
 
   // Universities
   du: ['du.ac.in'],
-  jnu: ['jnu.ac.in', 'mail.jnu.ac.in'],
+  jnu: ['jnu.ac.in'],
   jmi: ['jmi.ac.in'],
   bhuni: ['bhu.ac.in'],
   amu: ['amu.ac.in', 'myamu.ac.in'],
   vit: ['vit.ac.in', 'vitstudent.ac.in'],
   srm: ['srmist.edu.in', 'srmuniv.ac.in'],
-  manipal: ['manipal.edu', 'learner.manipal.edu'],
-  bits: [
-    'pilani.bits-pilani.ac.in',
-    'goa.bits-pilani.ac.in',
-    'hyderabad.bits-pilani.ac.in',
-    'bits-pilani.ac.in',
-  ],
+  manipal: ['manipal.edu'],
+  // Every campus is a sub-domain of the root, so the root covers them all.
+  bits: ['bits-pilani.ac.in'],
   annauniv: ['annauniv.edu'],
   ju: ['jadavpuruniversity.in'],
   dtu: ['dtu.ac.in'],

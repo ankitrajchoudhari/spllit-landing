@@ -12,7 +12,11 @@ import { formatPlate, isValidPlate, normalisePlate, findModel } from '../data/ve
 import { squadPostDenial } from '../services/threads.js';
 import { CHAT_RETENTION, chatAccess } from '../services/squadChatRetention.js';
 import { calculateDistance, calculateDistanceMetres } from '../utils/helpers.js';
-import { emailMatchesInstitute, inferInstituteFromEmail } from '../data/institutes.js';
+import {
+  INSTITUTE_DOMAINS,
+  emailMatchesInstitute,
+  inferInstituteFromEmail,
+} from '../data/institutes.js';
 import { renderPreview } from '../services/email.js';
 import {
   EMAIL_CATEGORIES,
@@ -601,5 +605,64 @@ describe('inferring an institute from the sign-in address', () => {
 
   it('accepts a department sub-domain, since the institute owns its DNS', () => {
     assert.equal(inferInstituteFromEmail('a@ee.iitm.ac.in'), 'iitm');
+  });
+});
+
+describe('institute domains list only roots', () => {
+  it('lists no domain that another entry already covers', () => {
+    /**
+     * The invariant that keeps this list honest.
+     *
+     * Fifteen sub-domains were listed alongside their own parents — five for
+     * IIT Madras alone. Every one was dead weight, because matching accepts any
+     * sub-domain of a listed domain. Worse than dead weight: a list that looks
+     * exhaustive invites the original bug back, where a cohort's sub-domain is
+     * forgotten and correct addresses are rejected.
+     */
+    for (const [id, domains] of Object.entries(INSTITUTE_DOMAINS)) {
+      for (const domain of domains) {
+        const covered = domains.find(
+          (other) => other !== domain && domain.toLowerCase().endsWith(`.${other.toLowerCase()}`),
+        );
+        assert.equal(covered, undefined, `${id}: "${domain}" is already covered by "${covered}"`);
+      }
+    }
+  });
+
+  it('still accepts every sub-domain that used to be listed explicitly', () => {
+    // Removing them must not have narrowed anything. These are real addresses.
+    const removed: [string, string][] = [
+      ['a@study.iitm.ac.in', 'iitm'],
+      ['a@ds.study.iitm.ac.in', 'iitm'],
+      ['a@smail.iitm.ac.in', 'iitm'],
+      ['a@student.onlinedegree.iitm.ac.in', 'iitm'],
+      ['a@kgpian.iitkgp.ac.in', 'iitkgp'],
+      ['a@student.nitw.ac.in', 'nitw'],
+      ['a@students.iiit.ac.in', 'iiith'],
+      ['a@research.iiit.ac.in', 'iiith'],
+      ['a@student.iiitd.ac.in', 'iiitd'],
+      ['a@students.iiserpune.ac.in', 'iiserp'],
+      ['a@mail.jnu.ac.in', 'jnu'],
+      ['a@learner.manipal.edu', 'manipal'],
+      ['a@pilani.bits-pilani.ac.in', 'bits'],
+      ['a@goa.bits-pilani.ac.in', 'bits'],
+      ['a@hyderabad.bits-pilani.ac.in', 'bits'],
+    ];
+
+    for (const [email, id] of removed) {
+      assert.equal(emailMatchesInstitute(email, id), true, `${email} no longer matches ${id}`);
+    }
+  });
+
+  it('accepts a sub-domain nobody has listed or thought of', () => {
+    // The whole point: a new cohort's address works without a code change.
+    assert.equal(inferInstituteFromEmail('a@brand.new.cohort.iitm.ac.in'), 'iitm');
+    assert.equal(inferInstituteFromEmail('a@alumni.iitkgp.ac.in'), 'iitkgp');
+  });
+
+  it('still refuses a look-alike of a collapsed entry', () => {
+    // Collapsing to the root must not have turned the match into a suffix test.
+    assert.equal(inferInstituteFromEmail('a@notbits-pilani.ac.in'), null);
+    assert.equal(inferInstituteFromEmail('a@evil-iitm.ac.in'), null);
   });
 });
