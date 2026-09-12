@@ -190,13 +190,37 @@ export function emailMatchesInstitute(email: string, institute: Institute): bool
   });
 }
 
-/** Ranked search over name, code and city. */
+/**
+ * Which campuses Spllit is open to.
+ *
+ * Kept in step with ENABLED_INSTITUTE_IDS in backend/src/data/institutes.ts,
+ * which is the copy that authorises. This one decides what the picker offers —
+ * and offering a campus the server will refuse to verify is how somebody
+ * spends an afternoon on a form that was never going to work.
+ */
+export const ENABLED_INSTITUTE_IDS: readonly string[] = ['iitm'];
+
+export function isInstituteEnabled(instituteId: string | null | undefined): boolean {
+  return typeof instituteId === 'string' && ENABLED_INSTITUTE_IDS.includes(instituteId);
+}
+
+/** The campuses a person may actually pick. */
+export const ENABLED_INSTITUTES: Institute[] = INSTITUTES.filter((i) => isInstituteEnabled(i.id));
+
+/**
+ * Ranked search over name, code and city.
+ *
+ * Searches only enabled institutes. The full INSTITUTES list stays intact so
+ * `findInstituteByName` can still resolve a legacy `college` value written
+ * before the scope narrowed — reading an old profile must keep working even
+ * where creating a new one that way would not.
+ */
 export function searchInstitutes(query: string, limit = 40): Institute[] {
   const q = query.trim().toLowerCase();
-  if (!q) return INSTITUTES.slice(0, limit);
+  if (!q) return ENABLED_INSTITUTES.slice(0, limit);
 
   const scored: { institute: Institute; score: number }[] = [];
-  for (const institute of INSTITUTES) {
+  for (const institute of ENABLED_INSTITUTES) {
     const name = institute.name.toLowerCase();
     const code = institute.code.toLowerCase();
     const city = institute.city.toLowerCase();

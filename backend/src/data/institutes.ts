@@ -179,6 +179,30 @@ export function emailMatchesInstitute(email: string, instituteId: string): boole
 }
 
 /**
+ * Which campuses Spllit is open to.
+ *
+ * A launch-scope decision, not a property of the institutes themselves — which
+ * is why it is a separate list rather than 82 deletions from
+ * INSTITUTE_DOMAINS. Opening another campus is one entry here; deleting them
+ * would mean reconstructing domain lists that took real effort to get right,
+ * and losing the history of which sub-domains each institution issues.
+ *
+ * Safe to introduce against the live data: nobody is verified on a non-IITM
+ * institute, and the two accounts that picked one (`coep`, `other`) are
+ * unverified, so this takes nothing away from anyone who has it.
+ *
+ * Enforced at both decision points — onboarding and the manual institute-email
+ * flow — not in `emailMatchesInstitute`. That function answers "does this
+ * address belong to this institute", which is true regardless of whether we
+ * are open there; conflating the two would make a domain check start lying.
+ */
+export const ENABLED_INSTITUTE_IDS: readonly string[] = ['iitm'];
+
+export function isInstituteEnabled(instituteId: string | null | undefined): boolean {
+  return typeof instituteId === 'string' && ENABLED_INSTITUTE_IDS.includes(instituteId);
+}
+
+/**
  * The institute an address proves, when it proves exactly one.
  *
  * Onboarding used to verify only someone who had *already* picked an institute
@@ -193,9 +217,10 @@ export function emailMatchesInstitute(email: string, instituteId: string): boole
  * to — a quiet wrong answer where null produces a visible question.
  */
 export function inferInstituteFromEmail(email: string): string | null {
-  const matches = Object.keys(INSTITUTE_DOMAINS).filter((id) =>
-    emailMatchesInstitute(email, id),
-  );
+  // Only campuses Spllit is open to. Without this an address from a listed but
+  // disabled institute would auto-verify at onboarding, quietly routing around
+  // the scope gate the two call sites enforce.
+  const matches = ENABLED_INSTITUTE_IDS.filter((id) => emailMatchesInstitute(email, id));
   return matches.length === 1 ? (matches[0] ?? null) : null;
 }
 

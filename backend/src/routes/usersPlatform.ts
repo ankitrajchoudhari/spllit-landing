@@ -12,6 +12,7 @@ import {
   emailMatchesInstitute,
   inferInstituteFromEmail,
   instituteDomainList,
+  isInstituteEnabled,
   isKnownInstitute,
 } from '../data/institutes.js';
 
@@ -454,8 +455,15 @@ router.post('/me/onboarding', identify, async (req: AuthRequest, res: Response) 
       return usernameConflict('That username is taken');
     }
 
+    /**
+     * Known *and* open. `isKnownInstitute` only says the id exists in the
+     * domain list; Spllit is currently open to IIT Madras alone, and a chosen
+     * id outside that is dropped so it cannot be verified against later.
+     */
     const chosenInstituteId =
-      typeof req.body.instituteId === 'string' && isKnownInstitute(req.body.instituteId)
+      typeof req.body.instituteId === 'string' &&
+      isKnownInstitute(req.body.instituteId) &&
+      isInstituteEnabled(req.body.instituteId)
         ? req.body.instituteId
         : null;
 
@@ -630,6 +638,21 @@ router.post('/me/institute-email', identify, async (req: AuthRequest, res: Respo
 
     if (!me?.instituteId) {
       return fail(res, 400, 'Choose your institute first', 'no-institute');
+    }
+
+    /**
+     * Checked before the domain match, because an account can still be
+     * carrying an institute id from before Spllit narrowed its scope. Without
+     * this, someone whose profile says `coep` could verify a COEP address and
+     * be inside the rides gate on a campus we are not open to.
+     */
+    if (!isInstituteEnabled(me.instituteId)) {
+      return fail(
+        res,
+        403,
+        'Spllit is only open to IIT Madras right now.',
+        'institute-not-enabled',
+      );
     }
 
     if (!emailMatchesInstitute(email, me.instituteId)) {

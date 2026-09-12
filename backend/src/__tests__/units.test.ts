@@ -13,9 +13,11 @@ import { squadPostDenial } from '../services/threads.js';
 import { CHAT_RETENTION, chatAccess } from '../services/squadChatRetention.js';
 import { calculateDistance, calculateDistanceMetres } from '../utils/helpers.js';
 import {
+  ENABLED_INSTITUTE_IDS,
   INSTITUTE_DOMAINS,
   emailMatchesInstitute,
   inferInstituteFromEmail,
+  isInstituteEnabled,
 } from '../data/institutes.js';
 import { renderPreview } from '../services/email.js';
 import {
@@ -576,7 +578,10 @@ describe('inferring an institute from the sign-in address', () => {
     assert.equal(inferInstituteFromEmail('24f2001589@ds.study.iitm.ac.in'), 'iitm');
     assert.equal(inferInstituteFromEmail('ce25m133@smail.iitm.ac.in'), 'iitm');
     assert.equal(inferInstituteFromEmail('a@iitm.ac.in'), 'iitm');
-    assert.equal(inferInstituteFromEmail('a@iitd.ac.in'), 'iitd');
+
+    // IIT Delhi is a listed institute but Spllit is not open there, so its
+    // address proves nothing here. See "Spllit is open to IIT Madras only".
+    assert.equal(inferInstituteFromEmail('a@iitd.ac.in'), null);
   });
 
   it('infers nothing from a consumer address', () => {
@@ -657,12 +662,57 @@ describe('institute domains list only roots', () => {
   it('accepts a sub-domain nobody has listed or thought of', () => {
     // The whole point: a new cohort's address works without a code change.
     assert.equal(inferInstituteFromEmail('a@brand.new.cohort.iitm.ac.in'), 'iitm');
-    assert.equal(inferInstituteFromEmail('a@alumni.iitkgp.ac.in'), 'iitkgp');
+
+    // Sub-domain matching itself is unchanged for a disabled campus — it is
+    // the scope gate, not the domain rule, that refuses this one.
+    assert.equal(emailMatchesInstitute('a@alumni.iitkgp.ac.in', 'iitkgp'), true);
+    assert.equal(inferInstituteFromEmail('a@alumni.iitkgp.ac.in'), null);
   });
 
   it('still refuses a look-alike of a collapsed entry', () => {
     // Collapsing to the root must not have turned the match into a suffix test.
     assert.equal(inferInstituteFromEmail('a@notbits-pilani.ac.in'), null);
     assert.equal(inferInstituteFromEmail('a@evil-iitm.ac.in'), null);
+  });
+});
+
+describe('Spllit is open to IIT Madras only', () => {
+  it('enables exactly the campuses on the list, and nothing else', () => {
+    assert.deepEqual([...ENABLED_INSTITUTE_IDS], ['iitm']);
+    assert.equal(isInstituteEnabled('iitm'), true);
+    assert.equal(isInstituteEnabled('iitd'), false);
+    assert.equal(isInstituteEnabled('bits'), false);
+    assert.equal(isInstituteEnabled(null), false);
+    assert.equal(isInstituteEnabled(''), false);
+  });
+
+  it('every enabled id is a real institute', () => {
+    // A typo here would disable the platform silently — nothing would verify,
+    // and the domain list would still look correct.
+    for (const id of ENABLED_INSTITUTE_IDS) {
+      assert.ok(INSTITUTE_DOMAINS[id], `"${id}" is enabled but has no domains`);
+    }
+  });
+
+  it('infers only an enabled institute', () => {
+    // The quiet failure this guards: a listed-but-disabled campus auto-
+    // verifying at onboarding, routing around the gate the call sites enforce.
+    assert.equal(inferInstituteFromEmail('a@ds.study.iitm.ac.in'), 'iitm');
+    assert.equal(inferInstituteFromEmail('a@iitd.ac.in'), null);
+    assert.equal(inferInstituteFromEmail('a@bits-pilani.ac.in'), null);
+    assert.equal(inferInstituteFromEmail('a@nitt.edu'), null);
+  });
+
+  it('still answers the domain question honestly for disabled campuses', () => {
+    /**
+     * emailMatchesInstitute is deliberately NOT scoped.
+     *
+     * It answers "does this address belong to this institute", which stays
+     * true whether or not Spllit is open there. Folding enablement into it
+     * would make a domain check start lying, and every error message built
+     * from it would go wrong with it.
+     */
+    assert.equal(emailMatchesInstitute('a@iitd.ac.in', 'iitd'), true);
+    assert.equal(isInstituteEnabled('iitd'), false);
   });
 });
