@@ -10,8 +10,9 @@ import { getLivePosition } from '../services/live.js';
 import { verifyFirebaseIdToken, isFirebaseAdminConfigured } from '../utils/firebaseAdmin.js';
 import {
   emailMatchesInstitute,
-  isKnownInstitute,
+  inferInstituteFromEmail,
   instituteDomainList,
+  isKnownInstitute,
 } from '../data/institutes.js';
 
 const router = Router();
@@ -453,15 +454,31 @@ router.post('/me/onboarding', identify, async (req: AuthRequest, res: Response) 
       return usernameConflict('That username is taken');
     }
 
-    const instituteId =
+    const chosenInstituteId =
       typeof req.body.instituteId === 'string' && isKnownInstitute(req.body.instituteId)
         ? req.body.instituteId
         : null;
 
-    // If the sign-in address already belongs to the chosen institute, verify
-    // immediately — most campus Google accounts do, and asking again would be
-    // pointless friction.
     const signInEmail = req.user!.email;
+
+    /**
+     * Their choice first, then what the address itself proves.
+     *
+     * Previously this only considered `chosenInstituteId`, so anyone who signed
+     * in with a campus address and skipped the institute picker was left
+     * unverified — and then blocked by the rides gate while holding exactly the
+     * credential it asks for. That was 55 accounts against 25 verified, nearly
+     * all of them `…@ds.study.iitm.ac.in`.
+     *
+     * Inference never overrides a choice: someone who picks IIT Delhi while
+     * holding an IITM address keeps IIT Delhi and stays unverified, which is
+     * the honest outcome — the address does not prove what they claimed.
+     */
+    const instituteId = chosenInstituteId ?? inferInstituteFromEmail(signInEmail);
+
+    // If the sign-in address belongs to that institute, verify immediately —
+    // most campus Google accounts do, and asking again would be pointless
+    // friction. The address is one Google vouched for, not a typed field.
     const autoVerified =
       instituteId !== null && emailMatchesInstitute(signInEmail, instituteId);
 

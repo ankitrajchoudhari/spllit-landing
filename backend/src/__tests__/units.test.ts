@@ -12,7 +12,7 @@ import { formatPlate, isValidPlate, normalisePlate, findModel } from '../data/ve
 import { squadPostDenial } from '../services/threads.js';
 import { CHAT_RETENTION, chatAccess } from '../services/squadChatRetention.js';
 import { calculateDistance, calculateDistanceMetres } from '../utils/helpers.js';
-import { emailMatchesInstitute } from '../data/institutes.js';
+import { emailMatchesInstitute, inferInstituteFromEmail } from '../data/institutes.js';
 import { renderPreview } from '../services/email.js';
 import {
   EMAIL_CATEGORIES,
@@ -562,5 +562,44 @@ describe('email rendering', () => {
     });
     assert.ok(!html.includes('"onmouseover="'));
     assert.ok(html.includes('&quot;'));
+  });
+});
+
+describe('inferring an institute from the sign-in address', () => {
+  it('infers the institute a campus address proves', () => {
+    // The case that was silently failing: BS-degree students signed in with
+    // these, skipped the institute picker, and were left unverified.
+    assert.equal(inferInstituteFromEmail('24f2001589@ds.study.iitm.ac.in'), 'iitm');
+    assert.equal(inferInstituteFromEmail('ce25m133@smail.iitm.ac.in'), 'iitm');
+    assert.equal(inferInstituteFromEmail('a@iitm.ac.in'), 'iitm');
+    assert.equal(inferInstituteFromEmail('a@iitd.ac.in'), 'iitd');
+  });
+
+  it('infers nothing from a consumer address', () => {
+    // Verifying a gmail account as a campus member is the failure that would
+    // make the whole gate meaningless.
+    assert.equal(inferInstituteFromEmail('someone@gmail.com'), null);
+    assert.equal(inferInstituteFromEmail('someone@outlook.com'), null);
+  });
+
+  it('infers nothing from a look-alike domain', () => {
+    // An attacker-registered domain that merely ends in the right letters.
+    assert.equal(inferInstituteFromEmail('a@evil-iitm.ac.in'), null);
+    assert.equal(inferInstituteFromEmail('a@iitm.ac.in.attacker.com'), null);
+  });
+
+  it('infers nothing from an unlisted academic domain', () => {
+    // A real university Spllit has not onboarded is not a match for one it has.
+    assert.equal(inferInstituteFromEmail('lncdbtc21032@lnctu.ac.in'), null);
+  });
+
+  it('infers nothing from a malformed address', () => {
+    assert.equal(inferInstituteFromEmail('a@@ds.study.iitm.ac.in'), null);
+    assert.equal(inferInstituteFromEmail('no-at-sign'), null);
+    assert.equal(inferInstituteFromEmail(''), null);
+  });
+
+  it('accepts a department sub-domain, since the institute owns its DNS', () => {
+    assert.equal(inferInstituteFromEmail('a@ee.iitm.ac.in'), 'iitm');
   });
 });

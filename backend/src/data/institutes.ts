@@ -179,6 +179,27 @@ export function emailMatchesInstitute(email: string, instituteId: string): boole
   });
 }
 
+/**
+ * The institute an address proves, when it proves exactly one.
+ *
+ * Onboarding used to verify only someone who had *already* picked an institute
+ * from the list, which left anyone signing in with a campus address but
+ * skipping that step unverified — holding the exact credential the rides gate
+ * asks for and blocked by it. On the live data that was 55 accounts against 25
+ * verified, most of them `…@ds.study.iitm.ac.in`.
+ *
+ * Returns null on *any* ambiguity rather than picking a winner. Two institutes
+ * sharing a domain is a data error in INSTITUTE_DOMAINS, and resolving it by
+ * guessing would verify someone as a member of a campus they have no connection
+ * to — a quiet wrong answer where null produces a visible question.
+ */
+export function inferInstituteFromEmail(email: string): string | null {
+  const matches = Object.keys(INSTITUTE_DOMAINS).filter((id) =>
+    emailMatchesInstitute(email, id),
+  );
+  return matches.length === 1 ? (matches[0] ?? null) : null;
+}
+
 export function isKnownInstitute(instituteId: string): boolean {
   return Object.prototype.hasOwnProperty.call(INSTITUTE_DOMAINS, instituteId);
 }
