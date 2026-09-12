@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarStack } from '@/components/ui/avatar';
 import { RideCandidates } from '@/components/host/ride-candidates';
 import { RideRequests } from '@/components/host/ride-requests';
+import { EndedNotice } from '@/components/shared/ended-notice';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SkeletonMap, Skeleton } from '@/components/ui/skeleton';
@@ -130,6 +131,11 @@ export default function RideDetailPage({ params }: { params: Promise<{ id: strin
           )}
         </div>
       </div>
+
+      {/* Above the map, deliberately. The posting email says "Open the ride",
+          and that link outlives the ride — arriving from it a day after the
+          host cancelled must not read as a live plan. */}
+      <EndedNotice kind="ride" status={ride.status} />
 
       <div className="h-[min(38dvh,280px)] overflow-hidden rounded-lg border border-line sm:h-[280px]">
         <MapCanvas

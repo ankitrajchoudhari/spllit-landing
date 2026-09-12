@@ -316,6 +316,14 @@ export interface Squad {
    * live — use `isSquadLive` rather than comparing to 'active'.
    */
   status: 'active' | 'in_progress' | 'completed' | 'cancelled';
+  /**
+   * When it reached `completed` or `cancelled`. Null while it is still live.
+   *
+   * Also the anchor every retention deadline counts from — see
+   * services/squadChatRetention.ts — so a squad with a terminal status and no
+   * `endedAt` is a squad nothing will ever clean up.
+   */
+  endedAt?: string | null;
   memberLimit: number | null;
   themeColor: string | null;
   destination: GeoPoint | null;

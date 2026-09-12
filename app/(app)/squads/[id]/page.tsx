@@ -22,6 +22,7 @@ import { Skeleton, SkeletonMap } from '@/components/ui/skeleton';
 import { MapCanvas } from '@/components/map/map-canvas';
 import { ChatDialog } from '@/components/chat/chat-dialog';
 import { JoinFeeDialog, JoinFeeNotice } from '@/components/squads/join-fee-dialog';
+import { EndedNotice } from '@/components/shared/ended-notice';
 import {
   useEndSquad,
   useJoinSquad,
@@ -221,8 +222,20 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
 
   const awaitingApproval =
     squad.viewerStatus === 'pending' || join.data?.viewerStatus === 'pending';
+
+  /**
+   * Nothing to join once it is over.
+   *
+   * The server already refuses it — `acceptsJoins` rejects a completed or
+   * cancelled squad with a 409 — so leaving the button visible only meant
+   * offering somebody an action whose entire outcome was an error message. The
+   * notice at the top says why it is gone.
+   */
+  const isOver = !isSquadLive(squad.status);
+
   /** True only when the gate will render its card instead of the button. */
-  const gateBlocksJoin = !isMember && !awaitingApproval && gateReady && !instituteVerified;
+  const gateBlocksJoin =
+    !isOver && !isMember && !awaitingApproval && gateReady && !instituteVerified;
 
   const headerAction = isMember ? (
     <Badge tone="brand">{isLeader ? 'Leader' : 'Member'}</Badge>
@@ -244,12 +257,19 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
         Withdraw
       </button>
     </div>
-  ) : gateBlocksJoin ? null : (
+  ) : gateBlocksJoin || isOver ? null : (
     joinButton
   );
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
+      {/* Above the heading, deliberately.
+          Every link to a squad outlives the squad — the creation email, a join
+          code pasted in a group chat, a bookmark — and all of them still
+          resolve after it is cancelled. This is the first thing on the page so
+          that arriving from a day-old email cannot read as a live plan. */}
+      <EndedNotice kind="squad" status={squad.status} endedAt={squad.endedAt} />
+
       {/* items-start, not items-center: the heading wraps to two lines on a
           narrow screen and the back arrow should stay level with its first
           line rather than drifting to the middle of the block. */}
