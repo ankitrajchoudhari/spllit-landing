@@ -13,6 +13,7 @@ import { squadPostDenial } from '../services/threads.js';
 import { CHAT_RETENTION, chatAccess } from '../services/squadChatRetention.js';
 import { calculateDistance, calculateDistanceMetres } from '../utils/helpers.js';
 import { emailMatchesInstitute } from '../data/institutes.js';
+import { renderPreview } from '../services/email.js';
 import {
   EMAIL_CATEGORIES,
   OPTIONAL_CATEGORIES,
@@ -461,5 +462,105 @@ describe('institute email verification', () => {
 
   it('ignores case and surrounding space', () => {
     assert.equal(emailMatchesInstitute('  A@EE.IITM.AC.IN  ', 'iitm'), true);
+  });
+});
+
+describe('email rendering', () => {
+  const base = {
+    to: 'someone@example.com',
+    name: 'Ankit Raj',
+    subject: 'Subject',
+    heading: 'Someone wants to join your squad',
+    body: 'Pick one below.',
+    actionLabel: 'Add to squad',
+    actionUrl: 'https://spllit.app/squads/s1/requests/t1#approve',
+    idempotencyKey: 'k',
+  };
+
+  it('greets by first name only', () => {
+    const { html, text } = renderPreview(base);
+    assert.ok(html.includes('Hi Ankit,'));
+    assert.ok(text.startsWith('Hi Ankit,'));
+    assert.ok(!html.includes('Hi Ankit Raj,'));
+  });
+
+  /**
+   * Without one, clients scrape whatever markup comes first and preview every
+   * message as the wordmark plus the greeting — spending the line that decides
+   * whether it is opened.
+   */
+  it('puts a preheader before anything else', () => {
+    const { html } = renderPreview({ ...base, preheader: 'Approve or decline.' });
+    assert.ok(html.includes('Approve or decline.'));
+    assert.ok(
+      html.indexOf('Approve or decline.') < html.indexOf('Spllit</span>'),
+      'the preheader must precede the wordmark or the client will not use it',
+    );
+  });
+
+  it('falls back to the body when no preheader is given', () => {
+    const { html } = renderPreview(base);
+    assert.ok(html.includes('Pick one below.'));
+  });
+
+  it('renders details as labelled rows in both parts', () => {
+    const details = [
+      { label: 'Who', value: 'Priya' },
+      { label: 'Squad', value: 'Airport Run' },
+    ];
+    const { html, text } = renderPreview({ ...base, details });
+    assert.ok(html.includes('Who') && html.includes('Priya'));
+    assert.ok(text.includes('Who: Priya'));
+    assert.ok(text.includes('Squad: Airport Run'));
+  });
+
+  it('drops a detail with no value rather than printing an empty row', () => {
+    const { html, text } = renderPreview({
+      ...base,
+      details: [{ label: 'Join code', value: '' }],
+    });
+    assert.ok(!html.includes('Join code'));
+    assert.ok(!text.includes('Join code'));
+  });
+
+  it('shows the second button only when one is given', () => {
+    const without = renderPreview(base).html;
+    assert.ok(!without.includes('Decline'));
+
+    const withSecond = renderPreview({
+      ...base,
+      secondaryLabel: 'Decline',
+      secondaryUrl: 'https://spllit.app/squads/s1/requests/t1#decline',
+    }).html;
+    assert.ok(withSecond.includes('Decline'));
+    assert.ok(withSecond.includes('#decline'));
+  });
+
+  /**
+   * Squad names and requester names are typed by users and land in this HTML.
+   * An unescaped one is stored XSS delivered by email.
+   */
+  it('escapes user-supplied text everywhere it lands', () => {
+    const nasty = '<script>alert(1)</script>';
+    const { html } = renderPreview({
+      ...base,
+      name: nasty,
+      heading: nasty,
+      body: nasty,
+      actionLabel: nasty,
+      preheader: nasty,
+      details: [{ label: nasty, value: nasty }],
+    });
+    assert.ok(!html.includes('<script>'), 'no raw script tag may survive');
+    assert.ok(html.includes('&lt;script&gt;'));
+  });
+
+  it('escapes a quote in a URL so it cannot break out of the attribute', () => {
+    const { html } = renderPreview({
+      ...base,
+      actionUrl: 'https://spllit.app/"onmouseover="alert(1)',
+    });
+    assert.ok(!html.includes('"onmouseover="'));
+    assert.ok(html.includes('&quot;'));
   });
 });

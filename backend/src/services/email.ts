@@ -90,6 +90,22 @@ interface SendInput {
   secondaryLabel?: string;
   secondaryUrl?: string;
   /**
+   * The facts, as labelled rows rather than buried in the sentence.
+   *
+   * This is what stops every message looking like the same template with the
+   * words swapped: a join code, a departure time and a meeting point are things
+   * people come back to the email to *look up*, and a reader scanning for one
+   * of them should not have to re-read a paragraph to find it.
+   */
+  details?: { label: string; value: string }[];
+  /**
+   * The inbox preview line, shown next to the subject before anything is
+   * opened. Left unset it falls back to the body, which is better than the
+   * alternative — without a preheader at all, clients scrape whatever markup
+   * comes first and show "Spllit Hi Ankit," to every recipient.
+   */
+  preheader?: string;
+  /**
    * Stable per (event, recipient) so a retry cannot send twice. Resend honours
    * this for 24h, which is longer than any retry window here.
    */
@@ -116,51 +132,215 @@ function greeting(name?: string): string {
 }
 
 /**
- * One layout for every message.
+ * One layout, every message.
  *
- * Deliberately plain: a table-free single column, system fonts, no images. The
- * elaborate version renders differently in every client and buys nothing for a
- * message whose entire job is one sentence and one link. No tracking pixel —
- * open tracking is what makes a transactional message look like marketing to a
- * spam filter, and Spllit does not need to know when a leader read this.
+ * Still deliberately restrained — no imagery, no tracking pixel, system fonts.
+ * Open tracking is what makes a transactional message look like marketing to a
+ * spam filter, and Spllit has no reason to know when a leader read this.
+ *
+ * What it is not is plain. Four things here are the difference between mail
+ * that reads as machinery and mail that reads as a product:
+ *
+ * ## 1. Tables, because Outlook is not a browser
+ *
+ * Outlook on Windows renders with Word's engine, which ignores padding on
+ * inline elements and has no reliable box model. A `<div>` centred with
+ * `margin:0 auto` drifts left and a padded `<a>` button collapses to a bare
+ * link. Every structural element below is a table for that reason alone.
+ *
+ * ## 2. A preheader
+ *
+ * The grey line the inbox shows beside the subject. Without one, clients scrape
+ * whatever markup comes first — so every message previewed as "Spllit Hi
+ * Ankit,", spending the one line of copy that decides whether it gets opened.
+ * It is hidden in the body by the usual belt-and-braces of zero size, zero
+ * opacity and off-screen positioning, because no single trick works everywhere.
+ *
+ * ## 3. Facts as rows, not prose
+ *
+ * A join code, a departure time, a meeting point are things people reopen the
+ * email to look up. In a paragraph they have to re-read a sentence to find one;
+ * as labelled rows they find it without reading. It is also what stops seven
+ * message types looking like one template with the nouns swapped.
+ *
+ * ## 4. Dark mode
+ *
+ * Apple Mail and iOS honour `prefers-color-scheme`; clients that do not simply
+ * keep the light palette, since every colour is also set inline. Without it, a
+ * white card is inverted by the client into something muddy and unreadable —
+ * worse than either deliberate scheme.
  */
 function render(input: SendInput, appUrl: string): string {
+  const hi = greeting(input.name);
+  const preheader = input.preheader ?? input.body;
+
+  const button = (label: string, url: string, primary: boolean) => `
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="display:inline-block;">
+                    <tr>
+                      <td align="center" bgcolor="${primary ? '#00c853' : '#ffffff'}" style="border-radius:999px;${
+                        primary ? '' : 'border:1px solid #d7dad6;'
+                      }">
+                        <a href="${escapeHtml(url)}" style="display:inline-block;padding:${
+                          primary ? '13px 26px' : '12px 25px'
+                        };font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;line-height:1;color:${
+                          primary ? '#ffffff' : '#4e544f'
+                        };text-decoration:none;border-radius:999px;">${escapeHtml(label)}</a>
+                      </td>
+                    </tr>
+                  </table>`;
+
+  const detailRows = (input.details ?? [])
+    .filter((row) => row.value && row.value.trim().length > 0)
+    .map(
+      (row, index) => `
+                  <tr>
+                    <td style="padding:${index === 0 ? '0' : '10px'} 0 0 0;">
+                      <span style="display:block;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:#7b817c;">${escapeHtml(
+                        row.label,
+                      )}</span>
+                      <span class="dm-ink" style="display:block;padding-top:2px;font-size:15px;font-weight:600;color:#101211;">${escapeHtml(
+                        row.value,
+                      )}</span>
+                    </td>
+                  </tr>`,
+    )
+    .join('');
+
   return `<!doctype html>
-<html><body style="margin:0;padding:24px;background:#eaece7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:28px;">
-    <p style="margin:0 0 20px;font-size:18px;font-weight:600;color:#101211;">Spllit</p>${
-      greeting(input.name)
-        ? `
-    <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#4e544f;">Hi ${escapeHtml(greeting(input.name))},</p>`
-        : ''
-    }
-    <h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#101211;">${escapeHtml(input.heading)}</h1>
-    <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4e544f;">${escapeHtml(input.body)}</p>
-    <a href="${escapeHtml(input.actionUrl)}" style="display:inline-block;background:#00c853;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 22px;border-radius:999px;">${escapeHtml(input.actionLabel)}</a>${
-      input.secondaryLabel && input.secondaryUrl
-        ? `
-    <a href="${escapeHtml(input.secondaryUrl)}" style="display:inline-block;margin-left:8px;background:#ffffff;color:#4e544f;text-decoration:none;font-size:15px;font-weight:600;padding:11px 21px;border:1px solid #d7dad6;border-radius:999px;">${escapeHtml(input.secondaryLabel)}</a>`
-        : ''
-    }
-    <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#4e544f;">
-      Or <a href="${escapeHtml(appUrl)}" style="color:#0a7d34;font-weight:600;">open the Spllit web app</a>.
-    </p>
-    <p style="margin:12px 0 0;font-size:12px;line-height:1.6;color:#7b817c;">
-      You are receiving this because you use Spllit.
-      <a href="${escapeHtml(appUrl)}/settings/notifications" style="color:#7b817c;">Manage notifications</a>.
-    </p>
-  </div>
-</body></html>`;
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<style>
+  @media (prefers-color-scheme: dark) {
+    .dm-bg { background-color: #0a0c0b !important; }
+    .dm-card { background-color: #161918 !important; border-color: #2a2e2c !important; }
+    .dm-ink { color: #f5f7f6 !important; }
+    .dm-muted { color: #a8afab !important; }
+    .dm-panel { background-color: #101312 !important; }
+    .dm-rule { border-color: #2a2e2c !important; }
+  }
+  @media only screen and (max-width:600px) {
+    .sm-p { padding-left: 22px !important; padding-right: 22px !important; }
+  }
+</style>
+</head>
+<body class="dm-bg" style="margin:0;padding:0;width:100%;background-color:#eaece7;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:#eaece7;">${escapeHtml(
+    preheader,
+  )}</div>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="dm-bg" style="background-color:#eaece7;">
+    <tr>
+      <td align="center" style="padding:32px 12px;">
+
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="520" style="width:520px;max-width:100%;">
+          <tr>
+            <td style="padding:0 4px 14px 4px;">
+              <span class="dm-ink" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;letter-spacing:-0.02em;color:#101211;">Spllit</span>
+            </td>
+          </tr>
+
+          <tr>
+            <td class="dm-card" style="background-color:#ffffff;border:1px solid #e4e7e1;border-radius:14px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td class="sm-p" style="padding:30px 32px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${
+                    hi
+                      ? `
+                    <p class="dm-muted" style="margin:0 0 8px 0;font-size:15px;line-height:1.5;color:#4e544f;">Hi ${escapeHtml(
+                      hi,
+                    )},</p>`
+                      : ''
+                  }
+                    <h1 class="dm-ink" style="margin:0 0 10px 0;font-size:21px;line-height:1.3;font-weight:700;letter-spacing:-0.02em;color:#101211;">${escapeHtml(
+                      input.heading,
+                    )}</h1>
+                    <p class="dm-muted" style="margin:0;font-size:15px;line-height:1.6;color:#4e544f;">${escapeHtml(
+                      input.body,
+                    )}</p>
+                  </td>
+                </tr>${
+                  detailRows
+                    ? `
+                <tr>
+                  <td class="sm-p" style="padding:22px 32px 0 32px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="dm-panel" style="background-color:#f4f6f2;border-radius:10px;">
+                      <tr>
+                        <td style="padding:16px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">${detailRows}
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>`
+                    : ''
+                }
+                <tr>
+                  <td class="sm-p" style="padding:24px 32px 30px 32px;">${button(
+                    input.actionLabel,
+                    input.actionUrl,
+                    true,
+                  )}${
+                    input.secondaryLabel && input.secondaryUrl
+                      ? `
+                  <!--[if mso]>&nbsp;&nbsp;<![endif]-->
+                  <span style="display:inline-block;width:8px;"></span>${button(
+                    input.secondaryLabel,
+                    input.secondaryUrl,
+                    false,
+                  )}`
+                      : ''
+                  }
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:18px 6px 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <p class="dm-muted" style="margin:0 0 10px 0;font-size:13px;line-height:1.6;color:#4e544f;">
+                Or <a href="${escapeHtml(
+                  appUrl,
+                )}" style="color:#0a7d34;font-weight:600;text-decoration:none;">open the Spllit web app</a>.
+              </p>
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#7b817c;">
+                You are receiving this because you use Spllit.
+                <a href="${escapeHtml(
+                  appUrl,
+                )}/settings/notifications" style="color:#7b817c;text-decoration:underline;">Manage notifications</a>.
+              </p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
-/** Plain-text alternative. A message with no text part scores worse in filters. */
+/**
+ * Plain-text alternative. A message with no text part scores worse in filters,
+ * and it is what a screen reader and a watch notification actually read.
+ */
 function renderText(input: SendInput, appUrl: string): string {
   const hi = greeting(input.name);
+  const details = (input.details ?? []).filter((row) => row.value?.trim());
+
   return [
     ...(hi ? [`Hi ${hi},`, ''] : []),
     input.heading,
     '',
     input.body,
+    ...(details.length
+      ? ['', ...details.map((row) => `${row.label}: ${row.value}`)]
+      : []),
     '',
     `${input.actionLabel}: ${input.actionUrl}`,
     ...(input.secondaryLabel && input.secondaryUrl
@@ -171,6 +351,21 @@ function renderText(input: SendInput, appUrl: string): string {
     '',
     `Manage notifications: ${appUrl}/settings/notifications`,
   ].join('\n');
+}
+
+/**
+ * Renders a message without sending it.
+ *
+ * Exported for the tests, which is the only way to assert that a name
+ * containing markup cannot break out of the template — and the only way to
+ * check the preheader and the second button survive, both of which are
+ * invisible in every other observation of this module.
+ */
+export function renderPreview(input: SendInput, appUrl = 'https://spllit.app'): {
+  html: string;
+  text: string;
+} {
+  return { html: render(input, appUrl), text: renderText(input, appUrl) };
 }
 
 async function send(input: SendInput): Promise<boolean> {
@@ -331,8 +526,13 @@ export async function emailJoinRequested(params: {
     to: to.email,
     name: to.name,
     subject: `${params.requesterName} wants to join ${params.squadName}`,
+    preheader: `Approve or decline ${params.requesterName}'s request.`,
     heading: 'Someone wants to join your squad',
-    body: `${params.requesterName} has asked to join ${params.squadName}. Choose below and we will take you there to confirm.`,
+    body: 'Pick one below and we will take you there to confirm.',
+    details: [
+      { label: 'Who', value: params.requesterName },
+      { label: 'Squad', value: params.squadName },
+    ],
     actionLabel: 'Add to squad',
     actionUrl: params.token ? `${base}#approve` : base,
     secondaryLabel: 'Decline',
@@ -392,10 +592,13 @@ export async function emailRequestAccepted(params: {
     subject: deciderName
       ? `${deciderName} added you to ${params.squadName}`
       : `You're in — ${params.squadName}`,
+    preheader: `You have a place in ${params.squadName}.`,
     heading: `You're in`,
-    body: deciderName
-      ? `${deciderName} accepted your request to join ${params.squadName}. Open the squad to see the meeting point and who else is going.`
-      : `Your request to join ${params.squadName} was accepted. Open the squad to see the meeting point and who else is going.`,
+    body: 'Open the squad to see the meeting point and who else is going.',
+    details: [
+      { label: 'Squad', value: params.squadName },
+      ...(deciderName ? [{ label: 'Added by', value: deciderName }] : []),
+    ],
     actionLabel: 'Open the squad',
     actionUrl: `${cfg.appUrl}/squads/${params.squadId}`,
     // Two destinations, not one repeated: the squad they just joined, and
@@ -479,23 +682,34 @@ export async function emailTripCreated(params: {
    * a ride has no join code and a squad may have no time set, and a body
    * reading "Share the code  with anyone" is the kind of thing that ships.
    */
-  const lines = [
-    isSquad
-      ? `${params.title} is live. People at your college can find it now, and you will get an email when somebody asks to join.`
-      : `${params.title} is posted. You will get an email when somebody asks for a seat.`,
-  ];
   const whenLabel = formatWhen(params.whenAt);
-  if (whenLabel) lines.push(`Leaving ${whenLabel}.`);
-  if (isSquad && params.joinCode) {
-    lines.push(`Join code: ${params.joinCode} — share it to pull someone in directly.`);
-  }
+
+  /**
+   * The prose says what happens next; the rows carry the facts. Repeating the
+   * join code in both would be the template writing itself twice.
+   */
+  const body = isSquad
+    ? 'People at your college can find it now. We will email you the moment somebody asks to join.'
+    : 'It is visible to people travelling your way. We will email you the moment somebody asks for a seat.';
+
+  const details = [
+    { label: isSquad ? 'Squad' : 'Route', value: params.title },
+    ...(whenLabel ? [{ label: 'Leaving', value: whenLabel }] : []),
+    ...(isSquad && params.joinCode
+      ? [{ label: 'Join code — share to pull someone in', value: params.joinCode }]
+      : []),
+  ];
 
   const sent = await send({
     to: to.email,
     name: to.name,
     subject: isSquad ? `Your squad is live — ${params.title}` : `Your ride is posted — ${params.title}`,
+    preheader: isSquad
+      ? `${params.title} is live${whenLabel ? `, leaving ${whenLabel}` : ''}.`
+      : `${params.title} is posted${whenLabel ? `, leaving ${whenLabel}` : ''}.`,
     heading: `Your ${noun} is live`,
-    body: lines.join(' '),
+    body,
+    details,
     actionLabel: isSquad ? 'Open the squad' : 'Open the ride',
     actionUrl: `${cfg.appUrl}/${isSquad ? 'squads' : 'rides'}/${params.id}`,
     idempotencyKey: `trip-created:${params.kind}:${params.id}`,
@@ -548,8 +762,13 @@ export async function emailRideJoinRequested(params: {
     to: to.email,
     name: to.name,
     subject: `${params.requesterName} wants a seat — ${params.rideLabel}`,
+    preheader: `Approve or decline ${params.requesterName}'s request.`,
     heading: 'Someone wants a seat on your ride',
-    body: `${params.requesterName} has asked to join ${params.rideLabel}. Choose below and we will take you there to confirm.`,
+    body: 'Pick one below and we will take you there to confirm.',
+    details: [
+      { label: 'Who', value: params.requesterName },
+      { label: 'Ride', value: params.rideLabel },
+    ],
     actionLabel: 'Give them a seat',
     actionUrl: params.matchId ? `${base}#approve` : base,
     secondaryLabel: 'Decline',
@@ -594,10 +813,13 @@ export async function emailRideRequestAccepted(params: {
     subject: hostName
       ? `${hostName} gave you a seat — ${params.rideLabel}`
       : `You have a seat — ${params.rideLabel}`,
+    preheader: `You have a seat on ${params.rideLabel}.`,
     heading: 'You have a seat',
-    body: hostName
-      ? `${hostName} accepted your request to join ${params.rideLabel}. Open the ride to see the pickup point and message your host.`
-      : `Your request to join ${params.rideLabel} was accepted. Open the ride to see the pickup point and message your host.`,
+    body: 'Open the ride to see the pickup point and message your host.',
+    details: [
+      { label: 'Ride', value: params.rideLabel },
+      ...(hostName ? [{ label: 'Host', value: hostName }] : []),
+    ],
     actionLabel: 'Open the ride',
     actionUrl: `${cfg.appUrl}/rides/${params.rideId}`,
     secondaryLabel: 'Open Spllit',
@@ -669,7 +891,13 @@ export async function emailWelcome(params: { userId: string }): Promise<void> {
      * "Hi Ankit, / Welcome, Ankit". One greeting per message.
      */
     subject: 'Welcome to Spllit',
+    preheader: 'Find people going your way, and split the fare.',
     heading: `Welcome, ${first}`,
+    /**
+     * No detail rows here, deliberately. A welcome has no facts to look up —
+     * adding a panel for the sake of matching the other messages is the
+     * template filling itself in, which is the thing these rows exist to avoid.
+     */
     body: 'Spllit is how students travelling the same way find each other. Post a ride, start a squad, or see what is already heading where you are going.',
     actionLabel: 'Open Spllit',
     actionUrl: cfg.appUrl,
