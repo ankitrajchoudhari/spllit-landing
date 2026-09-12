@@ -24,16 +24,16 @@ const config: Config = {
           DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
           muted: 'var(--accent-muted)',
         },
-        canvas: 'var(--canvas)',
+        canvas: 'rgb(var(--canvas) / <alpha-value>)',
         surface: {
-          DEFAULT: 'var(--surface)',
-          raised: 'var(--surface-raised)',
-          sunken: 'var(--surface-sunken)',
+          DEFAULT: 'rgb(var(--surface) / <alpha-value>)',
+          raised: 'rgb(var(--surface-raised) / <alpha-value>)',
+          sunken: 'rgb(var(--surface-sunken) / <alpha-value>)',
         },
         ink: {
-          DEFAULT: 'var(--ink)',
-          muted: 'var(--ink-muted)',
-          subtle: 'var(--ink-subtle)',
+          DEFAULT: 'rgb(var(--ink) / <alpha-value>)',
+          muted: 'rgb(var(--ink-muted) / <alpha-value>)',
+          subtle: 'rgb(var(--ink-subtle) / <alpha-value>)',
         },
         line: {
           DEFAULT: 'var(--line)',

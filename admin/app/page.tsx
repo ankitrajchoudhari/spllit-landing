@@ -15,7 +15,7 @@ import { api, ApiError } from '@/lib/api';
 import { useLive } from '@/lib/live';
 import { ActivityFeed } from '@/components/activity-feed';
 import { formatCount, formatRelative } from '@/lib/utils';
-import { Card, PageHeader, Stat } from '@/components/ui/primitives';
+import { Card, PageHeader, SectionHeader, Stat } from '@/components/ui/primitives';
 import {
   ErrorState,
   NotImplementedState,
@@ -74,6 +74,27 @@ export default function DashboardPage() {
     queryFn: () => api<Signups>('/signups', { query: { days: 30 } }),
   });
 
+  /**
+   * Signups this week against the week before, as a percentage.
+   *
+   * Computed from the series already fetched for the chart — no second request,
+   * and no invented number. `undefined` whenever the comparison would be
+   * meaningless: fewer than fourteen days of data, or a prior week of zero,
+   * where any growth is division by nothing and renders as a spectacular
+   * percentage that means "we had one signup".
+   */
+  const signupDelta = (() => {
+    const series = signups.data?.series;
+    if (!series || series.length < 14) return undefined;
+
+    const sum = (points: typeof series) => points.reduce((total, p) => total + p.count, 0);
+    const thisWeek = sum(series.slice(-7));
+    const priorWeek = sum(series.slice(-14, -7));
+    if (priorWeek === 0) return undefined;
+
+    return Math.round(((thisWeek - priorWeek) / priorWeek) * 100);
+  })();
+
   if (overview.isError) {
     const error = overview.error;
     if (error instanceof ApiError && error.isForbidden) {
@@ -114,40 +135,41 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
+          {/* Three at hero weight, and only three.
+              The question this page answers on arrival is "how big is it, is it
+              growing, and is anyone on it" — everything else is detail you go
+              looking for. Giving sixteen numbers equal weight answers none of
+              them. */}
           <section className="flex flex-col gap-3">
-            <h2 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-ink-subtle">
-              People
-            </h2>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <SectionHeader title="People" />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Stat
+                size="hero"
                 label="Total users"
                 value={formatCount(live(data.users.total, 'user.created'))}
-                sub={`${formatCount(data.users.onboarded)} onboarded`}
+                sub={`${formatCount(data.users.onboarded)} finished onboarding`}
                 icon={<Users className="h-4 w-4" />}
               />
               <Stat
+                size="hero"
                 label="New today"
                 value={formatCount(live(data.users.newToday, 'user.created'))}
-                sub={`${formatCount(data.users.newWeek)} this week`}
+                sub={`${formatCount(data.users.newWeek)} over the last 7 days`}
                 icon={<UserPlus className="h-4 w-4" />}
+                delta={signupDelta}
+                deltaLabel="this week vs the week before"
               />
               <Stat
+                size="hero"
                 label="Seen today"
                 value={formatCount(data.users.activeToday)}
-                sub="Approximated from last seen"
-              />
-              <Stat
-                label="Suspended"
-                value={formatCount(data.users.suspended)}
-                tone={data.users.suspended > 0 ? 'warn' : 'neutral'}
+                sub="From last seen, so approximate"
               />
             </div>
           </section>
 
           <section className="flex flex-col gap-3">
-            <h2 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-ink-subtle">
-              Activity
-            </h2>
+            <SectionHeader title="Activity" aside="right now" />
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Stat
                 label="Active rides"
@@ -177,36 +199,38 @@ export default function DashboardPage() {
           </section>
 
           <section className="flex flex-col gap-3">
-            <h2 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-ink-subtle">
-              Attention
-            </h2>
+            <SectionHeader title="Attention" />
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {/* SOS keeps full weight whatever the count. A zero here is a
+                  reassurance somebody is looking for, and shrinking it to match
+                  the supporting numbers would bury the one that is not
+                  supporting. */}
               <Stat
                 label="Open SOS"
                 value={formatCount(live(data.emergencies.open, 'emergency.raised'))}
                 tone={data.emergencies.open > 0 ? 'bad' : 'good'}
                 icon={<ShieldAlert className="h-4 w-4" />}
               />
-              <Stat label="Communities" value={formatCount(data.communities.total)} />
-              <Stat label="Waitlist" value={formatCount(data.waitlist.total)} />
-              <Stat label="Notifications 24h" value={formatCount(live(data.notifications.sent24h, 'notification.sent'))} />
+              <Stat size="compact" label="Communities" value={formatCount(data.communities.total)} />
+              <Stat size="compact" label="Waitlist" value={formatCount(data.waitlist.total)} />
+              <Stat
+                size="compact"
+                label="Notifications 24h"
+                value={formatCount(live(data.notifications.sent24h, 'notification.sent'))}
+              />
             </div>
           </section>
 
           <SignupChart query={signups} />
 
           <section className="flex flex-col gap-3">
-            <h2 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-ink-subtle">
-              Live activity
-            </h2>
+            <SectionHeader title="Live activity" />
             <ActivityFeed />
           </section>
 
           {data.unavailable.length > 0 ? (
             <section className="flex flex-col gap-3">
-              <h2 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-ink-subtle">
-                Asked for, but not measurable yet
-              </h2>
+              <SectionHeader title="Asked for, but not measurable yet" />
               <div className="grid gap-3 lg:grid-cols-3">
                 {data.unavailable.map((item) => (
                   <NotImplementedState

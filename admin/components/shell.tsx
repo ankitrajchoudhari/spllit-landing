@@ -115,7 +115,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-line bg-surface transition-transform duration-snap lg:static lg:translate-x-0',
+          // Sunken, not level with the content. A sidebar the same colour as
+          // the page it frames reads as one undifferentiated slab; recessing it
+          // is what makes the content look like the thing in front.
+          'fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-line bg-surface-sunken transition-transform duration-snap lg:static lg:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -171,13 +174,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     onClick={() => setMobileOpen(false)}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors duration-snap',
+                      'group relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm',
+                      'transition-colors duration-snap',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface-sunken',
                       active
-                        ? 'bg-brand-muted font-semibold text-brand'
-                        : 'text-ink-muted hover:bg-surface-raised hover:text-ink',
+                        // A rail against the edge plus a quiet fill, rather than
+                        // a saturated pill. Twenty pills stacked in a column is
+                        // a lot of colour spent on something read once.
+                        ? 'bg-surface font-semibold text-ink before:absolute before:inset-y-1 before:-left-3 before:w-0.5 before:rounded-full before:bg-brand before:content-[""]'
+                        : 'text-ink-muted hover:bg-surface/60 hover:text-ink',
                     )}
                   >
-                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <Icon
+                      className={cn(
+                        'h-4 w-4 shrink-0 transition-colors duration-snap',
+                        active ? 'text-brand' : 'text-ink-subtle group-hover:text-ink-muted',
+                      )}
+                      aria-hidden="true"
+                    />
                     {item.label}
                   </Link>
                 );
@@ -208,7 +222,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-canvas/85 px-4 py-3 backdrop-blur">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}

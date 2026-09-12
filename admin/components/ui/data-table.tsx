@@ -45,10 +45,12 @@ export function DataTable<Row extends { id: string }>({
 }) {
   return (
     <>
-      <div className="scroll-x rounded-lg border border-line bg-surface">
+      <div className="scroll-x rounded-xl border border-line bg-surface shadow-[inset_0_1px_0_0_rgb(255_255_255/0.04)]">
         <table className="w-full min-w-[680px] text-sm">
           <thead>
-            <tr className="border-b border-line-strong">
+            {/* Sticky, because a table you scroll is a table whose headings you
+              lose — and a column of unlabelled ids is unreadable. */}
+          <tr className="sticky top-0 z-10 border-b border-line-strong bg-surface-sunken/95 backdrop-blur">
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -66,14 +68,19 @@ export function DataTable<Row extends { id: string }>({
             {data.rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-line transition-colors duration-snap last:border-0 hover:bg-surface-raised"
+                className="border-b border-line transition-colors duration-snap last:border-0 hover:bg-surface-raised/60"
               >
                 {columns.map((column, index) => {
                   const content = column.cell(row);
                   return (
                     <td
                       key={column.key}
-                      className={`px-4 py-3 align-top ${column.numeric ? 'tabular text-right' : ''}`}
+                      className={`px-4 py-2.5 align-middle ${
+                        // Right-aligned and tabular so digits line up down the
+                        // column — the only way a column of numbers can be
+                        // compared at a glance rather than read one by one.
+                        column.numeric ? 'tabular text-right' : ''
+                      }`}
                     >
                       {/* Only the first cell is the link. A link wrapping every
                           cell makes text selection inside the row impossible. */}

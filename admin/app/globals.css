@@ -37,14 +37,14 @@
   --accent: 41 121 255;
   --accent-muted: rgba(41, 121, 255, 0.2);
 
-  --canvas: #0a0c0b;
-  --surface: #161918;
-  --surface-raised: #1d211f;
-  --surface-sunken: #101312;
+  --canvas: 10 12 11;
+  --surface: 22 25 24;
+  --surface-raised: 29 33 31;
+  --surface-sunken: 16 19 18;
 
-  --ink: #f5f7f6;
-  --ink-muted: #a8afab;
-  --ink-subtle: #757c78;
+  --ink: 245 247 246;
+  --ink-muted: 168 175 171;
+  --ink-subtle: 117 124 120;
 
   --line: rgba(255, 255, 255, 0.11);
   --line-strong: rgba(255, 255, 255, 0.2);
@@ -66,14 +66,14 @@
   --brand-fg: #ffffff;
   --accent-muted: rgba(41, 121, 255, 0.12);
 
-  --canvas: #eaece7;
-  --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --surface-sunken: #dee1da;
+  --canvas: 234 236 231;
+  --surface: 255 255 255;
+  --surface-raised: 255 255 255;
+  --surface-sunken: 222 225 218;
 
-  --ink: #101211;
-  --ink-muted: #4e544f;
-  --ink-subtle: #7b817c;
+  --ink: 16 18 17;
+  --ink-muted: 78 84 79;
+  --ink-subtle: 123 129 124;
 
   --line: rgba(16, 20, 17, 0.13);
   --line-strong: rgba(16, 20, 17, 0.22);
@@ -89,8 +89,8 @@
   }
 
   body {
-    background-color: var(--canvas);
-    color: var(--ink);
+    background-color: rgb(var(--canvas));
+    color: rgb(var(--ink));
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
   }
