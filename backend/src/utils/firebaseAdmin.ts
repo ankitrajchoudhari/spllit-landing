@@ -69,3 +69,23 @@ export const verifyFirebaseIdToken = async (idToken: string) => {
 
   return getAuth().verifyIdToken(idToken);
 };
+
+/**
+ * Stops this account minting new ID tokens from its refresh token.
+ *
+ * Half of ending a session. It does nothing about an ID token already in a
+ * browser — those stay valid for up to an hour and `verifyIdToken` is
+ * deliberately called without `checkRevoked`, which would cost a network round
+ * trip on every authenticated request in the app. `User.sessionsRevokedAt`,
+ * checked in middleware/identity.ts against the token's `auth_time`, is the
+ * other half and is what makes the cut-off immediate.
+ *
+ * Both are needed: without this call the client silently refreshes and returns;
+ * without the column the person keeps working for the rest of the hour.
+ */
+export const revokeFirebaseSessions = async (firebaseUid: string): Promise<void> => {
+  if (!isFirebaseAdminConfigured()) {
+    throw new Error('Firebase Admin is not configured');
+  }
+  await getAuth().revokeRefreshTokens(firebaseUid);
+};

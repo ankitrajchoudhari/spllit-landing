@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import {
   ADMIN_ROLES,
   canManageRole,
+  effectivePermissions,
   isAdminRole,
   permissionsFor,
   rankOf,
@@ -456,5 +457,55 @@ describe('admin email domain restriction', () => {
     assert.equal(emailDomainAllowed('a@spllit.app', domains), true);
     assert.equal(emailDomainAllowed('a@spllit.in', domains), true);
     assert.equal(emailDomainAllowed('a@spllit.com', domains), false);
+  });
+});
+
+describe('per-admin permission overrides', () => {
+  it('starts from the role', () => {
+    assert.deepEqual(effectivePermissions('analyst', [], []), [...permissionsFor('analyst')]);
+  });
+
+  it('adds a granted permission', () => {
+    const effective = effectivePermissions('analyst', ['users.view'], []);
+    assert.ok(effective.includes('users.view'));
+    assert.ok(effective.includes('analytics.view'), 'role permissions survive a grant');
+  });
+
+  it('removes a revoked one', () => {
+    const effective = effectivePermissions('moderator', [], ['content.delete']);
+    assert.ok(!effective.includes('content.delete'));
+    assert.ok(effective.includes('moderation.act'), 'only the named one goes');
+  });
+
+  /**
+   * The rule an operator relies on. A toggle switched off must mean off, even
+   * if the same permission is somehow also in the grant list — an access
+   * control that is ambiguous under contradictory input is one nobody can
+   * reason about.
+   */
+  it('lets a revoke beat a grant', () => {
+    const effective = effectivePermissions('analyst', ['users.delete'], ['users.delete']);
+    assert.ok(!effective.includes('users.delete'));
+  });
+
+  /**
+   * Lockout guard. `admins.manage` is the permission that edits these lists, so
+   * revoking it from the last super admin would leave an install nobody can
+   * ever grant anything in again, recoverable only with database access.
+   */
+  it('refuses to narrow a super admin', () => {
+    const effective = effectivePermissions('super_admin', [], ['admins.manage', 'users.view']);
+    assert.ok(effective.includes('admins.manage'));
+    assert.ok(effective.includes('users.view'));
+  });
+
+  it('ignores anything that is not a real permission', () => {
+    const effective = effectivePermissions('analyst', ['not.a.permission'], ['also.fake']);
+    assert.deepEqual(effective, [...permissionsFor('analyst')]);
+  });
+
+  it('never returns duplicates, whatever it is handed', () => {
+    const effective = effectivePermissions('analyst', ['users.view', 'users.view'], []);
+    assert.equal(new Set(effective).size, effective.length);
   });
 });

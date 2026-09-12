@@ -99,6 +99,18 @@ describe('ride matching routes', () => {
    */
   it('mounts the activity view', () => expectGated('GET', '/api/admin-console/activity'));
 
+  /**
+   * The per-admin controls. These sit on the same router as /users/:id/role and
+   * share its prefix, so a path typo would shadow or miss silently — a 401
+   * proves each reached its own handler.
+   */
+  it('mounts permission edits', () =>
+    expectGated('PATCH', '/api/admin-console/users/u1/permissions'));
+  it('mounts session revoke', () =>
+    expectGated('POST', '/api/admin-console/users/u1/sessions/revoke'));
+  it('mounts session restore', () =>
+    expectGated('DELETE', '/api/admin-console/users/u1/sessions/revoke'));
+
   it('matches /search before the legacy /:id catch-all', async () => {
     // Both routers are mounted on /api/rides. If ordering regressed, /search
     // would be read as a ride id and answer differently.

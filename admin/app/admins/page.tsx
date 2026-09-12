@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { api, ApiError } from '@/lib/api';
@@ -7,7 +8,8 @@ import { useAuth } from '@/lib/auth';
 import type { AdminRole, Permission } from '@/lib/permissions';
 import { ROLE_LABELS } from '@/lib/permissions';
 import { formatRelative } from '@/lib/utils';
-import { Badge, Card, PageHeader } from '@/components/ui/primitives';
+import { Badge, Button, Card, PageHeader } from '@/components/ui/primitives';
+import { AdminControls } from '@/components/admin-controls';
 import { ErrorState, PermissionState, SkeletonRows } from '@/components/ui/states';
 
 interface AdminRow {
@@ -17,6 +19,19 @@ interface AdminRow {
   consoleRole: AdminRole;
   isActive: boolean;
   lastSeen: string;
+  /** Role plus overrides, resolved by the server. */
+  effective: Permission[];
+  adminGrants: Permission[];
+  adminRevokes: Permission[];
+  sessionsRevokedAt: string | null;
+}
+
+interface AdminsResponse {
+  rows: AdminRow[];
+  roles: RoleInfo[];
+  permissions: Permission[];
+  actorPermissions: Permission[];
+  actorRole: AdminRole;
 }
 
 interface RoleInfo {
@@ -26,11 +41,12 @@ interface RoleInfo {
 }
 
 export default function AdminsPage() {
-  const { session } = useAuth();
+  const { session, can } = useAuth();
+  const [editing, setEditing] = useState<string | null>(null);
 
   const admins = useQuery({
     queryKey: ['admins'],
-    queryFn: () => api<{ rows: AdminRow[]; roles: RoleInfo[] }>('/admins'),
+    queryFn: () => api<AdminsResponse>('/admins'),
   });
 
   if (admins.isError) {
@@ -58,7 +74,7 @@ export default function AdminsPage() {
             <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-line-strong">
-                  {['Admin', 'Role', 'Status', 'Last seen'].map((heading) => (
+                  {['Admin', 'Role', 'Status', 'Last seen', ''].map((heading) => (
                     <th
                       key={heading}
                       className="px-4 py-3 text-left font-mono text-[10px] font-semibold uppercase tracking-wider text-ink-subtle"
@@ -86,16 +102,55 @@ export default function AdminsPage() {
                       <Badge tone="info">{ROLE_LABELS[admin.consoleRole]}</Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={admin.isActive ? 'good' : 'bad'}>
-                        {admin.isActive ? 'Active' : 'Suspended'}
-                      </Badge>
+                      {/* Signed out is shown ahead of suspended: it is the more
+                          recent, more reversible state, and the one somebody
+                          looking at this table is most likely to have caused. */}
+                      {admin.sessionsRevokedAt ? (
+                        <Badge tone="bad">Signed out</Badge>
+                      ) : (
+                        <Badge tone={admin.isActive ? 'good' : 'bad'}>
+                          {admin.isActive ? 'Active' : 'Suspended'}
+                        </Badge>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-ink-muted">{formatRelative(admin.lastSeen)}</td>
+                    <td className="px-4 py-3 text-right">
+                      {can('admins.manage') ? (
+                        <Button
+                          variant="secondary"
+                          className="px-2.5 py-1 text-xs"
+                          onClick={() => setEditing(editing === admin.id ? null : admin.id)}
+                        >
+                          {editing === admin.id ? 'Close' : 'Manage'}
+                        </Button>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* Below the table rather than in a modal: the list is 20 switches
+              and a reason field, and a dialog that tall becomes its own page
+              on a laptop while hiding the row it belongs to. */}
+          {editing
+            ? (() => {
+                const admin = data.rows.find((row) => row.id === editing);
+                if (!admin) return null;
+                const role = data.roles.find((entry) => entry.value === admin.consoleRole);
+                return (
+                  <AdminControls
+                    admin={admin}
+                    rolePermissions={role?.permissions ?? []}
+                    allPermissions={data.permissions}
+                    actorPermissions={data.actorPermissions}
+                    isSelf={admin.id === session?.userId}
+                    onDone={() => setEditing(null)}
+                  />
+                );
+              })()
+            : null}
 
           <section className="flex flex-col gap-3">
             <h2 className="font-mono text-[10px] font-semibold uppercase tracking-widest text-ink-subtle">

@@ -135,6 +135,48 @@ export function roleHasPermission(role: AdminRole, permission: Permission): bool
   return MATRIX[role].includes(permission);
 }
 
+export function isPermission(value: unknown): value is Permission {
+  return typeof value === 'string' && (PERMISSIONS as readonly string[]).includes(value);
+}
+
+/**
+ * What an admin may actually do: their role, plus grants, minus revokes.
+ *
+ * ## Revokes win
+ *
+ * Applied last and unconditionally, so a permission that appears in both lists
+ * is denied. Anything else would mean a toggle switched *off* in the console
+ * could still leave the surface reachable, and an access control that is
+ * ambiguous under contradictory input is one nobody can reason about. "Off
+ * means off" is the only rule that survives contact with a hurried operator.
+ *
+ * ## Super admin cannot be narrowed
+ *
+ * A revoke against a super admin is ignored, and that is a lockout guard rather
+ * than a privilege. `admins.manage` is the permission that edits these lists —
+ * revoking it from the last super admin would leave an installation where
+ * nobody can grant anything ever again, recoverable only by someone with
+ * database access. The console refuses to build that situation.
+ *
+ * Grants are still meaningless there too: the role already holds everything.
+ */
+export function effectivePermissions(
+  role: AdminRole,
+  grants: readonly string[] = [],
+  revokes: readonly string[] = [],
+): Permission[] {
+  if (role === 'super_admin') return [...PERMISSIONS];
+
+  const effective = new Set<Permission>(MATRIX[role]);
+  for (const grant of grants) {
+    if (isPermission(grant)) effective.add(grant);
+  }
+  for (const revoke of revokes) {
+    if (isPermission(revoke)) effective.delete(revoke);
+  }
+  return PERMISSIONS.filter((permission) => effective.has(permission));
+}
+
 export function rankOf(role: AdminRole): number {
   return RANK[role];
 }

@@ -102,6 +102,31 @@ export async function identify(
       return;
     }
 
+    /**
+     * Sessions cut off by an admin.
+     *
+     * `auth_time` is when the person actually signed in, and it survives token
+     * refresh — `iat` does not, so a client quietly refreshing would walk
+     * straight back in if this compared that instead.
+     *
+     * Done here rather than by passing `checkRevoked` to `verifyIdToken`,
+     * which would ask Firebase to fetch the user record on *every* authenticated
+     * request in the app. This is a comparison against a row already loaded on
+     * the line above, and it costs nothing. Firebase's own
+     * `revokeRefreshTokens` is still called alongside it, so the client cannot
+     * mint a replacement; this is what stops the token already in their hand.
+     */
+    if (user.sessionsRevokedAt && typeof decoded.auth_time === 'number') {
+      if (decoded.auth_time * 1000 < user.sessionsRevokedAt.getTime()) {
+        res.status(401).json({
+          success: false,
+          message: 'Your session was ended. Sign in again.',
+          code: 'session-revoked',
+        });
+        return;
+      }
+    }
+
     req.user = { userId: user.id, email: user.email };
     // Fire-and-forget, deduplicated in memory to one write per user per
     // day. See services/activeUsers.ts — this is the hottest path in the app.

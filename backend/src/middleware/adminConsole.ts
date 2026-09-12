@@ -6,7 +6,7 @@ import {
   AdminRole,
   Permission,
   emailDomainAllowed,
-  permissionsFor,
+  effectivePermissions,
   resolveAdminRole,
   roleHasPermission,
 } from '../config/adminRoles.js';
@@ -73,6 +73,8 @@ export async function requireConsoleAdmin(
       isAdmin: true,
       adminStatus: true,
       isActive: true,
+      adminGrants: true,
+      adminRevokes: true,
     },
   });
 
@@ -108,7 +110,13 @@ export async function requireConsoleAdmin(
     email: user.email,
     name: user.name,
     role,
-    permissions: permissionsFor(role),
+    /**
+     * Resolved per request, not cached, and from the role *plus* this admin's
+     * own grants and revokes. A permission toggled off in the console has to
+     * take effect on their next request — not whenever a cache happened to
+     * expire, and not on their next sign-in.
+     */
+    permissions: effectivePermissions(role, user!.adminGrants, user!.adminRevokes),
   };
 
   next();

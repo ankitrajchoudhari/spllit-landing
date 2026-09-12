@@ -9,12 +9,17 @@ import {
 } from '../middleware/adminConsole.js';
 import {
   ADMIN_ROLES,
+  PERMISSIONS,
   ROLE_LABELS,
   canManageRole,
+  effectivePermissions,
   isAdminRole,
+  isPermission,
   permissionsFor,
   resolveAdminRole,
+  type Permission,
 } from '../config/adminRoles.js';
+import { revokeFirebaseSessions } from '../utils/firebaseAdmin.js';
 import { ok, fail } from '../utils/respond.js';
 import * as audit from '../services/auditLog.js';
 import { readCounters, readSeries } from '../services/adminEvents.js';
@@ -58,6 +63,9 @@ const USER_ROW = {
   isAdmin: true,
   adminStatus: true,
   isActive: true,
+  adminGrants: true,
+  adminRevokes: true,
+  sessionsRevokedAt: true,
   onboarded: true,
   emailVerified: true,
   phoneVerified: true,
@@ -649,6 +657,295 @@ router.patch(
 );
 
 // ---------------------------------------------------------------------------
+// Per-admin permissions and sessions
+// ---------------------------------------------------------------------------
+
+/**
+ * Everything below answers one question the role matrix cannot: "this person
+ * needs one more thing than their role gives, or one thing less."
+ *
+ * The alternative is a new role per exception, and a matrix grown that way
+ * stops being readable at about eight rows — at which point nobody can say what
+ * any of them actually mean, which is the failure mode a permission system
+ * exists to prevent.
+ *
+ * Stored as overrides, not as an absolute list. See the columns in
+ * prisma/schema.prisma and `effectivePermissions` for why.
+ */
+
+/** Both lists, cleaned: known permissions only, deduplicated, order fixed. */
+function cleanPermissions(value: unknown): Permission[] {
+  if (!Array.isArray(value)) return [];
+  const set = new Set<Permission>();
+  for (const entry of value) {
+    if (isPermission(entry)) set.add(entry);
+  }
+  return PERMISSIONS.filter((permission) => set.has(permission));
+}
+
+/**
+ * PATCH /api/admin-console/users/:id/permissions
+ * Body: { grants: Permission[], revokes: Permission[], reason }
+ */
+router.patch(
+  '/users/:id/permissions',
+  requirePermission('admins.manage'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const admin = req.admin!;
+      const id = String(req.params.id);
+      const reason = String(req.body?.reason ?? '').trim();
+
+      if (reason.length < 4) {
+        return fail(res, 400, 'A reason is required for a permission change.');
+      }
+
+      /**
+       * Self-edit is refused outright rather than rank-checked — the same rule
+       * as role changes, for the same reason. An admin who can widen their own
+       * permissions is an admin with every permission, one request away.
+       */
+      if (id === admin.userId) {
+        return fail(res, 400, 'You cannot change your own permissions.');
+      }
+
+      const target = await prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          adminRole: true,
+          role: true,
+          isAdmin: true,
+          adminStatus: true,
+          isActive: true,
+          adminGrants: true,
+          adminRevokes: true,
+        },
+      });
+      if (!target) return fail(res, 404, 'User not found');
+
+      const targetRole = resolveAdminRole(target);
+      if (!targetRole) {
+        return fail(res, 400, 'That account has no console role to adjust.', 'not-an-admin');
+      }
+
+      // Same ladder that guards role assignment: you may only reach below you.
+      if (!canManageRole(admin.role, targetRole)) {
+        return fail(res, 403, 'That admin outranks you.', 'outranked');
+      }
+
+      const grants = cleanPermissions(req.body?.grants);
+      const revokes = cleanPermissions(req.body?.revokes);
+
+      /**
+       * You cannot grant what you do not hold.
+       *
+       * Without this a moderator with `admins.manage` could hand out
+       * `users.delete` — a permission nobody in that chain was ever given —
+       * and the rank ladder would not notice, because the *role* never moved.
+       */
+      const beyond = grants.filter((permission) => !admin.permissions.includes(permission));
+      if (beyond.length > 0) {
+        return fail(
+          res,
+          403,
+          `You cannot grant what you do not hold yourself: ${beyond.join(', ')}`,
+          'grant-exceeds-authority',
+        );
+      }
+
+      const updated = await audit.recorded(
+        admin,
+        {
+          action: 'admin.permissions',
+          targetType: 'user',
+          targetId: id,
+          targetLabel: target.email,
+          ...audit.diff(
+            { grants: target.adminGrants, revokes: target.adminRevokes },
+            { grants, revokes },
+          ),
+          reason,
+        },
+        req,
+        () =>
+          prisma.user.update({
+            where: { id },
+            data: { adminGrants: grants, adminRevokes: revokes },
+            select: USER_ROW,
+          }),
+      );
+
+      return ok(res, {
+        ...updated,
+        consoleRole: targetRole,
+        grants,
+        revokes,
+        effective: effectivePermissions(targetRole, grants, revokes),
+      });
+    } catch (error) {
+      console.error('[admin-console/users/permissions]', error);
+      return fail(res, 500, 'Failed to update permissions');
+    }
+  },
+);
+
+/**
+ * POST /api/admin-console/users/:id/sessions/revoke
+ * Ends every signed-in session. Body: { reason }
+ *
+ * Two writes, because either alone leaves a hole: the column refuses the token
+ * already in their browser, and Firebase stops the client refreshing a new one.
+ * The column is written *first* — if the Firebase call fails, the cut-off has
+ * still happened, whereas the other order would report success having done
+ * nothing enforceable.
+ */
+router.post(
+  '/users/:id/sessions/revoke',
+  requirePermission('admins.manage'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const admin = req.admin!;
+      const id = String(req.params.id);
+      const reason = String(req.body?.reason ?? '').trim();
+
+      if (reason.length < 4) return fail(res, 400, 'A reason is required.');
+
+      const target = await prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          firebaseUid: true,
+          adminRole: true,
+          role: true,
+          isAdmin: true,
+          adminStatus: true,
+          isActive: true,
+        },
+      });
+      if (!target) return fail(res, 404, 'User not found');
+
+      /**
+       * Outranking is checked only for admins. Ending an ordinary user's
+       * session is a support action, not an escalation — but ending a peer's
+       * is exactly the lateral move the ladder exists to stop.
+       */
+      const targetRole = resolveAdminRole(target);
+      if (targetRole && !canManageRole(admin.role, targetRole)) {
+        return fail(res, 403, 'That admin outranks you.', 'outranked');
+      }
+      if (id === admin.userId) {
+        return fail(res, 400, 'Sign out normally rather than revoking yourself.');
+      }
+
+      const at = new Date();
+      await audit.record(
+        admin,
+        {
+          action: 'admin.sessions.revoke',
+          targetType: 'user',
+          targetId: id,
+          targetLabel: target.email,
+          after: { sessionsRevokedAt: at.toISOString() },
+          reason,
+        },
+        req,
+      );
+
+      await prisma.user.update({ where: { id }, data: { sessionsRevokedAt: at } });
+
+      /**
+       * Best-effort, and deliberately after the write. A Firebase outage must
+       * not leave the caller believing nothing happened when the enforceable
+       * half already has — they would simply press it again.
+       */
+      let firebase = false;
+      if (target.firebaseUid) {
+        try {
+          await revokeFirebaseSessions(target.firebaseUid);
+          firebase = true;
+        } catch (error) {
+          console.error('[admin-console/sessions/revoke] firebase refused', error);
+        }
+      }
+
+      return ok(res, { revokedAt: at.toISOString(), firebase });
+    } catch (error) {
+      console.error('[admin-console/users/sessions/revoke]', error);
+      return fail(res, 500, 'Failed to end the sessions');
+    }
+  },
+);
+
+/**
+ * DELETE /api/admin-console/users/:id/sessions/revoke
+ * Lets them sign in again. Body: { reason }
+ *
+ * Clearing the column is all that is needed — it only ever refuses credentials
+ * older than itself, so removing it stops that comparison happening. Firebase's
+ * revocation is not undone and does not need to be: it invalidated the refresh
+ * tokens that existed at that moment, and signing in again issues new ones.
+ *
+ * So this does not restore the old session. Nothing can. It restores the
+ * ability to start a new one, which is what "renew" means here — worth being
+ * precise about, because an operator expecting the person's open tab to spring
+ * back to life would otherwise report this as broken.
+ */
+router.delete(
+  '/users/:id/sessions/revoke',
+  requirePermission('admins.manage'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const admin = req.admin!;
+      const id = String(req.params.id);
+      const reason = String(req.body?.reason ?? '').trim();
+
+      if (reason.length < 4) return fail(res, 400, 'A reason is required.');
+
+      const target = await prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          adminRole: true,
+          role: true,
+          isAdmin: true,
+          adminStatus: true,
+          isActive: true,
+        },
+      });
+      if (!target) return fail(res, 404, 'User not found');
+
+      const targetRole = resolveAdminRole(target);
+      if (targetRole && !canManageRole(admin.role, targetRole)) {
+        return fail(res, 403, 'That admin outranks you.', 'outranked');
+      }
+
+      await audit.record(
+        admin,
+        {
+          action: 'admin.sessions.restore',
+          targetType: 'user',
+          targetId: id,
+          targetLabel: target.email,
+          after: { sessionsRevokedAt: null },
+          reason,
+        },
+        req,
+      );
+
+      await prisma.user.update({ where: { id }, data: { sessionsRevokedAt: null } });
+      return ok(res, { revokedAt: null });
+    } catch (error) {
+      console.error('[admin-console/users/sessions/restore]', error);
+      return fail(res, 500, 'Failed to restore access');
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
 // Admins
 // ---------------------------------------------------------------------------
 
@@ -672,7 +969,22 @@ router.get(
 
       return ok(res, {
         rows: rows
-          .map((u) => ({ ...u, consoleRole: resolveAdminRole(u) }))
+          .map((u) => {
+            const consoleRole = resolveAdminRole(u);
+            return {
+              ...u,
+              consoleRole,
+              /**
+               * The resolved set, sent alongside the overrides rather than
+               * left for the client to recompute. Two implementations of
+               * "what may this person do" is one too many, and the one that
+               * matters is the server's.
+               */
+              effective: consoleRole
+                ? effectivePermissions(consoleRole, u.adminGrants, u.adminRevokes)
+                : [],
+            };
+          })
           // Rows whose legacy fields no longer resolve to a role are dropped:
           // listing a deactivated admin as an admin is how one gets forgotten
           // about and quietly reactivated later.
@@ -682,6 +994,15 @@ router.get(
           label: ROLE_LABELS[role],
           permissions: permissionsFor(role),
         })),
+        /** Every toggle the console may offer, in a stable order. */
+        permissions: PERMISSIONS,
+        /**
+         * What the *caller* holds. The console greys out anything they cannot
+         * grant, because the server refuses those and a toggle that always
+         * errors is worse than one that is visibly unavailable.
+         */
+        actorPermissions: _req.admin!.permissions,
+        actorRole: _req.admin!.role,
       });
     } catch (error) {
       console.error('[admin-console/admins]', error);

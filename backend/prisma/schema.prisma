@@ -88,6 +88,30 @@ model User {
   /// from the legacy fields — so every admin who works today keeps working
   /// without a migration having to run first.
   adminRole         String?
+  /// Console permissions granted on top of whatever `adminRole` carries.
+  ///
+  /// Stored as *overrides* rather than as an absolute list, so a role that is
+  /// later tightened or widened still applies to everyone holding it except
+  /// where somebody recorded a deliberate exception. An absolute snapshot would
+  /// freeze each admin at whatever the role meant the day it was assigned —
+  /// and a security-motivated narrowing of a role would then silently not
+  /// reach the people already holding it.
+  adminGrants       String[]
+  /// Permissions taken away, applied *after* grants so a revoke always wins.
+  /// This is what a disabled toggle writes.
+  adminRevokes      String[]
+  /// Every credential issued before this instant is refused.
+  ///
+  /// Firebase's own `revokeRefreshTokens` stops new ID tokens being minted but
+  /// does nothing about one already in a browser, because `verifyIdToken` is
+  /// called without `checkRevoked` — that flag costs a network round trip per
+  /// request, which is not a trade worth making on every app request to solve
+  /// a console problem. Comparing the token's `auth_time` against this column
+  /// costs nothing: `identify` already loads this row.
+  ///
+  /// Both are used together. This kills the token in hand; Firebase's call
+  /// stops the client quietly refreshing a new one.
+  sessionsRevokedAt DateTime?
   createdBy         String?   // ID of master admin who created this subadmin
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
