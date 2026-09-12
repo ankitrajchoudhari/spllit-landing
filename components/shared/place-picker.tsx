@@ -62,7 +62,12 @@ const MIN_QUERY = 3;
  */
 const VERIFIED_PRECISION = -1;
 
-interface Candidate extends PlaceResult, SearchCandidate {
+/**
+ * Exported so the assistant can render the same candidates inline instead of
+ * in this component's floating panel. Same shape, same ranking, same source —
+ * only the presentation differs.
+ */
+export interface Candidate extends PlaceResult, SearchCandidate {
   relevance: number;
   distanceKm: number;
   precision: number;
@@ -151,7 +156,12 @@ async function request(
  * one has been chosen, otherwise the device position, otherwise the configured
  * default city. It is never a hardcoded location.
  */
-async function geocode(
+/**
+ * Exported for the assistant, which needs these results but not this
+ * component's dropdown. Duplicating it would mean two search paths that rank
+ * differently, and the whole point of `place-ranking` is that there is one.
+ */
+export async function geocode(
   query: string,
   proximity?: LngLat | null,
   signal?: AbortSignal,

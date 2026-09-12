@@ -7,7 +7,8 @@ import { ArrowLeft, MapPin, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
-import { PlacePicker, type PickedPlace } from '@/components/shared/place-picker';
+import { PlaceAnswer } from '@/components/shared/place-answer';
+import type { PickedPlace } from '@/components/shared/place-picker';
 import { SpllitAiOrb } from '@/components/shared/spllit-ai-orb';
 import { ApiError } from '@/lib/api/client';
 import { useCreateSquad, useDraftSquadFromText } from '@/lib/hooks/queries';
@@ -49,10 +50,11 @@ import type { LngLat, SquadType } from '@/types';
  *     instead. Every answer after that is a local choice.
  *
  *  2. **The assistant asks; the app answers.** Every place comes from
- *     `PlacePicker`, which is Mapbox — the same component the manual form uses.
- *     Nothing here produces a coordinate, and the squad is created by the same
- *     endpoint with the same validation, only after the user reads a summary
- *     and presses the button.
+ *     `PlaceAnswer`, which searches through the picker's own `geocode` — same
+ *     Mapbox index, same ranking as the manual form, rendered in flow rather
+ *     than in a floating panel. Nothing here produces a coordinate, and the
+ *     squad is created by the same endpoint with the same validation, only
+ *     after the user reads a summary and presses the button.
  *
  * Closing gives everything back: whatever was collected is handed to the create
  * form, so nobody loses answers by changing their mind about the interface.
@@ -333,13 +335,12 @@ export function AiConcierge({
               sentence has no useful suggestions, so the button below appears
               instead and sends it to be read.
             */}
-            <PlacePicker
-              label="Where are you going?"
-              value={null}
-              onChange={(place) => place && pickOpeningPlace(place)}
-              onQueryChange={setText}
-              placeholder="Taramani, or tell me the whole trip..."
+            <PlaceAnswer
+              placeholder="Taramani, or tell me the whole trip…"
               proximity={near ?? null}
+              onQueryChange={setText}
+              onPick={pickOpeningPlace}
+              autoFocus
             />
 
             {needsInterpretation(text) ? (
@@ -367,8 +368,13 @@ export function AiConcierge({
               </div>
 
               <ul className="mt-3 space-y-2">
-                {transcript.map((turn) => (
-                  <Bubble key={turn.id} turn={turn} reduced={Boolean(reduced)} />
+                {transcript.map((turn, index) => (
+                  <Bubble
+                    key={turn.id}
+                    turn={turn}
+                    reduced={Boolean(reduced)}
+                    showAvatar={turn.role === 'ai' && transcript[index - 1]?.role !== 'ai'}
+                  />
                 ))}
 
                 {/* The live question, in the same bubble as every answered one,
@@ -378,6 +384,7 @@ export function AiConcierge({
                   <Bubble
                     turn={{ id: 'live', role: 'ai', text: question.prompt }}
                     reduced={Boolean(reduced)}
+                    showAvatar
                   />
                 ) : null}
 
@@ -390,13 +397,15 @@ export function AiConcierge({
                     }}
                     reduced={Boolean(reduced)}
                     pending
+                    showAvatar
                   />
                 ) : null}
 
                 {stage === 'confirm' ? (
                   <Bubble
-                    turn={{ id: 'ready', role: 'ai', text: 'Here it is - happy with this?' }}
+                    turn={{ id: 'ready', role: 'ai', text: 'Here it is \u2014 happy with this?' }}
                     reduced={Boolean(reduced)}
+                    showAvatar
                   />
                 ) : null}
               </ul>
@@ -468,29 +477,76 @@ function Bubble({
   turn,
   reduced,
   pending,
+  showAvatar,
 }: {
   turn: ChatTurn;
   reduced: boolean;
   pending?: boolean;
+  showAvatar?: boolean;
 }) {
   const mine = turn.role === 'user';
+
   return (
     <motion.li
-      initial={reduced ? false : { opacity: 0, y: 8, scale: 0.98 }}
+      initial={reduced ? false : { opacity: 0, y: 10, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-      className={cn('flex', mine ? 'justify-end' : 'justify-start')}
+      transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+      className={cn('flex items-end gap-2', mine ? 'justify-end' : 'justify-start')}
     >
+      {/*
+        The character sits beside what it says, and only on the first line of a
+        run. Repeating it against every consecutive bubble turns a conversation
+        into a list of notifications; leaving a gap where it would have been
+        keeps the column aligned.
+      */}
+      {!mine ? (
+        <span className="mb-0.5 w-7 shrink-0">
+          {showAvatar ? <SpllitAiOrb phase="idle" size={28} /> : null}
+        </span>
+      ) : null}
+
       <span
         className={cn(
-          'inline-block max-w-[85%] rounded-2xl px-3.5 py-2 text-[14px] leading-snug shadow-soft',
-          mine ? 'rounded-br-md bg-brand text-white' : 'rounded-bl-md bg-surface text-ink',
+          'inline-block max-w-[78%] px-4 py-2.5 text-[14.5px] leading-relaxed',
+          mine
+            ? 'rounded-[20px] rounded-br-[6px] bg-brand text-white shadow-soft'
+            : 'rounded-[20px] rounded-bl-[6px] border border-line bg-surface text-ink shadow-soft',
         )}
       >
         {turn.text}
-        {pending ? <span className="ml-1 inline-block animate-pulse">…</span> : null}
+        {pending ? <TypingDots reduced={reduced} /> : null}
       </span>
     </motion.li>
+  );
+}
+
+/**
+ * Three dots that actually move.
+ *
+ * A single pulsing ellipsis read as a rendering glitch; this is the shape
+ * everyone already knows means "still talking". Collapses to a static ellipsis
+ * under reduced motion, where a bouncing row would be the exact thing the
+ * preference is about.
+ */
+function TypingDots({ reduced }: { reduced: boolean }) {
+  if (reduced) return <span className="ml-1 text-ink-subtle">…</span>;
+
+  return (
+    <span className="ml-1.5 inline-flex items-center gap-1 align-middle">
+      {[0, 1, 2].map((index) => (
+        <motion.span
+          key={index}
+          className="inline-block h-1.5 w-1.5 rounded-full bg-ink-subtle"
+          animate={{ opacity: [0.25, 1, 0.25], y: [0, -2.5, 0] }}
+          transition={{
+            duration: 1.1,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: index * 0.16,
+          }}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -544,10 +600,7 @@ function QuestionStep({
   return (
     <div className="space-y-2.5">
       {question.kind === 'place' ? (
-        <PlacePicker
-          label={question.prompt}
-          value={null}
-          onChange={(place) => place && onAnswer(question.slot, place)}
+        <PlaceAnswer
           placeholder={question.slot === 'destination' ? 'Search destination…' : 'Search a place…'}
           /* Ranked against where they are, or where they are starting from once
              that is known — the same rule the manual form follows. */
@@ -555,37 +608,47 @@ function QuestionStep({
           /* Where you are is a plausible starting point and never a plausible
              destination, so the offer is made for one and not the other. */
           allowCurrentLocation={question.slot === 'origin'}
+          onPick={(place) => onAnswer(question.slot, place)}
           {...(seedQuery ? { initialQuery: seedQuery } : {})}
         />
       ) : null}
 
       {question.kind === 'date' ? (
         <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
+          <QuickReplies>
             {dateChoices().map((choice) => (
-              <ChoiceButton
+              <Chip
                 key={choice.value}
                 onClick={() => onAnswer('departDate', choice.value)}
                 label={choice.label}
               />
             ))}
-          </div>
-          <DateTimePicker
-            value={null}
-            onChange={(when) => when && onAnswer('departDate', localDateKey(when))}
-          />
+          </QuickReplies>
+          <details className="group">
+            <summary className="cursor-pointer list-none rounded-xl py-1.5 text-[13px] font-medium text-ink-subtle transition-colors hover:text-ink">
+              Pick another date
+            </summary>
+            <div className="mt-2">
+              <DateTimePicker
+                value={null}
+                onChange={(when) => when && onAnswer('departDate', localDateKey(when))}
+              />
+            </div>
+          </details>
         </div>
       ) : null}
 
       {question.kind === 'time' ? (
-        <div className="grid grid-cols-2 gap-2">
-          {TIME_CHOICES.map((choice) => (
-            <ChoiceButton
-              key={choice.value}
-              onClick={() => onAnswer('departTime', choice.value)}
-              label={choice.label}
-            />
-          ))}
+        <div className="space-y-2">
+          <QuickReplies>
+            {TIME_CHOICES.map((choice) => (
+              <Chip
+                key={choice.value}
+                onClick={() => onAnswer('departTime', choice.value)}
+                label={choice.label}
+              />
+            ))}
+          </QuickReplies>
           <input
             type="time"
             aria-label="Departure time"
@@ -593,50 +656,42 @@ function QuestionStep({
               const value = event.target.value;
               if (/^\d{2}:\d{2}$/.test(value)) onAnswer('departTime', value);
             }}
-            className="col-span-2 h-11 rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand"
+            className="h-12 w-full rounded-2xl border border-line bg-surface px-4 text-[15px] text-ink outline-none focus:border-brand"
           />
         </div>
       ) : null}
 
       {question.kind === 'purpose' ? (
-        <div className="grid grid-cols-2 gap-2">
+        <QuickReplies>
           {SQUAD_PURPOSES.map((option) => (
-            <button
+            <Chip
               key={option.value}
-              type="button"
               onClick={() => onAnswer('purpose', option.value as SquadType)}
-              className={cn(
-                'flex min-h-[48px] items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5',
-                'text-[14px] font-medium text-ink transition-colors hover:border-brand hover:bg-surface-sunken',
-              )}
-            >
-              <span aria-hidden className="text-[17px]">
-                {option.icon}
-              </span>
-              {option.label}
-            </button>
+              label={option.label}
+              icon={option.icon}
+            />
           ))}
-        </div>
+        </QuickReplies>
       ) : null}
 
       {question.kind === 'meeting' ? (
         <div className="space-y-2">
           {destination ? (
-            <ChoiceButton
-              onClick={() => onAnswer('meetingPoint', destination)}
-              label={`Meet at ${destination.label.split(',')[0]}`}
-              icon={<MapPin className="h-4 w-4 text-ink-subtle" aria-hidden />}
-            />
+            <QuickReplies>
+              <Chip
+                onClick={() => onAnswer('meetingPoint', destination)}
+                label={`Meet at ${destination.label.split(',')[0]}`}
+                icon={"📍"}
+              />
+            </QuickReplies>
           ) : null}
-          <PlacePicker
-            label="Meeting point"
-            value={null}
-            onChange={(place) => place && onAnswer('meetingPoint', place)}
+          <PlaceAnswer
             placeholder="Search a meeting point…"
             /* Biased to the destination: a meeting point is usually near where
                the squad is going, not where the leader is standing. */
             proximity={destination ? [destination.lng, destination.lat] : near}
             allowCurrentLocation
+            onPick={(place) => onAnswer('meetingPoint', place)}
           />
         </div>
       ) : null}
@@ -670,25 +725,51 @@ function QuestionStep({
   );
 }
 
-function ChoiceButton({
+/**
+ * A row of quick replies.
+ *
+ * Scrolls sideways rather than wrapping into a block: these are answers to one
+ * question, and a four-line grid of grey rectangles reads as a form, which is
+ * the thing the assistant exists to not be. Kept to one line so the composer
+ * never grows tall enough to push the conversation off a phone screen.
+ *
+ * The negative margins let the row bleed to the edges of its padding, so a
+ * scrollable list looks scrollable — a chip clipped at the edge is the only
+ * honest hint that there are more of them.
+ */
+function QuickReplies({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="-mx-4 overflow-x-auto px-4 pb-0.5 sm:-mx-5 sm:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex w-max gap-2">{children}</div>
+    </div>
+  );
+}
+
+/** One tappable answer. Pill-shaped, because it is a reply and not a field. */
+function Chip({
   label,
   onClick,
   icon,
 }: {
   label: string;
   onClick: () => void;
-  icon?: React.ReactNode;
+  icon?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-3 py-2',
-        'text-[14px] font-medium text-ink transition-colors hover:border-brand hover:bg-surface-sunken',
+        'inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-4',
+        'text-[14px] font-medium text-ink shadow-soft transition-all duration-snap',
+        'hover:-translate-y-0.5 hover:border-brand hover:bg-surface-sunken active:translate-y-0',
       )}
     >
-      {icon}
+      {icon ? (
+        <span aria-hidden className="text-[16px]">
+          {icon}
+        </span>
+      ) : null}
       {label}
     </button>
   );
