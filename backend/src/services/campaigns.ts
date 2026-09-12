@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { EMAIL_CATEGORIES, mayEmail } from './emailPolicy.js';
+import { audienceWhere, type Audience } from './audience.js';
 import { sendCampaignMessage, campaignSenderConfigured } from './email.js';
 
 /**
@@ -45,11 +46,23 @@ export interface AudienceCount {
  * smaller than the user count, and an admin who expects 229 and sees 180 should
  * find that out before pressing send rather than after.
  */
-export async function audienceCount(): Promise<AudienceCount> {
-  const total = await prisma.user.count();
+export async function audienceCount(
+  audience: Audience = 'all',
+  college = '',
+  userIds: string[] = [],
+): Promise<AudienceCount> {
+  const where = audienceWhere(audience, college, userIds);
+  const total = await prisma.user.count({ where });
 
+  /**
+   * `isActive` used to be in this filter and is gone — see services/audience.ts
+   * for the whole argument. In short: it gates nothing, 205 of 229 accounts
+   * carry false, and it meant a campaign to "everyone" reached about a tenth of
+   * the people it reported. The broadcast path was fixed weeks before this one,
+   * which is exactly why both now read from one definition.
+   */
   const candidates = await prisma.user.findMany({
-    where: { emailVerified: true, isActive: true },
+    where: { ...where, emailVerified: true },
     select: { email: true },
   });
 
@@ -98,7 +111,14 @@ export async function sendCampaign(campaignId: string): Promise<void> {
   if (claim.count !== 1) return;
 
   const recipients = await prisma.user.findMany({
-    where: { emailVerified: true, isActive: true },
+    where: {
+      ...audienceWhere(
+        (campaign.audienceKind as Audience | null) ?? 'all',
+        campaign.audienceCollege ?? '',
+        campaign.audienceUserIds ?? [],
+      ),
+      emailVerified: true,
+    },
     select: { id: true, name: true, email: true },
   });
 

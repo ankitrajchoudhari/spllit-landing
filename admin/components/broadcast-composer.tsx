@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { RecipientPicker, type Recipient } from '@/components/recipient-picker';
+import { AudiencePicker, audienceReady, type AudienceValue } from '@/components/audience-picker';
 import { Send } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
@@ -16,24 +16,26 @@ import { useToast } from '@/components/ui/toast';
  * Sending a notification to real people.
  *
  * The flow is deliberately two steps. A broadcast cannot be recalled once it is
- * on someone's phone, so the send button stays disabled until the audience has
- * been *sized* — "notify everyone" should be a decision made against a number,
- * not a guess. The confirmation then repeats that number back.
+ * on someone's phone or in their inbox, so the send button stays disabled until
+ * the audience has been *sized* — "notify everyone" should be a decision made
+ * against a number, not a guess. The confirmation then repeats that number back.
+ *
+ * Audiences come from components/audience-picker, shared with the campaign
+ * composer. They were separate and drifted: the broadcast list was corrected
+ * and the campaign one was not, so "everyone" meant two different populations
+ * depending on which screen you were on.
  */
 
-const AUDIENCES = [
-  { value: 'all', label: 'Everyone onboarded' },
-  { value: 'active', label: 'Active (seen in 30 days)' },
-  { value: 'inactive', label: 'Lapsed (not seen in 30 days)' },
-  { value: 'onboarding', label: 'Still onboarding' },
-  { value: 'college', label: 'One college' },
-  // Named individuals. Exempt from the broadcast rate limit — see the skip in
-  // server.ts: the budget bounds reach, and a list bounds itself.
-  { value: 'users', label: 'Specific people' },
-] as const;
 
-/** Matches MAX_NAMED_RECIPIENTS on the server, which enforces it. */
-const MAX_RECIPIENTS = 200;
+
+interface SendResult {
+  sent: number;
+  failed: number;
+  /** Null when email was not requested. Reported apart from push on purpose:
+      a notification row is written for everybody, while email is refused for
+      anyone unverified, suppressed or opted out. */
+  email: { sent: number; skipped: number; failed: number } | null;
+}
 
 interface Preview {
   audience: string;
@@ -48,9 +50,20 @@ export function BroadcastComposer() {
   const toast = useToast();
   const { can } = useAuth();
 
-  const [audience, setAudience] = useState<string>('all');
-  const [college, setCollege] = useState('');
-  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [target, setTarget] = useState<AudienceValue>({
+    audience: 'all',
+    college: '',
+    recipients: [],
+  });
+  const { audience, college, recipients } = target;
+
+  /**
+   * Channels. Push is what this screen has always done and stays on by
+   * default; email is opt-in per send, because it cannot be recalled and it
+   * spends sending reputation.
+   */
+  const [push, setPush] = useState(true);
+  const [email, setEmail] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [href, setHref] = useState('');
@@ -67,9 +80,18 @@ export function BroadcastComposer() {
 
   const send = useMutation({
     mutationFn: (reason: string) =>
-      api<{ sent: number; failed: number }>('/broadcast', {
+      api<SendResult>('/broadcast', {
         method: 'POST',
-        body: { audience, college, title, body, href, reason, userIds: recipients.map((person) => person.id) },
+        body: {
+          audience,
+          college,
+          title,
+          body,
+          href,
+          reason,
+          userIds: recipients.map((person) => person.id),
+          channels: { push, email },
+        },
       }),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -78,11 +100,22 @@ export function BroadcastComposer() {
       setBody('');
       setHref('');
       setPreview(null);
-      toast.success(
-        result.failed > 0
-          ? `Sent to ${formatCount(result.sent)}. ${formatCount(result.failed)} failed.`
-          : `Sent to ${formatCount(result.sent)} people.`,
-      );
+      const parts: string[] = [];
+      if (push) {
+        parts.push(
+          result.failed > 0
+            ? `${formatCount(result.sent)} notified, ${formatCount(result.failed)} failed`
+            : `${formatCount(result.sent)} notified`,
+        );
+      }
+      if (result.email) {
+        parts.push(
+          result.email.skipped > 0
+            ? `${formatCount(result.email.sent)} emailed, ${formatCount(result.email.skipped)} skipped`
+            : `${formatCount(result.email.sent)} emailed`,
+        );
+      }
+      toast.success(parts.join(' · '));
     },
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : 'The broadcast did not send.'),
@@ -90,7 +123,11 @@ export function BroadcastComposer() {
 
   if (!can('notifications.send')) return null;
 
-  const ready = title.trim().length >= 3 && body.trim().length >= 3 && preview !== null;
+  const ready =
+    title.trim().length >= 3 &&
+    body.trim().length >= 3 &&
+    preview !== null &&
+    (push || email);
 
   // Any change to who or what is being sent invalidates the count that was
   // measured — otherwise the confirmation would quote a number for a different
@@ -104,47 +141,57 @@ export function BroadcastComposer() {
       <div className="flex flex-col gap-1">
         <h2 className="text-sm font-bold text-ink">Send a notification</h2>
         <p className="text-sm text-ink-muted">
-          This reaches people on their phones and cannot be undone.
+          Reaches people on their phones, by email, or both. It cannot be undone.
         </p>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-ink-muted">Audience</span>
-          <select
-            value={audience}
-            onChange={(event) => {
-              setAudience(event.target.value);
-              invalidate();
-            }}
-            className="w-full rounded-md border border-line bg-surface-sunken px-3 py-2 text-sm text-ink focus:border-brand focus:outline-none"
-          >
-            {AUDIENCES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+      <AudiencePicker
+        value={target}
+        onChange={setTarget}
+        onInvalidate={invalidate}
+        disabled={send.isPending}
+      />
+
+      {/* Channels.
+          Two checkboxes rather than a segmented control, because they are not
+          alternatives — the common case for anything important is both. */}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-xs font-semibold text-ink-muted">Send as</legend>
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={push}
+            onChange={(event) => { setPush(event.target.checked); invalidate(); }}
+            className="h-4 w-4 accent-brand"
+          />
+          In-app notification
         </label>
-
-        {audience === 'users' ? (
-          <RecipientPicker selected={recipients} onChange={(next) => { setRecipients(next); invalidate(); }} max={MAX_RECIPIENTS} />
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={email}
+            onChange={(event) => { setEmail(event.target.checked); invalidate(); }}
+            className="h-4 w-4 accent-brand"
+          />
+          Email
+        </label>
+        {email ? (
+          /**
+           * Said before the send, not as a 503 afterwards. Email here goes out
+           * on the campaign domain so one complaint cannot damage delivery of
+           * sign-in and squad mail — the server refuses it outright when that
+           * is unconfigured, and a disabled button with no reason costs
+           * somebody an afternoon.
+           */
+          <p className="text-xs text-ink-subtle">
+            Email goes to everyone in the audience who has a verified address and has
+            not opted out of announcements. It needs a separate sending domain
+            (<code className="font-mono">CAMPAIGN_EMAIL_FROM</code>) and cannot be recalled.
+          </p>
         ) : null}
+      </fieldset>
 
-        {audience === 'college' ? (
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-semibold text-ink-muted">College</span>
-            <Input
-              value={college}
-              onChange={(event) => {
-                setCollege(event.target.value);
-                invalidate();
-              }}
-              placeholder="Exact college name as stored on the account"
-            />
-          </label>
-        ) : null}
-
+      <div className="flex flex-col gap-3">
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-semibold text-ink-muted">Title</span>
           <Input
@@ -182,12 +229,10 @@ export function BroadcastComposer() {
       <div className="flex flex-wrap items-center gap-3">
         <Button
           variant="secondary"
-          disabled={
-            sizeUp.isPending ||
-            (audience === 'college' && !college.trim()) ||
-            // Sizing an empty list is a request that can only answer zero.
-            (audience === 'users' && recipients.length === 0)
-          }
+          // Sizing an incomplete audience is a request that can only answer
+          // zero — a named list with nobody on it, or a college branch with no
+          // college typed.
+          disabled={sizeUp.isPending || !audienceReady(target)}
           onClick={() => sizeUp.mutate()}
         >
           {sizeUp.isPending ? 'Counting…' : 'Check audience'}

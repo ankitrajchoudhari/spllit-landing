@@ -10,14 +10,31 @@
  * where a bright flash at 2am is a real cost. Light is still fully defined so
  * an admin who prefers it is not fighting a half-built theme.
  */
+/**
+ * Colour tokens.
+ *
+ * The four that take Tailwind opacity modifiers — brand, accent, danger,
+ * warning — are stored as **space-separated RGB channels**, not hex, and the
+ * config wraps them as `rgb(var(--x) / <alpha-value>)`.
+ *
+ * That is not a style preference. A token holding a whole colour cannot carry
+ * an alpha: `bg-accent/70` against `--accent: #2979ff` compiles to *nothing at
+ * all*, silently. Every bar in every chart in this console was drawn with
+ * `bg-accent/70` and `bg-brand/70`, so every chart rendered with no fill —
+ * invisible bars on an empty grid, which reads as "no data" rather than as a
+ * broken class.
+ *
+ * The `-muted` tokens below stay as rgba(): they are pre-composited fills used
+ * solid, never with a modifier, and converting them would buy nothing.
+ */
 :root {
   color-scheme: dark;
 
-  --brand: #00c853;
-  --brand-hover: #00b048;
+  --brand: 0 200 83;
+  --brand-hover: 0 176 72;
   --brand-muted: rgba(0, 200, 83, 0.18);
   --brand-fg: #062b14;
-  --accent: #2979ff;
+  --accent: 41 121 255;
   --accent-muted: rgba(41, 121, 255, 0.2);
 
   --canvas: #0a0c0b;
@@ -32,9 +49,9 @@
   --line: rgba(255, 255, 255, 0.11);
   --line-strong: rgba(255, 255, 255, 0.2);
 
-  --danger: #ff6369;
+  --danger: 255 99 105;
   --danger-muted: rgba(229, 72, 77, 0.18);
-  --warning: #f5a524;
+  --warning: 245 165 36;
   --warning-muted: rgba(245, 165, 36, 0.18);
 
   --font-body: ui-sans-serif, system-ui, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
@@ -61,7 +78,7 @@
   --line: rgba(16, 20, 17, 0.13);
   --line-strong: rgba(16, 20, 17, 0.22);
 
-  --danger: #e5484d;
+  --danger: 229 72 77;
   --danger-muted: rgba(229, 72, 77, 0.12);
   --warning-muted: rgba(245, 165, 36, 0.14);
 }

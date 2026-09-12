@@ -6,6 +6,12 @@ import { AdminRequest, requireConsoleAdmin, requirePermission } from '../middlew
 import { ok, fail } from '../utils/respond.js';
 import * as audit from '../services/auditLog.js';
 import { audienceCount, campaignsAvailable, sendCampaign } from '../services/campaigns.js';
+import {
+  MAX_NAMED_RECIPIENTS,
+  describeAudience,
+  isAudience,
+  type Audience,
+} from '../services/audience.js';
 
 /**
  * Announcements, from the console.
@@ -35,9 +41,23 @@ const MAX_BODY = 5000;
  */
 router.get('/campaigns', requirePermission('notifications.send'), async (req: AdminRequest, res: Response) => {
   try {
+    /**
+     * The audience is a query parameter so the composer can re-size as the
+     * operator changes their mind, without writing a draft first. Anything
+     * unrecognised falls back to `all` rather than erroring — a malformed
+     * query should show a number, not an empty page.
+     */
+    const kind: Audience = isAudience(req.query.audience) ? req.query.audience : 'all';
+    const college = String(req.query.college ?? '');
+    const userIds = String(req.query.userIds ?? '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, MAX_NAMED_RECIPIENTS);
+
     const [campaigns, audience] = await Promise.all([
       prisma.campaign.findMany({ orderBy: { createdAt: 'desc' }, take: 30 }),
-      audienceCount(),
+      audienceCount(kind, college, userIds),
     ]);
 
     return ok(res, {
@@ -93,7 +113,25 @@ router.post('/campaigns', requirePermission('notifications.send'), async (req: A
       return fail(res, 400, 'Confirmation required', 'confirm-required');
     }
 
-    const audience = await audienceCount();
+    const kind: Audience = isAudience(req.body?.audience) ? req.body.audience : 'all';
+    const college = String(req.body?.college ?? '').trim();
+    const userIds: string[] = Array.isArray(req.body?.userIds)
+      ? req.body.userIds.map((id: unknown) => String(id)).slice(0, MAX_NAMED_RECIPIENTS)
+      : [];
+
+    if (kind === 'college' && !college) {
+      return fail(res, 400, 'Choose a college for that audience');
+    }
+    if (kind === 'users' && userIds.length === 0) {
+      return fail(res, 400, 'Name at least one person for that audience');
+    }
+
+    const audience = await audienceCount(kind, college, userIds);
+    if (audience.reachable === 0) {
+      // Refused rather than recorded as a zero-recipient send. A campaign row
+      // saying "sent to 0" is how a broken filter hides in the history.
+      return fail(res, 400, 'Nobody in that audience can be emailed right now', 'audience-empty');
+    }
 
     const campaign = await prisma.campaign.create({
       data: {
@@ -103,6 +141,9 @@ router.post('/campaigns', requirePermission('notifications.send'), async (req: A
         createdName: req.admin!.name ?? null,
         status: 'draft',
         audience: audience.reachable,
+        audienceKind: kind,
+        audienceCollege: college || null,
+        audienceUserIds: userIds,
       },
     });
 
@@ -115,7 +156,11 @@ router.post('/campaigns', requirePermission('notifications.send'), async (req: A
         targetType: 'campaign',
         targetId: campaign.id,
         targetLabel: subject,
-        after: { subject, audience: audience.reachable },
+        after: {
+          subject,
+          audience: audience.reachable,
+          aimedAt: describeAudience(kind, college, userIds.length),
+        },
       },
       req,
     );

@@ -1,6 +1,14 @@
 import { Router, Response } from 'express';
 
 import prisma from '../utils/prisma.js';
+import { broadcastEmail } from '../services/broadcastEmail.js';
+import { campaignSenderConfigured } from '../services/email.js';
+import {
+  AUDIENCES,
+  MAX_NAMED_RECIPIENTS,
+  audienceWhere,
+  type Audience,
+} from '../services/audience.js';
 import { identify } from '../middleware/identity.js';
 import {
   AdminRequest,
@@ -131,10 +139,6 @@ router.patch(
 // Broadcast
 // ---------------------------------------------------------------------------
 
-/** Who a broadcast can be aimed at. Each maps to a `where` below. */
-const AUDIENCES = ['all', 'active', 'inactive', 'onboarding', 'college', 'users'] as const;
-type Audience = (typeof AUDIENCES)[number];
-
 /**
  * Hard ceiling on one broadcast.
  *
@@ -153,65 +157,6 @@ const BROADCAST_CAP_DEFAULT = 5000;
  */
 async function broadcastCap(): Promise<number> {
   return getBounded('notifications.broadcast_cap', BROADCAST_CAP_DEFAULT, 1, 20_000);
-}
-
-/** Most recipients one named-list send may have. */
-const MAX_NAMED_RECIPIENTS = 200;
-
-/**
- * `isActive` is deliberately absent from every audience below.
- *
- * It reads like a reachability flag and is not one. The Firebase bootstrap path
- * never checks it, so accounts marked inactive sign in and use Spllit normally
- * — 205 of 229 accounts carry `false`, eight of them used the app in the last
- * week, and no code path in this repository sets it. Whatever wrote it, it does
- * not describe whether somebody can be reached.
- *
- * Filtering on it meant "everyone onboarded" quietly meant 24 people out of
- * 229, and a broadcast reporting success had delivered to a tenth of its
- * audience. `onboarded` is the meaningful filter here and stays.
- *
- * If a real suspension concept is wanted later, it needs a field that actually
- * gates sign-in — and then this is where it belongs. Reinstating this filter
- * before that exists would only restore a silent one-in-ten broadcast.
- */
-function audienceWhere(audience: Audience, college: string, userIds: string[] = []) {
-  const base: Record<string, unknown> = {};
-  const monthAgo = new Date(Date.now() - 30 * 86_400_000);
-
-  switch (audience) {
-    /**
-     * Named individuals.
-     *
-     * Note this one does *not* require `onboarded` the way every audience
-     * below does. Those are queries over a population, where somebody halfway
-     * through signup is noise; this is a list an admin typed on purpose, and
-     * silently dropping a name they chose would be worse than including
-     * somebody who has not finished onboarding — which is frequently the exact
-     * person a console operator needs to reach.
-     */
-    /**
-     * Named individuals, filtered on nothing but the list.
-     *
-     * Not even `onboarded`, which every case below applies: those narrow a
-     * population, where somebody half-registered is noise. This is a list an
-     * admin typed on purpose, and somebody stuck in onboarding is frequently
-     * the exact person a console operator needs to reach. The picker badges the
-     * unusual states so it stays a choice rather than an accident.
-     */
-    case 'users':
-      return { id: { in: userIds.slice(0, MAX_NAMED_RECIPIENTS) } };
-    case 'active':
-      return { ...base, onboarded: true, lastSeen: { gte: monthAgo } };
-    case 'inactive':
-      return { ...base, onboarded: true, lastSeen: { lt: monthAgo } };
-    case 'onboarding':
-      return { ...base, onboarded: false };
-    case 'college':
-      return { ...base, onboarded: true, college };
-    default:
-      return { ...base, onboarded: true };
-  }
 }
 
 
@@ -302,6 +247,31 @@ router.post(
         return fail(res, 400, 'A reason is required — this reaches real people and cannot be undone.');
       }
 
+      /**
+       * Channels. Push is the default because that is what this screen has
+       * always done; email is opt-in per send.
+       *
+       * Email goes out on the campaign sending domain, not the transactional
+       * one — an announcement is the likeliest message to draw a complaint, and
+       * that must never be able to stop "your request was accepted" arriving.
+       * So it is refused, loudly, when that domain is not configured rather
+       * than quietly falling back to the transactional sender.
+       */
+      const wantsEmail = req.body?.channels?.email === true;
+      const wantsPush = req.body?.channels?.push !== false;
+
+      if (!wantsEmail && !wantsPush) {
+        return fail(res, 400, 'Choose at least one channel.');
+      }
+      if (wantsEmail && !campaignSenderConfigured()) {
+        return fail(
+          res,
+          503,
+          'Email sending is not configured. CAMPAIGN_EMAIL_FROM must point at a sending domain separate from transactional mail.',
+          'campaigns-unconfigured',
+        );
+      }
+
       const recipients = await prisma.user.findMany({
         where: audienceWhere(audience, college, namedIds),
         select: { id: true },
@@ -322,7 +292,13 @@ router.post(
           action: 'notification.broadcast',
           targetType: 'notification',
           targetLabel: `${audience}${college ? `:${college}` : ''}`,
-          after: { title, body, href: href || null, recipients: recipients.length },
+          after: {
+            title,
+            body,
+            href: href || null,
+            recipients: recipients.length,
+            channels: [wantsPush ? 'push' : null, wantsEmail ? 'email' : null].filter(Boolean),
+          },
           reason,
         },
         req,
@@ -334,26 +310,48 @@ router.post(
       let sent = 0;
       let failed = 0;
 
-      for (let i = 0; i < recipients.length; i += CHUNK) {
-        const results = await Promise.allSettled(
-          recipients.slice(i, i + CHUNK).map((user) =>
-            notify({
-              userId: user.id,
-              type: 'event.created',
-              title,
-              body,
-              ...(href ? { href } : {}),
-            }),
-          ),
-        );
+      if (wantsPush) {
+        for (let i = 0; i < recipients.length; i += CHUNK) {
+          const results = await Promise.allSettled(
+            recipients.slice(i, i + CHUNK).map((user) =>
+              notify({
+                userId: user.id,
+                type: 'event.created',
+                title,
+                body,
+                ...(href ? { href } : {}),
+              }),
+            ),
+          );
 
-        for (const result of results) {
-          if (result.status === 'fulfilled') sent += 1;
-          else failed += 1;
+          for (const result of results) {
+            if (result.status === 'fulfilled') sent += 1;
+            else failed += 1;
+          }
         }
       }
 
-      return ok(res, { sent, failed, audience, total: recipients.length });
+      /**
+       * Email runs after push and reports separately, because the two have
+       * genuinely different outcomes: a notification row is written for
+       * everybody, while email is refused for anyone unverified, suppressed or
+       * opted out. Reporting one number for both would hide that.
+       */
+      const email = wantsEmail
+        ? await broadcastEmail({
+            userIds: recipients.map((user) => user.id),
+            subject: title,
+            body,
+          })
+        : null;
+
+      return ok(res, {
+        sent,
+        failed,
+        audience,
+        total: recipients.length,
+        email,
+      });
     } catch (error) {
       console.error('[admin-console/broadcast]', error);
       return fail(res, 500, 'Failed to send the broadcast');

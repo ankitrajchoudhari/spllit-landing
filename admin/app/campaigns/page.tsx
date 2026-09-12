@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -11,6 +11,11 @@ import { DataTable, type Column, type Paged } from '@/components/ui/data-table';
 import { useToast } from '@/components/ui/toast';
 import { ConfirmDialog } from '@/components/ui/confirm';
 import { EmptyState, ErrorState, PermissionState, SkeletonRows } from '@/components/ui/states';
+import {
+  AudiencePicker,
+  audienceReady,
+  type AudienceValue,
+} from '@/components/audience-picker';
 
 /**
  * Email announcements.
@@ -68,13 +73,34 @@ export default function CampaignsPage() {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [target, setTarget] = useState<AudienceValue>({
+    audience: 'all',
+    college: '',
+    recipients: [],
+  });
 
   const allowed = can('notifications.send');
 
+  /**
+   * Re-counted whenever the target changes, so the send button always names the
+   * number it is about to reach. Keyed on the whole target for the same reason:
+   * a stale count beside a changed audience is how somebody sends to the wrong
+   * list while reading the right number.
+   */
+  const targetKey = [target.audience, target.college, target.recipients.map((r) => r.id).join(',')];
+
   const data = useQuery({
-    queryKey: ['campaigns'],
-    queryFn: () => api<CampaignsResponse>('/campaigns'),
-    enabled: allowed,
+    queryKey: ['campaigns', ...targetKey],
+    queryFn: () =>
+      api<CampaignsResponse>('/campaigns', {
+        query: {
+          audience: target.audience,
+          college: target.college,
+          userIds: target.recipients.map((person) => person.id).join(','),
+        },
+      }),
+    enabled: allowed && audienceReady(target),
+    placeholderData: keepPreviousData,
   });
 
   const send = useMutation({
@@ -83,12 +109,20 @@ export default function CampaignsPage() {
         method: 'POST',
         // The server checks the confirmation too. A client-side guard on
         // something unrecallable is decoration.
-        body: { subject, body, confirm: 'SEND' },
+        body: {
+          subject,
+          body,
+          confirm: 'SEND',
+          audience: target.audience,
+          college: target.college,
+          userIds: target.recipients.map((person) => person.id),
+        },
       }),
     onSuccess: (result) => {
       setConfirming(false);
       setSubject('');
       setBody('');
+      setTarget({ audience: 'all', college: '', recipients: [] });
       void queryClient.invalidateQueries({ queryKey: ['campaigns'] });
       toast.success(
         `Sent to ${formatCount(result.sent)} — ${formatCount(result.skipped)} skipped.`,
@@ -102,7 +136,8 @@ export default function CampaignsPage() {
 
   if (!allowed) return <PermissionState permission="notifications.send" />;
 
-  const ready = subject.trim().length > 0 && body.trim().length > 0;
+  const ready =
+    subject.trim().length > 0 && body.trim().length > 0 && audienceReady(target);
   const audience = data.data?.audience;
   const available = data.data?.available ?? false;
 
@@ -158,6 +193,8 @@ export default function CampaignsPage() {
       </div>
 
       <div className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5">
+        <AudiencePicker value={target} onChange={setTarget} disabled={send.isPending} />
+
         <div>
           <label htmlFor="campaign-subject" className="mb-1.5 block text-sm font-medium text-ink">
             Subject

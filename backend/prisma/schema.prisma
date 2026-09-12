@@ -882,6 +882,16 @@ model Campaign {
   status      String    @default("draft")
   /// How many the audience query matched when sending began.
   audience    Int       @default(0)
+  /// Who it was aimed at. All three are additive and nullable, so existing rows
+  /// read as the old behaviour — `all` — without a migration.
+  ///
+  /// Stored on the row rather than resolved at send time because a campaign is
+  /// a record of what was sent to whom. Recomputing "everyone onboarded" months
+  /// later would answer with today's population, not the one that received it.
+  /// all | active | inactive | onboarding | college | users
+  audienceKind    String?
+  audienceCollege String?
+  audienceUserIds String[]
   /// Accepted by the provider. Delivery is a separate question, answered by
   /// webhooks rather than by this number.
   sent        Int       @default(0)

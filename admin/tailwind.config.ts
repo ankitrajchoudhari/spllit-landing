@@ -15,13 +15,13 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          DEFAULT: 'var(--brand)',
-          hover: 'var(--brand-hover)',
+          DEFAULT: 'rgb(var(--brand) / <alpha-value>)',
+          hover: 'rgb(var(--brand-hover) / <alpha-value>)',
           muted: 'var(--brand-muted)',
           fg: 'var(--brand-fg)',
         },
         accent: {
-          DEFAULT: 'var(--accent)',
+          DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
           muted: 'var(--accent-muted)',
         },
         canvas: 'var(--canvas)',
@@ -39,9 +39,9 @@ const config: Config = {
           DEFAULT: 'var(--line)',
           strong: 'var(--line-strong)',
         },
-        danger: 'var(--danger)',
+        danger: 'rgb(var(--danger) / <alpha-value>)',
         'danger-muted': 'var(--danger-muted)',
-        warning: 'var(--warning)',
+        warning: 'rgb(var(--warning) / <alpha-value>)',
         'warning-muted': 'var(--warning-muted)',
       },
       fontFamily: {
