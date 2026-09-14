@@ -21,7 +21,13 @@ import { cn, formatDistance, haversine } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { RequireAuth } from '@/components/auth/require-auth';
 import { MapCanvas } from '@/components/map/map-canvas';
-import { reverseGeocode, type PickedPlace } from '@/components/shared/place-picker';
+import {
+  labelForLandmark,
+  nearbyLandmarks,
+  reverseGeocode,
+  type PickedPlace,
+} from '@/components/shared/place-picker';
+import { LandmarkPicker } from '@/components/shared/landmark-picker';
 import { pickupService } from '@/lib/services/pickup';
 import { pickupAdvice, type GeoSource } from '@/lib/pickup-advice';
 import {
@@ -84,6 +90,18 @@ function MeetingPointPicker({ query }: { query: string }) {
   const [selection, setSelection] = useState<Selection | null>(null);
 
   /**
+   * Two stages on one screen, rather than a second route.
+   *
+   * The map stays mounted and the pin stays where it was put — only the card
+   * below changes. Navigating would tear down the map and reload the tiles to
+   * ask a question about a point already chosen, and Back would land on a
+   * picker the user had finished with.
+   */
+  const [stage, setStage] = useState<'pin' | 'landmark'>('pin');
+  const [landmarkId, setLandmarkId] = useState<string | null>(null);
+
+
+  /**
    * Lookup ticket. Taps can be faster than the network, and a slow lookup for
    * an abandoned point must not overwrite the point the user is now looking at.
    */
@@ -100,6 +118,17 @@ function MeetingPointPicker({ query }: { query: string }) {
     ) => {
     const ticket = ++ticketRef.current;
     setSelection({ status: 'resolving', point });
+
+    /**
+     * A new pin returns to the first stage.
+     *
+     * The map stays interactive during the landmark step, so a tap there is a
+     * change of mind about the location. Staying on the second stage would
+     * leave a list of places near where the pin *used* to be, and a selection
+     * that silently stops applying once the list refetches.
+     */
+    setStage('pin');
+    setLandmarkId(null);
 
     void reverseGeocode(point).then((named) => {
       if (ticket !== ticketRef.current) return;
@@ -254,6 +283,23 @@ function MeetingPointPicker({ query }: { query: string }) {
   /** Leaving without choosing returns the draft exactly as it arrived. */
   const backHref = squadNewHref(draft);
 
+  // Both resolved states carry a place; only 'resolving' has none yet. An
+  // unnamed pin is still a perfectly good spot to ask "what is this near".
+  const pinned =
+    selection && selection.status !== 'resolving' ? selection.place : null;
+
+  const landmarkQuery = useQuery({
+    // Keyed on the confirmed coordinates, so moving the pin and confirming
+    // again asks about the new spot rather than reusing the old answer.
+    queryKey: ['landmarks', pinned?.lng, pinned?.lat],
+    queryFn: () => nearbyLandmarks([pinned!.lng, pinned!.lat]),
+    enabled: stage === 'landmark' && pinned !== null,
+    staleTime: 5 * 60_000,
+  });
+
+  const landmarks = landmarkQuery.data ?? [];
+  const chosenLandmark = landmarks.find((candidate) => candidate.id === landmarkId) ?? null;
+
   const confirm = () => {
     if (!selection || selection.status === 'resolving') return;
     /**
@@ -281,6 +327,16 @@ function MeetingPointPicker({ query }: { query: string }) {
     const meetingPoint: PickedPlace = {
       ...selection.place,
       ...(snap?.status === 'ok' ? { roadDistanceMetres: snap.distanceMetres } : {}),
+      /**
+       * Only the label changes, never the coordinates.
+       *
+       * The pin is where the user put it. Choosing "Main Gate" says what the
+       * spot is next to, and `labelForLandmark` decides whether it is close
+       * enough to be called that or has to read "Near Main Gate" — because
+       * naming a point eighty metres away after the gate would send people to
+       * the gate.
+       */
+      ...(chosenLandmark ? { label: labelForLandmark(chosenLandmark) } : {}),
     };
 
     router.replace(squadNewHref({ ...draft, meetingPoint }));
@@ -607,15 +663,58 @@ function MeetingPointPicker({ query }: { query: string }) {
             </p>
           ) : null}
 
+          {/*
+            The second stage. Rendered below the pin's own card rather than
+            replacing it, so the place being described stays on screen while
+            the question about it is answered.
+          */}
+          {stage === 'landmark' ? (
+            <div className="mt-4 border-t border-line pt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-subtle">
+                What is it near?
+              </p>
+              <p className="mt-1 text-[12.5px] leading-snug text-ink-muted">
+                Your squad finds each other by name long before anyone opens the map.
+              </p>
+
+              <div className="mt-3">
+                <LandmarkPicker
+                  landmarks={landmarks}
+                  loading={landmarkQuery.isLoading}
+                  selectedId={landmarkId}
+                  onSelect={(landmark) => setLandmarkId(landmark?.id ?? null)}
+                />
+              </div>
+            </div>
+          ) : null}
+
           <Button
             size="lg"
             className="mt-4 w-full"
             disabled={selection === null}
             loading={selection?.status === 'resolving'}
-            onClick={confirm}
+            onClick={stage === 'pin' ? () => setStage('landmark') : confirm}
           >
-            Confirm meeting point
+            {stage === 'pin' ? 'Confirm this pin' : 'Set meeting point'}
           </Button>
+
+          {/*
+            Going back a stage, not out of the screen. Without this the only way
+            to move a pin after confirming it is the browser's Back, which
+            leaves the picker entirely.
+          */}
+          {stage === 'landmark' ? (
+            <button
+              type="button"
+              onClick={() => {
+                setStage('pin');
+                setLandmarkId(null);
+              }}
+              className="mt-2 w-full py-1.5 text-[12.5px] text-ink-muted transition-colors hover:text-ink"
+            >
+              Move the pin instead
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

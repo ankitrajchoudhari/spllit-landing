@@ -260,6 +260,113 @@ export interface PickedPlace {
  * group agreed on by pointing at the map is still valid when Mapbox has no
  * name for that patch of road, and refusing to show it would lose the pin.
  */
+/** A recognisable place near the pin, for describing where to meet. */
+export interface NearbyLandmark {
+  id: string;
+  /** What people call it — "Gajendra Circle", "Main Gate". */
+  name: string;
+  /** Street line beneath the name, when the provider gives one. */
+  address: string | null;
+  /** Straight-line metres from the pin. Not a walking distance. */
+  distanceMetres: number;
+}
+
+/**
+ * How far out to look, and how far is still worth showing.
+ *
+ * A landmark two kilometres away does not help anybody find a gate, and a list
+ * that offers one invites somebody to pick it. 600 m is roughly the distance
+ * across a campus quadrangle — far enough to reach the next recognisable thing,
+ * close enough that the name still means "over there" rather than "somewhere in
+ * this city".
+ */
+const LANDMARK_RADIUS_METRES = 600;
+
+/**
+ * Distance at which a landmark stops describing the pin and starts being it.
+ *
+ * Inside this the label reads "Main Gate"; beyond it, "Near Main Gate". The
+ * distinction matters because the coordinate does not move either way — calling
+ * a spot eighty metres off "Main Gate" would send people to the gate itself.
+ */
+export const LANDMARK_IS_HERE_METRES = 30;
+
+/**
+ * Recognisable places around a point, nearest first.
+ *
+ * The same v5 geocoding endpoint and public token `reverseGeocode` uses, asking
+ * for POIs rather than one best answer. Deliberately not the Search Box
+ * category API: that needs a session token and a category taxonomy, and this
+ * wants "whatever is notable here", which is exactly what a POI reverse lookup
+ * returns.
+ *
+ * Returns an empty list rather than throwing. A missing landmark list is a step
+ * the user skips, never an error that blocks confirming a pin they already
+ * chose.
+ */
+export async function nearbyLandmarks(point: LngLat): Promise<NearbyLandmark[]> {
+  if (!config.mapbox.token) return [];
+
+  try {
+    const url = new URL(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${point[0]},${point[1]}.json`,
+    );
+    url.searchParams.set('access_token', config.mapbox.token);
+    url.searchParams.set('language', 'en');
+    // POIs only. `address` and `neighborhood` describe where the pin is, which
+    // the card above already says; this list answers "what is it next to".
+    url.searchParams.set('types', 'poi');
+    // Over-fetch, because the radius filter below removes some and duplicates
+    // remove more. Ten leaves enough to fill a six-card grid.
+    url.searchParams.set('limit', '10');
+
+    const response = await fetch(url.toString());
+    if (!response.ok) return [];
+
+    const payload = (await response.json()) as { features?: GeocodeFeature[] };
+    const seen = new Set<string>();
+    const out: NearbyLandmark[] = [];
+
+    for (const feature of payload.features ?? []) {
+      const lines = describeFeature(feature);
+      if (!lines.name) continue;
+
+      // Mapbox returns the same place under several ids often enough that a
+      // grid of six can otherwise be the same café three times.
+      const key = lines.name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const distanceMetres = haversine(point, feature.center);
+      if (distanceMetres > LANDMARK_RADIUS_METRES) continue;
+
+      out.push({
+        id: feature.id,
+        name: lines.name,
+        address: lines.address ?? null,
+        distanceMetres,
+      });
+    }
+
+    return out.sort((a, b) => a.distanceMetres - b.distanceMetres);
+  } catch {
+    // Same reasoning as the empty returns above — never block the pin.
+    return [];
+  }
+}
+
+/**
+ * The label a pin should carry once a landmark has been chosen.
+ *
+ * Kept beside the fetch so the "is here" threshold and the wording that depends
+ * on it cannot drift apart.
+ */
+export function labelForLandmark(landmark: NearbyLandmark): string {
+  return landmark.distanceMetres <= LANDMARK_IS_HERE_METRES
+    ? landmark.name
+    : `Near ${landmark.name}`;
+}
+
 export async function reverseGeocode(point: LngLat): Promise<PickedPlace> {
   const fallback: PickedPlace = {
     lat: point[1],
