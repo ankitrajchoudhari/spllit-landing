@@ -132,7 +132,7 @@ export async function generateReport(options: {
       // Low, because this is a report and not a piece of writing. The same
       // figures should produce roughly the same account twice.
       temperature: 0.3,
-      maxOutputTokens: 800,
+      maxOutputTokens: 2500,
     });
 
   let body = '';

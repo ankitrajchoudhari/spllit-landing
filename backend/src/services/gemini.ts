@@ -21,12 +21,21 @@ import { GoogleGenAI } from '@google/genai';
  * The model, overridable without a deploy.
  *
  * Gemini's model names move faster than this codebase does, and a hardcoded
- * one becomes a 404 at some point after nobody is watching. The default is the
- * current fast tier; `GEMINI_MODEL` overrides it, and `listModels()` below
- * exists so the right value can be checked against the account rather than
- * guessed from documentation.
+ * one becomes a 404 at some point after nobody is watching. `GEMINI_MODEL`
+ * overrides this without a deploy, and `listModels()` below exists so the right
+ * value can be checked against the account rather than guessed.
+ *
+ * That check earned its keep immediately: the first default here was
+ * `gemini-2.5-flash`, which *listed* fine and then returned 404 on the first
+ * real call — "no longer available to new users", with Google naming this model
+ * as the replacement. A model appearing in the catalogue does not mean the key
+ * may call it.
+ *
+ * Pinned rather than `gemini-flash-latest`. Each report stores the model that
+ * wrote it so successive ones are comparable, and an alias that silently moves
+ * underneath makes that field a record of nothing.
  */
-export const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash';
+export const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
 
 let client: GoogleGenAI | null = null;
 
@@ -51,6 +60,15 @@ export interface GenerateOptions {
   context?: string[];
   /** Low for reports: the same figures should produce the same account twice. */
   temperature?: number;
+  /**
+   * Ceiling for thinking *and* prose together.
+   *
+   * Gemini 3.x reasons before it writes, and both come out of this one budget.
+   * Set it tight and the model spends the lot thinking and returns nothing —
+   * measured: a bare "say ok" used 101 thinking tokens, and at a ceiling of 20
+   * the reply was empty with finishReason MAX_TOKENS. The default below is
+   * generous on purpose; an hourly report is not where tokens are worth saving.
+   */
   maxOutputTokens?: number;
 }
 
@@ -80,26 +98,37 @@ export async function generateText(options: GenerateOptions): Promise<string> {
       // first message, which is what stops a long context burying it.
       systemInstruction: options.system,
       temperature: options.temperature ?? 0.3,
-      maxOutputTokens: options.maxOutputTokens ?? 800,
+      maxOutputTokens: options.maxOutputTokens ?? 2000,
     },
   });
 
   const text = response.text?.trim();
-  if (!text) {
-    /**
-     * An empty response is usually a safety block or a token ceiling hit
-     * before the first sentence, and both are worth saying out loud — "the
-     * model returned nothing" sends somebody looking at the wrong thing.
-     */
-    const reason = response.candidates?.[0]?.finishReason;
+  const reason = response.candidates?.[0]?.finishReason;
+
+  /**
+   * Truncated prose beats no prose.
+   *
+   * Hitting the ceiling mid-sentence still leaves a report worth reading, and
+   * throwing it away to record a failure would lose the only useful thing the
+   * call produced.
+   */
+  if (text) return text;
+
+  /**
+   * Empty, though. Worth naming the cause rather than saying "no text": a
+   * safety block and a budget spent entirely on thinking look identical from
+   * here and send somebody to completely different places.
+   */
+  if (reason === 'MAX_TOKENS') {
     throw new Error(
-      reason
-        ? `Gemini returned no text (finishReason: ${reason}).`
-        : 'Gemini returned no text.',
+      'Gemini spent its whole token budget thinking and produced no text. ' +
+        'Raise maxOutputTokens.',
     );
   }
 
-  return text;
+  throw new Error(
+    reason ? `Gemini returned no text (finishReason: ${reason}).` : 'Gemini returned no text.',
+  );
 }
 
 /**

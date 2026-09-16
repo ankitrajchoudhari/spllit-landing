@@ -31,7 +31,9 @@ console.log('\nmodel exists. sending a test prompt…');
 const text = await generateText({
   system: 'Reply with exactly the word: ok',
   user: 'Say ok.',
-  maxOutputTokens: 20,
+  // Not 20. Gemini 3.x reasons out of this same budget, so a tight ceiling
+  // fails the check on a key and model that are both perfectly fine.
+  maxOutputTokens: 500,
 });
 console.log(`reply: ${text}`);
 console.log('\nGemini is working.');
