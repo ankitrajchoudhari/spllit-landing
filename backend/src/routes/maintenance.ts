@@ -7,6 +7,11 @@ import { sweepAllRead } from '../services/notificationRetention.js';
 import { isEmailConfigured, sendTestEmail } from '../services/email.js';
 import { sweepJoinRequestTokens } from '../services/joinRequestTokens.js';
 import { sweepEmailSendLog } from '../services/emailPolicy.js';
+import {
+  generateReport,
+  isReportWindow,
+  isReportingConfigured,
+} from '../services/aiReports.js';
 
 /**
  * Scheduled maintenance, called by Cloud Scheduler rather than by a person.
@@ -241,6 +246,45 @@ router.post('/sweep', async (req: Request, res: Response) => {
  * why an endpoint that mails arbitrary addresses would be a liability on the
  * very domain this is meant to protect.
  */
+/**
+ * POST /api/maintenance/generate-report?window=24h
+ *
+ * The hourly report, triggered from outside.
+ *
+ * `node-cron` is not an option here for the same reason the sweeps above are
+ * not: Cloud Run scales to zero, so a timer armed in the process dies with the
+ * instance, and the CPU is throttled between requests even while one is warm.
+ * A scheduled report on an in-process timer would look right in the code and
+ * never once fire.
+ */
+router.post('/generate-report', async (req: Request, res: Response) => {
+  if (!authorised(req)) return fail(res, 404, 'Not found');
+
+  const window = String(req.query.window ?? '24h');
+  if (!isReportWindow(window)) {
+    return fail(res, 400, 'window must be 1h, 24h or 7d');
+  }
+
+  if (!isReportingConfigured()) {
+    // 503 rather than 500: the scheduler should treat this as "not ready",
+    // and an operator reading the log should see configuration, not a bug.
+    return fail(res, 503, 'OPENAI_API_KEY is not set on this service.');
+  }
+
+  try {
+    const report = await generateReport({ window, trigger: 'schedule' });
+    return ok(res, {
+      id: report.id,
+      window,
+      headline: report.headline,
+      failed: report.error !== null,
+    });
+  } catch (error) {
+    console.error('[maintenance/generate-report]', error);
+    return fail(res, 500, 'Report generation failed');
+  }
+});
+
 router.post('/email-test', async (req: Request, res: Response) => {
   if (!authorised(req)) return fail(res, 404, 'Not found');
 

@@ -4,6 +4,7 @@ import { SectionTabs } from '@/components/section-tabs';
 import AnalyticsPage from '@/app/analytics/page';
 import ExplorePage from '@/app/explore/page';
 import ActivityPage from '@/app/activity/page';
+import ReportsPage from '@/app/reports/page';
 
 /**
  * The questions you ask when nothing is on fire.
@@ -21,6 +22,7 @@ export default function InsightsPage() {
         { key: 'analytics', label: 'Overview', permission: 'analytics.view', render: () => <AnalyticsPage /> },
         { key: 'explore', label: 'Explore', permission: 'analytics.view', render: () => <ExplorePage /> },
         { key: 'activity', label: 'Map', permission: 'analytics.view', render: () => <ActivityPage /> },
+        { key: 'reports', label: 'Reports', permission: 'analytics.view', render: () => <ReportsPage /> },
       ]}
     />
   );

@@ -24,6 +24,11 @@ import { ok, fail } from '../utils/respond.js';
 import * as audit from '../services/auditLog.js';
 import { readCounters, readSeries } from '../services/adminEvents.js';
 import { connectedAdminCount } from '../services/adminSocket.js';
+import {
+  generateReport,
+  isReportWindow,
+  isReportingConfigured,
+} from '../services/aiReports.js';
 import { invalidateFlagCache } from '../services/featureFlags.js';
 import {
   activationFunnel,
@@ -1306,6 +1311,125 @@ router.get(
     } catch (error) {
       console.error('[admin-console/analytics]', error);
       return fail(res, 500, 'Failed to load analytics');
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// AI reports
+// ---------------------------------------------------------------------------
+
+/** GET /api/admin-console/reports?window=&page= */
+router.get(
+  '/reports',
+  requirePermission('analytics.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const { page, limit, skip } = pagination(req.query);
+      const where: Record<string, unknown> = {};
+
+      const window = String(req.query.window ?? '').trim();
+      if (isReportWindow(window)) where.window = window;
+
+      const [rows, total] = await Promise.all([
+        prisma.report.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+          // `inputs` is deliberately omitted from the list: it is the full
+          // aggregate snapshot, and shipping one per row would make a page of
+          // twenty reports many times larger than the prose anybody reads.
+          select: {
+            id: true,
+            window: true,
+            headline: true,
+            body: true,
+            model: true,
+            trigger: true,
+            actorEmail: true,
+            error: true,
+            createdAt: true,
+          },
+        }),
+        prisma.report.count({ where }),
+      ]);
+
+      return ok(res, {
+        rows,
+        page,
+        limit,
+        total,
+        pages: Math.max(Math.ceil(total / limit), 1),
+        configured: isReportingConfigured(),
+      });
+    } catch (error) {
+      console.error('[admin-console/reports]', error);
+      return fail(res, 500, 'Failed to load reports');
+    }
+  },
+);
+
+/** GET /api/admin-console/reports/:id — one report, with what it was given. */
+router.get(
+  '/reports/:id',
+  requirePermission('analytics.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const report = await prisma.report.findUnique({ where: { id: String(req.params.id) } });
+      if (!report) return fail(res, 404, 'Report not found');
+      return ok(res, report);
+    } catch (error) {
+      console.error('[admin-console/reports/:id]', error);
+      return fail(res, 500, 'Failed to load report');
+    }
+  },
+);
+
+/**
+ * POST /api/admin-console/reports/generate — { window }
+ *
+ * Gated on `exports.run` rather than `analytics.view`. Reading a report costs
+ * nothing; writing one spends money at OpenAI, so it sits with the other
+ * permission that authorises expensive work.
+ */
+router.post(
+  '/reports/generate',
+  requirePermission('exports.run'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const admin = req.admin!;
+      const window = String(req.body?.window ?? '24h');
+
+      if (!isReportWindow(window)) {
+        return fail(res, 400, 'Window must be 1h, 24h or 7d.');
+      }
+      if (!isReportingConfigured()) {
+        return fail(res, 503, 'Reports are not configured — OPENAI_API_KEY is not set.');
+      }
+
+      const report = await audit.recorded(
+        admin,
+        {
+          action: 'report.generate',
+          targetType: 'export',
+          targetLabel: window,
+          after: { window },
+        },
+        req,
+        () => generateReport({ window, trigger: 'manual', actorEmail: admin.email }),
+      );
+
+      return ok(res, {
+        id: report.id,
+        headline: report.headline,
+        body: report.body,
+        failed: report.error !== null,
+        error: report.error,
+      });
+    } catch (error) {
+      console.error('[admin-console/reports/generate]', error);
+      return fail(res, 500, 'Report generation failed');
     }
   },
 );

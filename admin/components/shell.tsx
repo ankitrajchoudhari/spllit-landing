@@ -75,6 +75,7 @@ const SECTION_OF: Record<string, string> = {
   '/analytics': '/insights',
   '/explore': '/insights',
   '/activity': '/insights',
+  '/reports': '/insights',
   '/flags': '/settings',
   '/audit': '/settings',
   '/system': '/settings',

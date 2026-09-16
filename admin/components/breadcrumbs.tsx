@@ -9,6 +9,7 @@ const LABELS: Record<string, string> = {
   content: 'Content',
   messages: 'Messages',
   insights: 'Insights',
+  reports: 'Reports',
   users: 'Users',
   rides: 'Rides',
   squads: 'Squads',

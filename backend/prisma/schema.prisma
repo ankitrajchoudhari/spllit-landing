@@ -1353,3 +1353,43 @@ model ActiveUserDay {
   @@index([day])
   @@index([userId, day])
 }
+
+/// An AI-written summary of a time window.
+///
+/// The text is the product, but `inputs` is what makes it trustworthy: the
+/// aggregates the model was actually given, stored beside its answer. Without
+/// them a report is an assertion nobody can check, and the first time one says
+/// something surprising the only question worth asking — "what did it see?" —
+/// has no answer.
+///
+/// Previous reports are fed back in as context so successive ones read as a
+/// continuing account rather than the same paragraph rewritten hourly. That is
+/// why they are kept rather than overwritten.
+model Report {
+  id          String   @id @default(cuid()) @map("_id")
+  /// 1h | 24h | 7d — the window the figures cover.
+  window      String
+  /// The generated prose.
+  body        String
+  /// First line, for lists. Derived at write time so a list view never has to
+  /// load every full report to show its own headings.
+  headline    String
+  /// The aggregates handed to the model, exactly as sent.
+  inputs      Json
+  /// Which model wrote it. Stored because the answer changes when this does,
+  /// and a report written by a different model is not comparable to its
+  /// predecessors.
+  model       String
+  /// schedule | manual
+  trigger     String   @default("schedule")
+  /// Who pressed the button, for a manual run. Null for scheduled ones.
+  actorEmail  String?
+  /// Null when generation failed — the row is still written, because a report
+  /// that did not appear is something you want to see in the list rather than
+  /// discover by its absence.
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([window, createdAt])
+  @@index([createdAt])
+}

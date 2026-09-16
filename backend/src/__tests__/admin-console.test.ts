@@ -29,6 +29,7 @@ import { diff, sanitise } from '../services/auditLog.js';
 import { ADMIN_EVENTS, METRIC_FOR } from '../services/adminEvents.js';
 import { markActive, markedTodayCount, resetActiveCache } from '../services/activeUsers.js';
 import { bucketFor, evaluate, type FlagState } from '../services/featureFlags.js';
+import { REPORT_WINDOWS, isReportWindow } from '../services/aiReports.js';
 
 /** A user row as `resolveAdminRole` expects it, with nothing yet privileged. */
 const ACTIVE = {
@@ -507,5 +508,27 @@ describe('per-admin permission overrides', () => {
   it('never returns duplicates, whatever it is handed', () => {
     const effective = effectivePermissions('analyst', ['users.view', 'users.view'], []);
     assert.equal(new Set(effective).size, effective.length);
+  });
+});
+
+describe('AI report windows', () => {
+  it('accepts only the windows the UI offers', () => {
+    // The window reaches a date calculation. An unrecognised one would either
+    // throw deep in the query or, worse, quietly produce NaN days.
+    for (const window of Object.keys(REPORT_WINDOWS)) {
+      assert.equal(isReportWindow(window), true, `${window} should be valid`);
+    }
+    for (const bad of ['30d', '', 'all', '1H', 'day', null, undefined, 24]) {
+      assert.equal(isReportWindow(bad), false, `${String(bad)} should be refused`);
+    }
+  });
+
+  it('gives every window a positive span in days', () => {
+    // A zero or negative span makes `since` equal to or later than now, and the
+    // report silently describes an empty period as though nothing happened.
+    for (const [window, days] of Object.entries(REPORT_WINDOWS)) {
+      assert.ok(days > 0, `${window} has a non-positive span`);
+      assert.ok(Number.isFinite(days), `${window} has a non-finite span`);
+    }
   });
 });
