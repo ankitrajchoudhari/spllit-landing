@@ -148,6 +148,13 @@ router.get(
       const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      /**
+       * Past this, nothing scheduled can still be under way.
+       *
+       * Mirrors LIFECYCLE.HARD_MAX_HOURS in services/squadLifecycle.ts, which
+       * is the rule the app itself applies when it does evaluate a squad.
+       */
+      const staleBefore = new Date(now.getTime() - 4 * 60 * 60 * 1000);
 
       const [
         totalUsers,
@@ -159,10 +166,12 @@ router.get(
         onboardedUsers,
         totalRides,
         activeRides,
+        staleRides,
         completedRides,
         cancelledRides,
         totalSquads,
         activeSquads,
+        staleSquads,
         upcomingEvents,
         totalEvents,
         communities,
@@ -193,17 +202,66 @@ router.get(
         prisma.user.count({ where: { isActive: false } }),
         prisma.user.count({ where: { onboarded: true } }),
         prisma.ride.count(),
+        /**
+         * Rides that are actually happening, not rows that were never closed.
+         *
+         * Status alone was counting 21 as "active" while every one of their
+         * departure times sat in the past — the oldest by five months. Nothing
+         * moves a `requested` ride to `cancelled` when its departure passes:
+         * the state machine is driven by people, and people who lose interest
+         * do not press cancel.
+         *
+         * So the clock is part of the question. `arriving` and `in_progress`
+         * are live by definition whatever the schedule says; the rest have to
+         * still be ahead of us, within the same four-hour ceiling the squad
+         * lifecycle uses for "this cannot still be running".
+         */
         prisma.ride.count({
           where: {
-            status: {
-              in: ['requested', 'pending', 'accepted', 'matched', 'arriving', 'in_progress'],
-            },
+            OR: [
+              { status: { in: ['arriving', 'in_progress'] } },
+              {
+                status: { in: ['requested', 'pending', 'accepted', 'matched'] },
+                departureTime: { gte: staleBefore },
+              },
+            ],
+          },
+        }),
+        // Open rides whose departure is long past. Not noise — 21 of these is
+        // the actual finding, and hiding them behind a corrected count would
+        // fix the number while leaving the problem invisible.
+        prisma.ride.count({
+          where: {
+            status: { in: ['requested', 'pending', 'accepted', 'matched'] },
+            departureTime: { lt: staleBefore },
           },
         }),
         prisma.ride.count({ where: { status: 'completed' } }),
         prisma.ride.count({ where: { status: 'cancelled' } }),
         prisma.squad.count(),
-        prisma.squad.count({ where: { isActive: true } }),
+        /**
+         * Same correction for squads.
+         *
+         * `isActive` is derived from `status`, and `status` is derived on read
+         * — see services/squadLifecycle.ts. A squad nobody has opened since its
+         * meeting keeps whatever it was last written with, so the dashboard was
+         * showing two squads as active whose meetings were three days and one
+         * month ago.
+         *
+         * Evaluating the real lifecycle needs each squad's members, which is a
+         * query per squad and not something a dashboard tile can afford. The
+         * hard ceiling costs nothing and is the same rule: past it, the
+         * lifecycle would have ended the squad anyway.
+         */
+        prisma.squad.count({
+          where: {
+            isActive: true,
+            OR: [{ meetingAt: null }, { meetingAt: { gte: staleBefore } }],
+          },
+        }),
+        prisma.squad.count({
+          where: { isActive: true, meetingAt: { lt: staleBefore } },
+        }),
         prisma.event.count({ where: { status: 'published', startsAt: { gte: now } } }),
         prisma.event.count(),
         prisma.community.count(),
@@ -241,10 +299,11 @@ router.get(
         rides: {
           total: totalRides,
           active: activeRides,
+          stale: staleRides,
           completed: completedRides,
           cancelled: cancelledRides,
         },
-        squads: { total: totalSquads, active: activeSquads },
+        squads: { total: totalSquads, active: activeSquads, stale: staleSquads },
         events: { total: totalEvents, upcoming: upcomingEvents },
         communities: { total: communities },
         chat: { messages24h, threads },

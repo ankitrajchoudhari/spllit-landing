@@ -35,8 +35,8 @@ interface Overview {
     suspended: number;
     onboarded: number;
   };
-  rides: { total: number; active: number; completed: number; cancelled: number };
-  squads: { total: number; active: number };
+  rides: { total: number; active: number; stale: number; completed: number; cancelled: number };
+  squads: { total: number; active: number; stale: number };
   events: { total: number; upcoming: number };
   communities: { total: number };
   chat: { messages24h: number; threads: number };
@@ -160,9 +160,17 @@ export default function DashboardPage() {
               />
               <Stat
                 size="hero"
-                label="New today"
-                value={formatCount(live(data.users.newToday, 'user.created'))}
-                sub={`${formatCount(data.users.newWeek)} over the last 7 days`}
+                label="New this week"
+                /**
+                 * The week, not the day.
+                 *
+                 * This tile read "0  +400%" — a daily count beside a
+                 * week-over-week delta, which says nothing true about either.
+                 * A percentage has to describe the number it sits next to, so
+                 * the number is now the one the percentage is about.
+                 */
+                value={formatCount(live(data.users.newWeek, 'user.created'))}
+                sub={`${formatCount(data.users.newToday)} of them today`}
                 icon={<UserPlus className="h-4 w-4" />}
                 delta={signupDelta}
                 deltaLabel="this week vs the week before"
@@ -181,14 +189,14 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Stat
                 label="Active rides"
-                value={formatCount(live(data.rides.active, 'ride.created'))}
-                sub={`${formatCount(data.rides.completed)} completed all time`}
+                value={formatCount(data.rides.active)}
+                sub="Under way or still ahead"
                 icon={<Car className="h-4 w-4" />}
               />
               <Stat
                 label="Active squads"
-                value={formatCount(live(data.squads.active, 'squad.created'))}
-                sub={`${formatCount(data.squads.total)} total`}
+                value={formatCount(data.squads.active)}
+                sub={`${formatCount(data.squads.total)} all time`}
                 icon={<UsersRound className="h-4 w-4" />}
               />
               <Stat
@@ -218,6 +226,26 @@ export default function DashboardPage() {
                 value={formatCount(live(data.emergencies.open, 'emergency.raised'))}
                 tone={data.emergencies.open > 0 ? 'bad' : 'good'}
                 icon={<ShieldAlert className="h-4 w-4" />}
+              />
+              {/*
+                Surfaced rather than quietly excluded from the count above. A
+                ride left open since April is somebody's abandoned plan still
+                sitting in the data, and correcting the headline figure without
+                showing these would fix the number and hide the problem.
+              */}
+              <Stat
+                size="compact"
+                label="Stale rides"
+                value={formatCount(data.rides.stale)}
+                tone={data.rides.stale > 0 ? 'warn' : 'neutral'}
+                sub="Open, departure long past"
+              />
+              <Stat
+                size="compact"
+                label="Stale squads"
+                value={formatCount(data.squads.stale)}
+                tone={data.squads.stale > 0 ? 'warn' : 'neutral'}
+                sub="Live, meeting long past"
               />
               <Stat size="compact" label="Communities" value={formatCount(data.communities.total)} />
               <Stat size="compact" label="Waitlist" value={formatCount(data.waitlist.total)} />
@@ -269,6 +297,14 @@ const LABELS: Record<string, string> = {
  * thirty values, and a charting dependency would be the single largest thing
  * in this bundle for a graphic that is thirty divs.
  */
+/** "14 Sep" from an ISO day key. Short, because it sits under a 12px bar. */
+function dayLabel(iso: string | undefined): string {
+  if (!iso) return '';
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 function SignupChart({ query }: { query: ReturnType<typeof useQuery<Signups>> }) {
   if (query.isLoading) return <Skeleton className="h-48 w-full" />;
   if (query.isError || !query.data) return null;
@@ -287,24 +323,54 @@ function SignupChart({ query }: { query: ReturnType<typeof useQuery<Signups>> })
       </div>
 
       <div className="scroll-x">
-        <div className="flex h-32 min-w-[480px] items-end gap-1">
-          {series.map((point) => (
+        <div className="min-w-[480px]">
+          {/*
+            A scale, because bars without one are decoration. Two gridlines and
+            the peak value are enough to read a height off — a full axis would
+            cost more room than it earns on a strip this short.
+          */}
+          <div className="relative flex h-32 items-end gap-1">
             <div
-              key={point.date}
-              className="group relative flex flex-1 items-end"
-              style={{ height: '100%' }}
-            >
+              className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-line"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-line/60"
+              aria-hidden
+            />
+            <span className="pointer-events-none absolute -top-1.5 right-0 tabular text-[10px] text-ink-subtle">
+              {peak}
+            </span>
+
+            {series.map((point) => (
               <div
-                className="w-full rounded-sm bg-brand/70 transition-colors duration-snap group-hover:bg-brand"
-                // Zero-count days still get a hairline, so a gap in the data
-                // reads as "no signups" rather than as a rendering fault.
-                style={{ height: `${Math.max((point.count / peak) * 100, 2)}%` }}
-              />
-              <span className="pointer-events-none absolute -top-7 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded border border-line bg-surface-raised px-2 py-1 text-[10px] text-ink group-hover:block">
-                {point.date}: {point.count}
-              </span>
-            </div>
-          ))}
+                key={point.date}
+                className="group relative flex flex-1 items-end"
+                style={{ height: '100%' }}
+              >
+                <div
+                  className="w-full rounded-sm bg-brand/70 transition-colors duration-snap group-hover:bg-brand"
+                  // Zero-count days still get a hairline, so a gap in the data
+                  // reads as "no signups" rather than as a rendering fault.
+                  style={{ height: `${Math.max((point.count / peak) * 100, 2)}%` }}
+                />
+                <span className="pointer-events-none absolute -top-7 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded border border-line bg-surface-raised px-2 py-1 text-[10px] text-ink group-hover:block">
+                  {dayLabel(point.date)}: {point.count}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/*
+            Three dates, not thirty. A label under every bar at this width is an
+            unreadable smear; the ends and the middle are enough to place any
+            bar you are looking at.
+          */}
+          <div className="mt-1.5 flex justify-between text-[10px] text-ink-subtle">
+            <span>{dayLabel(series[0]?.date)}</span>
+            <span>{dayLabel(series[Math.floor(series.length / 2)]?.date)}</span>
+            <span>{dayLabel(series[series.length - 1]?.date)}</span>
+          </div>
         </div>
       </div>
     </Card>
