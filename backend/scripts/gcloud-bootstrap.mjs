@@ -72,6 +72,10 @@ const SECRETS = {
   RAZORPAY_KEY_ID: 'spllit-razorpay-key-id',
   RAZORPAY_KEY_SECRET: 'spllit-razorpay-key-secret',
   OPENAI_API_KEY: 'spllit-openai-api-key',
+  // Admin console reports. Not in REQUIRED: without it the Reports tab says so
+  // and disables its button, which is a working install missing one feature
+  // rather than a broken one.
+  GEMINI_API_KEY: 'spllit-gemini-api-key',
   // Shared secret for /api/maintenance/*, which Cloud Scheduler calls. Not in
   // REQUIRED: the routes 404 without it, so an install that has not set one up
   // is safe rather than broken. See routes/maintenance.ts.

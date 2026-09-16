@@ -1464,7 +1464,7 @@ router.post(
         return fail(res, 400, 'Window must be 1h, 24h or 7d.');
       }
       if (!isReportingConfigured()) {
-        return fail(res, 503, 'Reports are not configured — OPENAI_API_KEY is not set.');
+        return fail(res, 503, 'Reports are not configured — GEMINI_API_KEY is not set.');
       }
 
       const report = await audit.recorded(

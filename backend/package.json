@@ -28,6 +28,7 @@
   "license": "ISC",
   "dependencies": {
     "@cloudflare/containers": "^0.3.7",
+    "@google/genai": "^2.22.0",
     "@prisma/client": "^6.19.2",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",

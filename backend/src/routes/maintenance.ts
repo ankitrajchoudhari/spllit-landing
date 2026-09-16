@@ -268,7 +268,7 @@ router.post('/generate-report', async (req: Request, res: Response) => {
   if (!isReportingConfigured()) {
     // 503 rather than 500: the scheduler should treat this as "not ready",
     // and an operator reading the log should see configuration, not a bug.
-    return fail(res, 503, 'OPENAI_API_KEY is not set on this service.');
+    return fail(res, 503, 'GEMINI_API_KEY is not set on this service.');
   }
 
   try {

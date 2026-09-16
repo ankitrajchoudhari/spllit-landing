@@ -1,6 +1,5 @@
-import OpenAI from 'openai';
-
 import prisma from '../utils/prisma.js';
+import { GEMINI_MODEL, generateText, isGeminiConfigured } from './gemini.js';
 import { activeUsers, activationFunnel, featureAdoption, retention } from './analytics.js';
 import { readCounters } from './adminEvents.js';
 import { emitToAdmins } from './adminSocket.js';
@@ -10,7 +9,7 @@ import { emitToAdmins } from './adminSocket.js';
  *
  * The model is given aggregates, never rows. It sees "27 signups this week, 34
  * active users, D7 retention 12%" — not a list of people. That is a privacy
- * property worth stating: nothing identifying is sent to OpenAI, so a report
+ * property worth stating: nothing identifying is sent to Gemini, so a report
  * cannot leak a user even if the prompt is mishandled at the other end.
  *
  * Every generated report stores the aggregates it was given. Without them a
@@ -27,15 +26,8 @@ export function isReportWindow(value: unknown): value is ReportWindow {
   return typeof value === 'string' && value in REPORT_WINDOWS;
 }
 
-const MODEL = 'gpt-4o-mini';
-
-let client: OpenAI | null = null;
-if (process.env.OPENAI_API_KEY) {
-  client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
-
 export function isReportingConfigured(): boolean {
-  return client !== null;
+  return isGeminiConfigured();
 }
 
 /**
@@ -125,40 +117,23 @@ export async function generateReport(options: {
     select: { createdAt: true, body: true },
   });
 
-  const write = async (): Promise<string> => {
-    if (!client) {
-      throw new Error('OPENAI_API_KEY is not set, so reports cannot be generated.');
-    }
-
-    const response = await client.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...(previous.length > 0
+  const write = (): Promise<string> =>
+    generateText({
+      system: SYSTEM_PROMPT,
+      context:
+        previous.length > 0
           ? [
-              {
-                role: 'system' as const,
-                content: `Previous reports, newest first:\n\n${previous
-                  .map((r) => `[${r.createdAt.toISOString()}]\n${r.body}`)
-                  .join('\n\n---\n\n')}`,
-              },
+              `Previous reports, newest first:\n\n${previous
+                .map((r) => `[${r.createdAt.toISOString()}]\n${r.body}`)
+                .join('\n\n---\n\n')}`,
             ]
-          : []),
-        {
-          role: 'user',
-          content: `Figures for the last ${options.window}:\n\n${JSON.stringify(inputs, null, 2)}`,
-        },
-      ],
+          : [],
+      user: `Figures for the last ${options.window}:\n\n${JSON.stringify(inputs, null, 2)}`,
       // Low, because this is a report and not a piece of writing. The same
       // figures should produce roughly the same account twice.
       temperature: 0.3,
-      max_tokens: 600,
+      maxOutputTokens: 800,
     });
-
-    const text = response.choices[0]?.message?.content?.trim();
-    if (!text) throw new Error('The model returned an empty report.');
-    return text;
-  };
 
   let body = '';
   let error: string | null = null;
@@ -187,7 +162,7 @@ export async function generateReport(options: {
       body,
       headline,
       inputs: inputs as never,
-      model: MODEL,
+      model: GEMINI_MODEL,
       trigger: options.trigger,
       actorEmail: options.actorEmail ?? null,
       error,

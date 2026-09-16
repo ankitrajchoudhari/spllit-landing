@@ -34,7 +34,7 @@ interface ReportList {
   page: number;
   pages: number;
   total: number;
-  /** False when OPENAI_API_KEY is unset on the server. */
+  /** False when GEMINI_API_KEY is unset on the server. */
   configured: boolean;
 }
 
@@ -100,7 +100,7 @@ export default function ReportsPage() {
             <Button
               variant="primary"
               disabled={generate.isPending || data?.configured === false}
-              title={data?.configured === false ? 'OPENAI_API_KEY is not set.' : undefined}
+              title={data?.configured === false ? 'GEMINI_API_KEY is not set.' : undefined}
               onClick={() => generate.mutate()}
             >
               <Sparkles className="h-4 w-4" aria-hidden />
@@ -131,7 +131,7 @@ export default function ReportsPage() {
       {data?.configured === false ? (
         <NotImplementedState
           title="Reports are not configured"
-          reason="OPENAI_API_KEY is not set on the API service, so no report can be written. Existing reports are still readable."
+          reason="GEMINI_API_KEY is not set on the API service, so no report can be written. Existing reports are still readable."
         />
       ) : null}
 
