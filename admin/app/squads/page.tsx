@@ -111,11 +111,12 @@ const COLUMNS: Column<SquadRow>[] = [
   },
 ];
 
-export default function SquadsPage() {
+export default function SquadsPage({ embedded }: { embedded?: boolean } = {}) {
   const list = useEntityList<SquadRow>('squads', '/squads');
 
   return (
     <EntityPage
+      embedded={embedded}
       title="Squads"
       description="Groups travelling together, with their leader and current lifecycle state."
       permission="content.view"

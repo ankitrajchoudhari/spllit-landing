@@ -16,6 +16,7 @@ import type { Permission } from '@/lib/permissions';
 export function EntityPage<Row extends { id: string }>({
   title,
   description,
+  embedded = false,
   permission,
   searchPlaceholder,
   filters,
@@ -26,6 +27,14 @@ export function EntityPage<Row extends { id: string }>({
 }: {
   title: string;
   description: string;
+  /**
+   * Drop the page header.
+   *
+   * Set when this list is rendered inside a tabbed section, which supplies its
+   * own heading — two headers stacked is the clearest sign a screen was
+   * assembled rather than designed.
+   */
+  embedded?: boolean;
   permission: Permission;
   searchPlaceholder: string;
   filters?: readonly { value: string; label: string }[];
@@ -46,7 +55,7 @@ export function EntityPage<Row extends { id: string }>({
 
   return (
     <>
-      <PageHeader title={title} description={description} />
+      {embedded ? null : <PageHeader title={title} description={description} />}
 
       <div className="flex flex-wrap items-center gap-2">
         <form

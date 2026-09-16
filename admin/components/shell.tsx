@@ -4,27 +4,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import {
-  Activity,
   BarChart3,
-  Bell,
-  CalendarDays,
-  Car,
-  Flag,
-  Hash,
+  Layers,
   LayoutDashboard,
-  Mail,
   LogOut,
   Menu,
-  ScrollText,
   Search,
-  Settings,
-  ShieldAlert,
+  Send,
   SlidersHorizontal,
-  Table2,
   Users,
-  UsersRound,
   X,
-  MapPin,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
@@ -45,61 +34,70 @@ interface NavItem {
   unavailable?: string;
 }
 
-/** Section breaks in the sidebar, so ten items do not read as one long list. */
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: 'Overview',
-    items: [{ href: '/', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' }],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { href: '/users', label: 'Users', icon: Users, permission: 'users.view' },
-      { href: '/rides', label: 'Rides', icon: Car, permission: 'content.view' },
-      { href: '/squads', label: 'Squads', icon: UsersRound, permission: 'content.view' },
-      { href: '/events', label: 'Events', icon: CalendarDays, permission: 'content.view' },
-      { href: '/communities', label: 'Communities', icon: Hash, permission: 'content.view' },
-      { href: '/notifications', label: 'Notifications', icon: Bell, permission: 'content.view' },
-      // Email, as opposed to the in-app broadcast on the Notifications page.
-      // Gated on notifications.send rather than content.view: reading what was
-      // sent is one thing, being able to mail everybody is another.
-      { href: '/campaigns', label: 'Campaigns', icon: Mail, permission: 'notifications.send' },
-      { href: '/moderation', label: 'Moderation', icon: ShieldAlert, permission: 'moderation.view' },
-    ],
-  },
-  {
-    label: 'Platform',
-    items: [
-      { href: '/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics.view' },
-      // Next to Analytics rather than under Operations: it answers "what is the
-      // shape of demand", which is the same question as the rest of this group.
-      { href: '/activity', label: 'Activity', icon: MapPin, permission: 'analytics.view' },
-      { href: '/explore', label: 'Explore', icon: Table2, permission: 'analytics.view' },
-      { href: '/flags', label: 'Feature flags', icon: Flag, permission: 'settings.view' },
-      { href: '/settings', label: 'Settings', icon: SlidersHorizontal, permission: 'settings.view' },
-      { href: '/audit', label: 'Audit log', icon: ScrollText, permission: 'audit.view' },
-      { href: '/system', label: 'System health', icon: Activity, permission: 'system.view' },
-      { href: '/admins', label: 'Admins', icon: Settings, permission: 'admins.manage' },
-    ],
-  },
+/**
+ * Five destinations, not seventeen.
+ *
+ * The console grew a row per feature until the sidebar was a list you read
+ * rather than a place you went. These five are what somebody actually opens it
+ * to do: see how Spllit is doing, look a person up, check what has been made,
+ * see what was sent, understand the numbers — and one drawer for the settings
+ * nobody touches weekly.
+ *
+ * Everything that was a row is now a tab inside one of these. Nothing was
+ * removed and every old URL still resolves, so links in audit rows and
+ * bookmarks keep working.
+ *
+ * No group headings any more: five items do not need dividing into three
+ * labelled sections, and the labels were costing more vertical space than the
+ * rows they organised.
+ */
+const NAV: NavItem[] = [
+  { href: '/', label: 'Home', icon: LayoutDashboard, permission: 'dashboard.view' },
+  { href: '/users', label: 'People', icon: Users, permission: 'users.view' },
+  { href: '/content', label: 'Content', icon: Layers, permission: 'content.view' },
+  { href: '/messages', label: 'Messages', icon: Send, permission: 'content.view' },
+  { href: '/insights', label: 'Insights', icon: BarChart3, permission: 'analytics.view' },
+  { href: '/settings', label: 'Settings', icon: SlidersHorizontal, permission: 'settings.view' },
 ];
+
+/**
+ * Old routes that now live inside a section, so the sidebar still highlights
+ * the right row when one is opened directly from a link or a bookmark.
+ */
+const SECTION_OF: Record<string, string> = {
+  '/rides': '/content',
+  '/squads': '/content',
+  '/events': '/content',
+  '/communities': '/content',
+  '/notifications': '/messages',
+  '/campaigns': '/messages',
+  '/moderation': '/messages',
+  '/analytics': '/insights',
+  '/explore': '/insights',
+  '/activity': '/insights',
+  '/flags': '/settings',
+  '/audit': '/settings',
+  '/system': '/settings',
+  '/admins': '/settings',
+};
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { session, signOut, can } = useAuth();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Groups whose every item is hidden disappear along with their heading —
-  // otherwise an Analyst sees a bare "Operations" label with nothing under it.
-  const visible = NAV_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => can(item.permission)),
-  })).filter((group) => group.items.length > 0);
+  const visible = NAV.filter((item) => can(item.permission));
+
+  /**
+   * Which row to light up.
+   *
+   * A section's own URL is matched by prefix, but the folded routes are not
+   * under it — `/rides` lives in Content without being `/content/rides`, so a
+   * prefix test alone would leave the sidebar with nothing highlighted for
+   * every bookmark and audit-row link.
+   */
+  const section =
+    Object.entries(SECTION_OF).find(([from]) => pathname.startsWith(from))?.[1] ?? null;
 
   return (
     <div className="flex min-h-screen">
@@ -140,17 +138,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
-          {visible.map((group) => (
-            <div key={group.label} className="flex flex-col gap-0.5">
-              <p className="px-3 pb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-ink-subtle">
-                {group.label}
-              </p>
-
-              {group.items.map((item) => {
-                // Exact match for the dashboard, prefix match elsewhere, so a
-                // detail page keeps its section highlighted in the sidebar.
+          <div className="flex flex-col gap-0.5">
+            {visible.map((item) => {
+                // Home is exact; a section matches its own prefix or any route
+                // folded into it.
                 const active =
-                  item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+                  item.href === '/'
+                    ? pathname === '/'
+                    : pathname.startsWith(item.href) || section === item.href;
                 const Icon = item.icon;
 
                 if (item.unavailable) {
@@ -195,9 +190,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     {item.label}
                   </Link>
                 );
-              })}
-            </div>
-          ))}
+            })}
+          </div>
         </nav>
 
         <div className="flex flex-col gap-2 border-t border-line p-3">

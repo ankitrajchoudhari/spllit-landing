@@ -94,11 +94,12 @@ const COLUMNS: Column<EventRow>[] = [
   },
 ];
 
-export default function EventsPage() {
+export default function EventsPage({ embedded }: { embedded?: boolean } = {}) {
   const list = useEntityList<EventRow>('events', '/events');
 
   return (
     <EntityPage
+      embedded={embedded}
       title="Events"
       description="Everything scheduled on Spllit, with its host and attendance."
       permission="content.view"

@@ -77,11 +77,12 @@ const COLUMNS: Column<RideRow>[] = [
   },
 ];
 
-export default function RidesPage() {
+export default function RidesPage({ embedded }: { embedded?: boolean } = {}) {
   const list = useEntityList<RideRow>('rides', '/rides');
 
   return (
     <EntityPage
+      embedded={embedded}
       title="Rides"
       description="Every ride created in Spllit, with its host and current state."
       permission="content.view"

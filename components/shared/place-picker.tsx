@@ -292,13 +292,41 @@ const LANDMARK_RADIUS_METRES = 600;
 export const LANDMARK_IS_HERE_METRES = 30;
 
 /**
+ * Categories asked for, and why these.
+ *
+ * Spllit is open to IIT Madras only, so "recognisable place" means a campus
+ * landmark: a circle, a department, the admin building. `university` is what
+ * Mapbox files those under, and `tourist_attraction` catches the circles,
+ * statues and the lake that nobody would call a university building.
+ *
+ * Two requests, not five. Each is a round trip on a phone, and these two cover
+ * the campus between them — measured at three points across it, from Gajendra
+ * Circle to the hostel zone to north campus.
+ */
+const LANDMARK_CATEGORIES = ['university', 'tourist_attraction'] as const;
+
+/** One Search Box feature, narrowed to the fields this file reads. */
+interface SearchBoxPoi {
+  properties?: {
+    name?: string;
+    mapbox_id?: string;
+    place_formatted?: string;
+    context?: { neighborhood?: { name?: string }; street?: { name?: string } };
+    coordinates?: { latitude?: number; longitude?: number };
+  };
+}
+
+/**
  * Recognisable places around a point, nearest first.
  *
- * The same v5 geocoding endpoint and public token `reverseGeocode` uses, asking
- * for POIs rather than one best answer. Deliberately not the Search Box
- * category API: that needs a session token and a category taxonomy, and this
- * wants "whatever is notable here", which is exactly what a POI reverse lookup
- * returns.
+ * Uses the Search Box **category** endpoint with `proximity`, not v5 reverse
+ * geocoding. That distinction is the whole function: v5 reverse answers "what
+ * is AT this coordinate" and returned an empty list for the middle of IIT
+ * Madras, while the few POIs it did return elsewhere all sat within eight
+ * metres of the pin — no spread to sort by and no landmark worth naming.
+ *
+ * The category search sweeps outward instead, which is what "what is this
+ * near" actually asks.
  *
  * Returns an empty list rather than throwing. A missing landmark list is a step
  * the user skips, never an error that blocks confirming a pin they already
@@ -307,52 +335,65 @@ export const LANDMARK_IS_HERE_METRES = 30;
 export async function nearbyLandmarks(point: LngLat): Promise<NearbyLandmark[]> {
   if (!config.mapbox.token) return [];
 
-  try {
-    const url = new URL(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${point[0]},${point[1]}.json`,
-    );
-    url.searchParams.set('access_token', config.mapbox.token);
-    url.searchParams.set('language', 'en');
-    // POIs only. `address` and `neighborhood` describe where the pin is, which
-    // the card above already says; this list answers "what is it next to".
-    url.searchParams.set('types', 'poi');
-    // Over-fetch, because the radius filter below removes some and duplicates
-    // remove more. Ten leaves enough to fill a six-card grid.
-    url.searchParams.set('limit', '10');
+  const fetchCategory = async (category: string): Promise<SearchBoxPoi[]> => {
+    try {
+      const url = new URL(`https://api.mapbox.com/search/searchbox/v1/category/${category}`);
+      url.searchParams.set('access_token', config.mapbox.token);
+      url.searchParams.set('proximity', `${point[0]},${point[1]}`);
+      url.searchParams.set('language', 'en');
+      // Over-fetch: the radius filter and the name dedupe below both remove
+      // some, and a six-card grid needs more than six candidates to fill.
+      url.searchParams.set('limit', '10');
 
-    const response = await fetch(url.toString());
-    if (!response.ok) return [];
+      const response = await fetch(url.toString());
+      if (!response.ok) return [];
 
-    const payload = (await response.json()) as { features?: GeocodeFeature[] };
-    const seen = new Set<string>();
-    const out: NearbyLandmark[] = [];
-
-    for (const feature of payload.features ?? []) {
-      const lines = describeFeature(feature);
-      if (!lines.name) continue;
-
-      // Mapbox returns the same place under several ids often enough that a
-      // grid of six can otherwise be the same café three times.
-      const key = lines.name.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      const distanceMetres = haversine(point, feature.center);
-      if (distanceMetres > LANDMARK_RADIUS_METRES) continue;
-
-      out.push({
-        id: feature.id,
-        name: lines.name,
-        address: lines.address ?? null,
-        distanceMetres,
-      });
+      const payload = (await response.json()) as { features?: SearchBoxPoi[] };
+      return payload.features ?? [];
+    } catch {
+      // One category failing must not lose the other.
+      return [];
     }
+  };
 
-    return out.sort((a, b) => a.distanceMetres - b.distanceMetres);
-  } catch {
-    // Same reasoning as the empty returns above — never block the pin.
-    return [];
+  const batches = await Promise.all(LANDMARK_CATEGORIES.map(fetchCategory));
+
+  const seen = new Set<string>();
+  const out: NearbyLandmark[] = [];
+
+  for (const feature of batches.flat()) {
+    const props = feature.properties;
+    const name = props?.name?.trim();
+    const lat = props?.coordinates?.latitude;
+    const lng = props?.coordinates?.longitude;
+    if (!name || typeof lat !== 'number' || typeof lng !== 'number') continue;
+
+    // The categories overlap — Gajendra Circle is filed under both — and the
+    // same place also arrives under several ids, so a grid of six would
+    // otherwise be the same circle three times.
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const distanceMetres = haversine(point, [lng, lat]);
+    if (distanceMetres > LANDMARK_RADIUS_METRES) continue;
+
+    out.push({
+      id: props?.mapbox_id ?? `${name}:${lat},${lng}`,
+      name,
+      /**
+       * The neighbourhood, not `place_formatted`.
+       *
+       * That field reads "Chennai, 600036, India" on every result here, which
+       * distinguishes nothing when every option is on one campus. The
+       * neighbourhood is what actually differs between two departments.
+       */
+      address: props?.context?.neighborhood?.name ?? props?.context?.street?.name ?? null,
+      distanceMetres,
+    });
   }
+
+  return out.sort((a, b) => a.distanceMetres - b.distanceMetres);
 }
 
 /**

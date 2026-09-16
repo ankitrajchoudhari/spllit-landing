@@ -6,6 +6,9 @@ import { ChevronRight } from 'lucide-react';
 
 /** Section labels, so a URL segment is not shown raw to a person. */
 const LABELS: Record<string, string> = {
+  content: 'Content',
+  messages: 'Messages',
+  insights: 'Insights',
   users: 'Users',
   rides: 'Rides',
   squads: 'Squads',

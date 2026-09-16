@@ -61,11 +61,12 @@ const COLUMNS: Column<CommunityRow>[] = [
   },
 ];
 
-export default function CommunitiesPage() {
+export default function CommunitiesPage({ embedded }: { embedded?: boolean } = {}) {
   const list = useEntityList<CommunityRow>('communities', '/communities');
 
   return (
     <EntityPage
+      embedded={embedded}
       title="Communities"
       description="Groups and their channels, with ownership and membership size."
       permission="content.view"

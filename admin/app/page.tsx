@@ -14,6 +14,7 @@ import {
 import { api, ApiError } from '@/lib/api';
 import { useLive } from '@/lib/live';
 import { ActivityFeed } from '@/components/activity-feed';
+import { HealthStrip } from '@/components/health-strip';
 import { formatCount, formatRelative } from '@/lib/utils';
 import { Card, PageHeader, SectionHeader, Stat } from '@/components/ui/primitives';
 import {
@@ -140,6 +141,13 @@ export default function DashboardPage() {
               growing, and is anyone on it" — everything else is detail you go
               looking for. Giving sixteen numbers equal weight answers none of
               them. */}
+          {/*
+            Health first, and small. "Is anything broken" is the question you
+            arrive with when something feels wrong, and it should not cost a
+            navigation to answer.
+          */}
+          <HealthStrip />
+
           <section className="flex flex-col gap-3">
             <SectionHeader title="People" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
