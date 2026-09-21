@@ -125,7 +125,7 @@ export function suggestSquadName(destinationLabel: string, purpose: SquadType): 
   if (!place) return '';
 
   const suffix = SQUAD_SUFFIX[purpose];
-  return suffix ? `${place} ${suffix} Squad` : `Trip to ${place}`;
+  return suffix ? `${place} ${suffix} Group Ride` : `Trip to ${place}`;
 }
 
 /**

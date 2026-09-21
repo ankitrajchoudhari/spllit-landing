@@ -176,7 +176,7 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
             <p className="mt-1 text-[12.5px] text-ink-muted">
               {tab === 'unread'
                 ? 'No unread notifications.'
-                : 'Squad invites, ride updates and messages land here.'}
+                : 'Group Ride invites, ride updates and messages land here.'}
             </p>
           </div>
         ) : (

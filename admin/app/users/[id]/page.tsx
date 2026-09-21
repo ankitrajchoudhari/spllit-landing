@@ -159,7 +159,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Rides" value={formatCount(counts.rides)} />
-        <Stat label="Squads" value={formatCount(counts.squads)} />
+        <Stat label="Group Rides" value={formatCount(counts.squads)} />
         <Stat label="Events" value={formatCount(counts.events)} />
         <Stat label="Communities" value={formatCount(counts.communities)} />
         <Stat label="Notifications" value={formatCount(counts.notifications)} />
@@ -212,9 +212,9 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         )}
       </Section>
 
-      <Section title="Squads">
+      <Section title="Group Rides">
         {squads.length === 0 ? (
-          <EmptyState title="No squads" description="Not a member of any squad." />
+          <EmptyState title="No group rides" description="Not a member of any group ride." />
         ) : (
           <div className="flex flex-col gap-1.5">
             {squads.map((membership) => (
@@ -223,7 +223,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                 href={membership.squad ? `/squads/${membership.squad.id}` : '#'}
                 className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm transition-colors duration-snap hover:border-line-strong"
               >
-                <span className="flex-1 text-ink">{membership.squad?.name ?? 'Deleted squad'}</span>
+                <span className="flex-1 text-ink">{membership.squad?.name ?? 'Deleted group ride'}</span>
                 <Badge tone={membership.role === 'leader' ? 'info' : 'neutral'}>
                   {membership.role}
                 </Badge>
@@ -303,7 +303,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           title={confirming === 'suspend' ? `Suspend ${user.name}?` : `Restore ${user.name}?`}
           description={
             confirming === 'suspend'
-              ? 'They will lose access to Spllit immediately. Their rides, squads and history are kept.'
+              ? 'They will lose access to Spllit immediately. Their rides, group rides and history are kept.'
               : 'They will be able to sign in and use Spllit again.'
           }
           confirmLabel={confirming === 'suspend' ? 'Suspend' : 'Restore'}

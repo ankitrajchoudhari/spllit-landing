@@ -15,7 +15,7 @@ export default function RefundsPage() {
     <main className="px-4 py-10 sm:px-6">
       <LegalDocument
         title="Refunds & Cancellations"
-        intro="Joining a squad costs a one-time ₹2 matching fee, charged only after the leader approves you. This is exactly when that comes back and when it does not."
+        intro="Joining a group ride costs a one-time ₹2 matching fee, charged only after the leader approves you. This is exactly when that comes back and when it does not."
         sections={REFUNDS}
       />
       <LegalFooter className="mx-auto mt-12 max-w-2xl border-t border-line pt-6" />

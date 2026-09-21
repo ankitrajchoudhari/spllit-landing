@@ -122,12 +122,12 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
     return (
       <EmptyState
         tone="error"
-        title="Squad not found"
+        title="Group Ride not found"
         description="It may be private, or it may have been disbanded."
         action={
           <Link href="/squads">
             <Button size="sm" variant="secondary">
-              Back to squads
+              Back to group rides
             </Button>
           </Link>
         }
@@ -276,7 +276,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
       <div className="flex items-start gap-3">
         <Link
           href="/squads"
-          aria-label="Back to squads"
+          aria-label="Back to group rides"
           className="rounded-md p-2 text-ink-subtle transition-colors hover:bg-surface-sunken hover:text-ink"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -323,7 +323,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Full width, in normal flow, below the header — nothing to overlap. */}
       {gateBlocksJoin ? (
-        <VerificationGate action="join this squad">{joinButton}</VerificationGate>
+        <VerificationGate action="join this group ride">{joinButton}</VerificationGate>
       ) : null}
 
       {/* Members get the journey view; everyone else gets the summary strip,
@@ -411,7 +411,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
                     Mark as done
                   </Button>
                   <Button size="sm" variant="danger" onClick={() => setEndAction('cancelled')}>
-                    Cancel squad
+                    Cancel group ride
                   </Button>
                 </>
               ) : null}
@@ -421,7 +421,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
                 onClick={() => setLeaveConfirm(true)}
                 className="ml-auto text-[13px] font-medium text-danger transition-opacity hover:opacity-80"
               >
-                Leave squad
+                Leave group ride
               </button>
             </div>
           </div>
@@ -446,7 +446,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
                 Members are private
               </p>
               <p className="mt-0.5 text-[12.5px] leading-snug text-ink-muted">
-                Join the squad to see who is coming.
+                Join the group ride to see who is coming.
               </p>
             </div>
           </div>
@@ -520,12 +520,12 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
           endAction &&
           endSquad.mutate(endAction, { onSuccess: () => router.replace('/squads') })
         }
-        eyebrow={endAction === 'cancelled' ? 'Cancel squad' : 'Mark as done'}
+        eyebrow={endAction === 'cancelled' ? 'Cancel group ride' : 'Mark as done'}
         title={squad.destination?.label?.split(',')[0] ?? squad.name}
         description={
           endAction === 'cancelled'
-            ? 'Everyone is told the trip is off and released to join another squad. This cannot be undone.'
-            : 'The squad closes and everyone is released to join another. This cannot be undone.'
+            ? 'Everyone is told the trip is off and released to join another group ride. This cannot be undone.'
+            : 'The group ride closes and everyone is released to join another. This cannot be undone.'
         }
         details={[
           {
@@ -533,7 +533,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
             items: [
               'Live location sharing stops',
               'The group chat closes',
-              'Everyone becomes free to join or start another squad',
+              'Everyone becomes free to join or start another group ride',
             ],
           },
         ]}
@@ -545,7 +545,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
           endSquad.isError
             ? endSquad.error instanceof Error
               ? endSquad.error.message
-              : "Couldn't update the squad."
+              : "Couldn't update the group ride."
             : null
         }
       />
@@ -559,8 +559,8 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
           setBlockedReason(null);
           router.push('/squads');
         }}
-        eyebrow="Already in a squad"
-        title="You can only be in one squad at a time"
+        eyebrow="Already in a group ride"
+        title="You can only be in one group ride at a time"
         description={blockedReason ?? ''}
         details={[
           {
@@ -571,7 +571,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
             ],
           },
         ]}
-        confirmLabel="Go to my squad"
+        confirmLabel="Go to my group ride"
         cancelLabel="Stay here"
       />
 
@@ -600,18 +600,18 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
         onConfirm={() =>
           leave.mutate(undefined, { onSuccess: () => router.replace('/squads') })
         }
-        eyebrow="Leave squad"
+        eyebrow="Leave group ride"
         title={squad.destination?.label?.split(',')[0] ?? squad.name}
         description={
           isLeader
-            ? 'You lead this squad. Leaving hands it to another member.'
-            : 'You will stop sharing your location and lose access to the squad chat.'
+            ? 'You lead this group ride. Leaving hands it to another member.'
+            : 'You will stop sharing your location and lose access to the group ride chat.'
         }
         details={[
           {
             label: 'You will lose',
             items: [
-              'Squad chat and files',
+              'Group Ride chat and files',
               'Live location and everyone’s ETA',
               ...(squad.meetingPoint
                 ? [`Directions to ${squad.meetingPoint.label?.split(',')[0] ?? 'the meeting point'}`]
@@ -632,14 +632,14 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
               ]
             : undefined
         }
-        confirmLabel="Leave squad"
+        confirmLabel="Leave group ride"
         confirmTone="danger"
         loading={leave.isPending}
         error={
           leave.isError
             ? leave.error instanceof Error
               ? leave.error.message
-              : "Couldn't leave the squad."
+              : "Couldn't leave the group ride."
             : null
         }
       />

@@ -28,7 +28,7 @@ export const metadata: Metadata = {
      * title heavily, and a title that opens with a tagline buries the one word
      * anybody is actually typing.
      */
-    default: `${SITE.name} — Campus Ride Sharing & Travel Squads for Students`,
+    default: `${SITE.name} — Campus Ride Sharing & Travel Group Rides for Students`,
     template: `%s · ${SITE.name}`,
   },
   description: SITE.description,
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     'Spllit',
     'campus ride sharing',
     'student carpool India',
-    'travel squad',
+    'travel group ride',
     'split cab fare',
     'college rideshare',
     'IIT Madras rides',
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
     siteName: SITE.name,
     locale: SITE.locale,
     url: SITE.url,
-    title: `${SITE.name} — Campus Ride Sharing & Travel Squads`,
+    title: `${SITE.name} — Campus Ride Sharing & Travel Group Rides`,
     description: SITE.description,
     images: [
       { url: '/logo-full.png', width: 1200, height: 630, alt: `${SITE.name} — ${SITE.tagline}` },
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${SITE.name} — Campus Ride Sharing & Travel Squads`,
+    title: `${SITE.name} — Campus Ride Sharing & Travel Group Rides`,
     description: SITE.description,
     images: ['/logo-full.png'],
   },

@@ -109,7 +109,7 @@ export function SearchToolbar() {
                         // click-outside handler cannot see a key press.
                         if (event.key === 'Escape') setIsOpen(false);
                       }}
-                      placeholder="People, squads, events, places"
+                      placeholder="People, group rides, events, places"
                       aria-label="Search"
                       className={cn(
                         'h-9 w-full rounded-lg border border-line bg-transparent px-2.5',

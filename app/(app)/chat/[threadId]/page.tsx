@@ -52,7 +52,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
           <Lock className="h-5 w-5 text-ink-subtle" aria-hidden />
           <p className="text-[14px] font-medium text-ink">This conversation has closed</p>
           <p className="max-w-xs text-[13px] leading-relaxed text-ink-muted">
-            Squad chats close a few hours after the trip ends. You can still see who you
+            Group Ride chats close a few hours after the trip ends. You can still see who you
             travelled with.
           </p>
         </div>

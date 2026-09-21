@@ -23,12 +23,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 /** Copy for the categories the server may offer. Keyed by its category id. */
 const COPY: Record<string, { label: string; description: string }> = {
   'join-request': {
-    label: 'Someone asks to join your squad',
+    label: 'Someone asks to join your group ride',
     description:
-      'Emailed to you as the leader, so you can answer without opening the app. At most one per squad every half hour.',
+      'Emailed to you as the leader, so you can answer without opening the app. At most one per group ride every half hour.',
   },
   'trip-created': {
-    label: 'When you create a squad or ride',
+    label: 'When you create a group ride or ride',
     description:
       'A receipt with the join code and the link, sent to you and nobody else. Comes straight through, including during quiet hours.',
   },

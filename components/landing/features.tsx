@@ -205,9 +205,9 @@ export function Features() {
 
       <FeatureRow
         id="squads"
-        eyebrow="Squads"
+        eyebrow="Group Rides"
         title="Everyone converging on one point."
-        body="A squad is a group with a place and a time. Set the meeting point once and every member sees where the others are and how long they'll be — live, without asking."
+        body="A group ride is a group with a place and a time. Set the meeting point once and every member sees where the others are and how long they'll be — live, without asking."
         visual={<SquadVisual />}
         flip
       />

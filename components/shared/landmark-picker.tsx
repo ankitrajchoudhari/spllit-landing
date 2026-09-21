@@ -53,7 +53,7 @@ export function LandmarkPicker({
       <div className="flex flex-col gap-1 py-4">
         <p className="text-[13.5px] text-ink-muted">Nothing recognisable is close to this pin.</p>
         <p className="text-[12px] text-ink-subtle">
-          The exact spot still works — your squad will see it on the map.
+          The exact spot still works — your group ride will see it on the map.
         </p>
       </div>
     );

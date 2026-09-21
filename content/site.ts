@@ -16,7 +16,7 @@ export const SITE = {
    * someone would actually search: campus, rides, students.
    */
   description:
-    'Spllit is the campus travel network for Indian students. Share rides, form squads to travel together, split the fare, and find events near your college.',
+    'Spllit is the campus travel network for Indian students. Share rides, form group rides to travel together, split the fare, and find events near your college.',
   email: 'spllittech@gmail.com',
   locale: 'en_IN',
   /** Founding institute — used in the Organization graph. */

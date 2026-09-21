@@ -10,7 +10,7 @@ import { SignInDrawer } from '@/components/ui/family-signin-drawer';
 
 const LINKS = [
   { href: '#rides', label: 'Rides' },
-  { href: '#squads', label: 'Squads' },
+  { href: '#squads', label: 'Group Rides' },
   { href: '#events', label: 'Events' },
 ];
 

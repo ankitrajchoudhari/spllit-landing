@@ -75,7 +75,7 @@ export function StructuredData() {
         },
         featureList: [
           'Share rides with verified students from your campus',
-          'Form travel squads with a shared meeting point',
+          'Form travel group rides with a shared meeting point',
           'Split cab and auto fares',
           'Live location and ETA for everyone in the group',
           'Find events near your college',

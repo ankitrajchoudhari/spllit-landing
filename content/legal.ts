@@ -45,9 +45,9 @@ export const TERMS: LegalSection[] = [
     ],
   },
   {
-    heading: 'Rides, squads and what we are responsible for',
+    heading: 'Rides, group rides and what we are responsible for',
     paragraphs: [
-      'Spllit is an introduction service. When you join a ride or a squad, you are making an arrangement with another user, not with us.',
+      'Spllit is an introduction service. When you join a ride or a group ride, you are making an arrangement with another user, not with us.',
       'We do not vet drivers, verify licences, inspect vehicles, or check insurance. We verify that an account holds an institute email address — nothing more. Treat every arrangement with the caution you would apply to travelling with someone you met through a noticeboard.',
       'You are responsible for your own safety. Share your trip, meet in public, and stop if something feels wrong.',
     ],
@@ -70,8 +70,8 @@ export const TERMS: LegalSection[] = [
        * connected" wording, in the opposite direction, so it changes in the
        * same commit as the flag.
        */
-      'Spllit is free to use during the beta. Creating an account, browsing, posting a ride, creating a squad and joining someone else’s squad all cost nothing.',
-      'We do not currently charge a fee to join a squad, and no payment is taken at any point in that flow. Spllit does not set, collect, or take a share of transport fares either — whatever you agree to pay for the journey is settled directly between you and the other people on it.',
+      'Spllit is free to use during the beta. Creating an account, browsing, posting a ride, creating a group ride and joining someone else’s group ride all cost nothing.',
+      'We do not currently charge a fee to join a group ride, and no payment is taken at any point in that flow. Spllit does not set, collect, or take a share of transport fares either — whatever you agree to pay for the journey is settled directly between you and the other people on it.',
       'We intend to introduce a small matching fee after the beta. If that happens you will be told the amount before anything is charged, you will be asked to confirm it, and these terms will be updated first. Nothing here authorises a charge while the service is free.',
       'Payments, when they begin, will be handled by Razorpay. We will never see or store your card, UPI or bank details.',
       /**
@@ -98,7 +98,7 @@ export const TERMS: LegalSection[] = [
   {
     heading: 'Location sharing',
     paragraphs: [
-      'Live location is opt-in and scoped to a single squad while you have that squad open. Closing the screen stops the broadcast. Leaving a squad clears the last position we held for you in it.',
+      'Live location is opt-in and scoped to a single group ride while you have that group ride open. Closing the screen stops the broadcast. Leaving a group ride clears the last position we held for you in it.',
       'We keep a coarse home location if you set one, so that "nearby" searches work when live location is off. You can change or remove it in your profile.',
     ],
   },
@@ -151,8 +151,8 @@ export const PRIVACY: LegalSection[] = [
     bullets: [
       'Identity: your name, email address, and — if you sign in that way — your phone number, from Google or Firebase phone sign-in.',
       'Profile: username, college, institute email, gender, date of birth, photo, and bio, as you provide them.',
-      'Location: live position while you have a squad open and sharing switched on; a coarse home location if you set one; pickup and destination points for trips you create.',
-      'Usage: rides and squads you create or join, messages you send, and notifications generated for you.',
+      'Location: live position while you have a group ride open and sharing switched on; a coarse home location if you set one; pickup and destination points for trips you create.',
+      'Usage: rides and group rides you create or join, messages you send, and notifications generated for you.',
       'Referrals: if you arrived through an invite link, the id of the person who invited you and the date you joined. It is recorded once and never rewritten.',
       'Payments: none today — the service is free during the beta, so no payment records are created. If a fee is introduced we will hold the Razorpay order and payment identifiers and their status. Card numbers, UPI IDs and bank details are entered on Razorpay and never reach our servers.',
       'Technical: IP address and user agent, in server logs and rate-limiting counters.',
@@ -179,7 +179,7 @@ export const PRIVACY: LegalSection[] = [
     bullets: [
       'Your name, username, photo, college and rating are visible to other Spllit users.',
       'Your email address, phone number and institute email are not shown on your public profile.',
-      'Live location is visible only to members of the squad you are sharing with, and only while you are sharing.',
+      'Live location is visible only to members of the group ride you are sharing with, and only while you are sharing.',
       'Messages are visible to the people in that conversation. We do not read them except where we must to investigate a report or comply with the law.',
     ],
   },
@@ -205,7 +205,7 @@ export const PRIVACY: LegalSection[] = [
   {
     heading: 'Why we are allowed to hold it',
     bullets: [
-      'Most of what we hold is processed because you asked us to provide the service — an account, a squad, a message you chose to send.',
+      'Most of what we hold is processed because you asked us to provide the service — an account, a group ride, a message you chose to send.',
       'Location sharing, optional cookies and notifications run on your consent, which you give explicitly and can withdraw at any time.',
       'Payment records and security logs are kept because we have a legal obligation to, and a legitimate interest in preventing fraud and abuse.',
     ],
@@ -214,7 +214,7 @@ export const PRIVACY: LegalSection[] = [
     heading: 'How long we keep it',
     bullets: [
       'Account and profile data: while your account exists, then deleted on request.',
-      'Live positions: short-lived, cleared when you stop sharing or leave a squad.',
+      'Live positions: short-lived, cleared when you stop sharing or leave a group ride.',
       'Messages: for as long as the conversation exists. A message you sent stays in the recipient’s copy — it is their record too, and we cannot remove it from their history without deleting theirs.',
       'Payment records: retained for eight years, as required of financial records under Indian tax and company law. These survive account deletion.',
       'Server and security logs: a limited period for debugging and abuse investigation.',
@@ -282,15 +282,15 @@ export const SAFETY: LegalSection[] = [
     bullets: [
       'Look at the profile: institute verification, rating, and how many trips they have completed.',
       'Keep the conversation inside Spllit until you have met. Moving to a private number early removes the record if something goes wrong.',
-      'Agree the route, the meeting point and the cost split in writing, in the squad chat, before the day.',
+      'Agree the route, the meeting point and the cost split in writing, in the group ride chat, before the day.',
       'Tell someone who is not travelling with you where you are going, with whom, and when you expect to arrive.',
-      'Meet at the squad’s meeting point — a public, lit, named place. Do not agree to a first pickup somewhere isolated.',
+      'Meet at the group ride’s meeting point — a public, lit, named place. Do not agree to a first pickup somewhere isolated.',
     ],
   },
   {
     heading: 'During the journey',
     bullets: [
-      'Share live location with the squad while you travel. It is opt-in and stops when you close the screen.',
+      'Share live location with the group ride while you travel. It is opt-in and stops when you close the screen.',
       'Sit where you can reach a door. Keep your phone charged and on you, not in a bag in the boot.',
       'You can end it at any point. Ask to be let out somewhere public and leave. You do not owe anyone an explanation, and no fare is worth staying for.',
       'If you are in immediate danger, call 112. Spllit is not an emergency service and cannot reach you.',
@@ -301,7 +301,7 @@ export const SAFETY: LegalSection[] = [
     bullets: [
       'Spllit is free during the beta, so nothing is paid to us. Fuel, tolls and fares are settled directly between you.',
       'Agree the split before you set off. Most arguments are about an amount nobody stated out loud.',
-      'Never send a deposit or an advance to someone you have not met. No genuine squad needs one.',
+      'Never send a deposit or an advance to someone you have not met. No genuine group ride needs one.',
     ],
   },
   {
@@ -310,7 +310,7 @@ export const SAFETY: LegalSection[] = [
       'Nobody has to tolerate being made uncomfortable to get a lift. Harassment, unwanted contact, discriminatory abuse and pressure of any kind break these terms and get accounts removed.',
     ],
     bullets: [
-      'Block the person — they can no longer message you or see your squads.',
+      'Block the person — they can no longer message you or see your group rides.',
       'Report the account or the message. Reports reach a human, not a filter.',
       'Keep the evidence. Do not delete the conversation before reporting it; we can only act on what we can see.',
       'We may suspend an account while we look into a report, and we will remove one where the report is upheld.',
@@ -320,7 +320,7 @@ export const SAFETY: LegalSection[] = [
   {
     heading: 'Reporting to us',
     paragraphs: [
-      'Use the report option in the app, or write to spllittech@gmail.com. Include the username, the squad or ride, and roughly when it happened.',
+      'Use the report option in the app, or write to spllittech@gmail.com. Include the username, the group ride or ride, and roughly when it happened.',
       'Anything involving someone’s safety is looked at the same day. Everything else is acknowledged within 24 hours.',
     ],
   },
@@ -338,27 +338,27 @@ export const REFUNDS: LegalSection[] = [
   {
     heading: 'What you are paying for',
     paragraphs: [
-      'Joining a squad is free during the beta, so there is currently nothing to refund. The rest of this policy describes how refunds would work once a matching fee is introduced.',
-      'It is charged only after the squad leader approves your request — never when you apply. If your request is declined or never answered, you are not charged at all.',
+      'Joining a group ride is free during the beta, so there is currently nothing to refund. The rest of this policy describes how refunds would work once a matching fee is introduced.',
+      'It is charged only after the group ride leader approves your request — never when you apply. If your request is declined or never answered, you are not charged at all.',
       'It does not buy transport, a seat, or a guarantee that the journey happens.',
     ],
   },
   {
     heading: 'When you get a refund',
     bullets: [
-      'The payment was taken but the match failed — you were not added to the squad, or the squad no longer existed. Refunded in full.',
+      'The payment was taken but the match failed — you were not added to the group ride, or the group ride no longer existed. Refunded in full.',
       'You were charged more than once for the same match. The duplicates are refunded in full.',
-      'The squad leader cancelled the squad before the journey. Refunded in full.',
-      'We removed the squad or the leader for breaking our terms. Refunded in full.',
+      'The group ride leader cancelled the group ride before the journey. Refunded in full.',
+      'We removed the group ride or the leader for breaking our terms. Refunded in full.',
       'A payment failed at the bank but the amount left your account. Razorpay reverses these automatically, usually within five to seven working days.',
     ],
   },
   {
     heading: 'When you do not',
     bullets: [
-      'You changed your mind and left the squad after being matched. The match was delivered — that is what the fee is for.',
+      'You changed your mind and left the group ride after being matched. The match was delivered — that is what the fee is for.',
       'The journey did not happen because of a disagreement between members, weather, or a change of plan.',
-      'You were removed from a squad for breaking our terms.',
+      'You were removed from a group ride for breaking our terms.',
       'You are unhappy with the journey, the driver or the other passengers. Report it and we will act on the account, but the matching fee is not a fare and is not refundable on that basis.',
     ],
   },
@@ -372,7 +372,7 @@ export const REFUNDS: LegalSection[] = [
   {
     heading: 'How to ask for a refund',
     paragraphs: [
-      'Write to spllittech@gmail.com within 7 days of the charge with your registered email or phone number, the squad, and the date. The Razorpay payment id, if you have it, makes this much faster.',
+      'Write to spllittech@gmail.com within 7 days of the charge with your registered email or phone number, the group ride, and the date. The Razorpay payment id, if you have it, makes this much faster.',
       'We respond within 3 working days. Approved refunds go back to the original payment method — we cannot send them anywhere else — and typically take 5 to 7 working days to appear, which is the bank’s timeline rather than ours.',
       'If you are unhappy with the outcome, escalate to the Grievance Officer named in the Terms.',
     ],
@@ -451,7 +451,7 @@ export const INTELLECTUAL_PROPERTY: LegalSection[] = [
     heading: 'What you own',
     paragraphs: [
       'Everything you write, photograph and post stays yours. We claim no ownership of it.',
-      'You grant us a limited, non-exclusive, royalty-free licence to store, reproduce and display your content inside Spllit, to the people you shared it with, for as long as you keep it there. That licence exists so we can show your message to your squad — nothing more.',
+      'You grant us a limited, non-exclusive, royalty-free licence to store, reproduce and display your content inside Spllit, to the people you shared it with, for as long as you keep it there. That licence exists so we can show your message to your group ride — nothing more.',
       'We do not licence your content to anyone else, use it in advertising, or sell it. Deleting content ends the licence, other than where the content also belongs to someone else — a message you sent remains in the recipient’s conversation.',
     ],
   },

@@ -37,7 +37,7 @@ export default function NotificationsPage() {
             Notifications
           </h1>
           <p className="mt-1 text-[14px] text-ink-muted">
-            Rides, squads, events and mentions.
+            Rides, group rides, events and mentions.
           </p>
         </div>
         {hasUnread ? (
@@ -58,7 +58,7 @@ export default function NotificationsPage() {
         <EmptyState
           icon={<Bell className="h-5 w-5" />}
           title="You're all caught up"
-          description="Updates about your rides, squads and events will land here."
+          description="Updates about your rides, group rides and events will land here."
         />
       ) : (
         <div className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">

@@ -25,7 +25,7 @@ const COLUMNS = [
     title: 'Product',
     links: [
       { href: '/rides', label: 'Ride Together' },
-      { href: '/squads', label: 'Squads' },
+      { href: '/squads', label: 'Group Rides' },
       { href: '/events', label: 'Events' },
     ],
   },

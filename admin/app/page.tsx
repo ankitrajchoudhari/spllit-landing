@@ -194,7 +194,7 @@ export default function DashboardPage() {
                 icon={<Car className="h-4 w-4" />}
               />
               <Stat
-                label="Active squads"
+                label="Active group rides"
                 value={formatCount(data.squads.active)}
                 sub={`${formatCount(data.squads.total)} all time`}
                 icon={<UsersRound className="h-4 w-4" />}
@@ -242,7 +242,7 @@ export default function DashboardPage() {
               />
               <Stat
                 size="compact"
-                label="Stale squads"
+                label="Stale group rides"
                 value={formatCount(data.squads.stale)}
                 tone={data.squads.stale > 0 ? 'warn' : 'neutral'}
                 sub="Live, meeting long past"

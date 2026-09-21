@@ -21,8 +21,8 @@ export const metadata: Metadata = {
 const PILLARS = [
   {
     Icon: Users,
-    title: 'Squads, not group chats',
-    body: 'A squad is a group heading to the same place at the same time — an exam centre, an airport, a match. One meeting point, everyone’s ETA on one map, no "where are you?" thread.',
+    title: 'Group Rides, not group chats',
+    body: 'A group ride is a group heading to the same place at the same time — an exam centre, an airport, a match. One meeting point, everyone’s ETA on one map, no "where are you?" thread.',
   },
   {
     Icon: Car,

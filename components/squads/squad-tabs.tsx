@@ -40,7 +40,7 @@ export function SquadTabs({
   return (
     <div
       role="tablist"
-      aria-label="Squad sections"
+      aria-label="Group Ride sections"
       className="inline-flex w-full gap-1 rounded-xl border border-line bg-surface p-1 shadow-soft"
     >
       <AnimatedBackground

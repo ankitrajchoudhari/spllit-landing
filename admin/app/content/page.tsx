@@ -24,7 +24,7 @@ export default function ContentPage() {
       description="Everything people have created, newest first."
       tabs={[
         { key: 'rides', label: 'Rides', permission: 'content.view', render: () => <RidesPage embedded /> },
-        { key: 'squads', label: 'Squads', permission: 'content.view', render: () => <SquadsPage embedded /> },
+        { key: 'squads', label: 'Group Rides', permission: 'content.view', render: () => <SquadsPage embedded /> },
         { key: 'events', label: 'Events', permission: 'content.view', render: () => <EventsPage embedded /> },
         { key: 'communities', label: 'Communities', permission: 'content.view', render: () => <CommunitiesPage embedded /> },
       ]}

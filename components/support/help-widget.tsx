@@ -40,7 +40,7 @@ type Panel = 'home' | 'messages' | 'help';
  * empty index wired to a service that does not exist.
  */
 const ARTICLES: { title: string; href: string }[] = [
-  { title: 'How to start a squad and set a meeting point', href: '/squads/new' },
+  { title: 'How to start a group ride and set a meeting point', href: '/squads/new' },
   { title: 'How to join a ride and request a seat', href: '/rides' },
   { title: 'How to verify your institute email', href: '/profile' },
   { title: 'How to share live location safely', href: '/squads' },
@@ -152,7 +152,7 @@ export function HelpWidget() {
                 <CircleCheck className="h-5 w-5 shrink-0 text-brand" />
                 <div className="min-w-0">
                   <p className="text-[13px] font-medium text-ink">All systems operational</p>
-                  <p className="text-[12px] text-ink-subtle">Rides, squads and chat are up</p>
+                  <p className="text-[12px] text-ink-subtle">Rides, group rides and chat are up</p>
                 </div>
               </div>
             </SectionCard>

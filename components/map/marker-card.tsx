@@ -22,7 +22,7 @@ const MARKER_STYLE: Record<
   Exclude<MarkerKind, 'pin'>,
   { accent: string; Icon: typeof Crown; label: string }
 > = {
-  leader: { accent: 'var(--brand)', Icon: Crown, label: 'Squad leader' },
+  leader: { accent: 'var(--brand)', Icon: Crown, label: 'Group Ride leader' },
   member: { accent: 'var(--brand)', Icon: User, label: 'Member' },
   guest: { accent: '#8b918e', Icon: User, label: 'Guest' },
   meeting: { accent: '#e5484d', Icon: Flag, label: 'Meeting point' },
@@ -92,7 +92,7 @@ export function MarkerCard({
         style={{ backgroundColor: accent }}
       >
         {kind === 'leader' ? (
-          <Crown className="h-3.5 w-3.5" strokeWidth={2.6} aria-label="Squad leader" />
+          <Crown className="h-3.5 w-3.5" strokeWidth={2.6} aria-label="Group Ride leader" />
         ) : (
           entity.title.charAt(0)
         )}

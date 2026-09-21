@@ -45,7 +45,7 @@ const STATUS_LABELS: Record<string, string> = {
 const COLUMNS: Column<SquadRow>[] = [
   {
     key: 'name',
-    header: 'Squad',
+    header: 'Group Ride',
     cell: (row) => (
       <div className="flex flex-col">
         <span className="font-semibold text-ink">{row.name}</span>
@@ -117,10 +117,10 @@ export default function SquadsPage({ embedded }: { embedded?: boolean } = {}) {
   return (
     <EntityPage
       embedded={embedded}
-      title="Squads"
+      title="Group Rides"
       description="Groups travelling together, with their leader and current lifecycle state."
       permission="content.view"
-      searchPlaceholder="Search squad name or college"
+      searchPlaceholder="Search group ride name or college"
       filters={FILTERS}
       columns={COLUMNS}
       hrefFor={(row) => `/squads/${row.id}`}

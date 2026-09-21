@@ -118,7 +118,7 @@ export function SquadCard({ squad, className }: { squad: Squad; className?: stri
               squad whose leader failed to load still says something true.
             */}
             <p className="truncate text-[12.5px] text-ink-muted">
-              {leaderName ? `by ${leaderName}` : (squad.college ?? (destination ? squad.name : 'Squad'))}
+              {leaderName ? `by ${leaderName}` : (squad.college ?? (destination ? squad.name : 'Group Ride'))}
             </p>
           </div>
         </div>

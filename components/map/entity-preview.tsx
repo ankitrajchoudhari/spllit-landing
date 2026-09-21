@@ -28,7 +28,7 @@ function SquadJoinAction({ squadId }: { squadId: string }) {
     return (
       <p className="mt-4 flex items-center gap-1.5 text-[13px] font-medium text-brand">
         <Check className="h-3.5 w-3.5" />
-        You&apos;re in this squad.
+        You&apos;re in this group ride.
       </p>
     );
   }

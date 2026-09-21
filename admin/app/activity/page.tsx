@@ -98,7 +98,7 @@ export default function ActivityPage() {
 
           <p className="text-xs text-ink-subtle">
             Last {data.windowDays} days · {formatCount(data.sampled.rides)} rides and{' '}
-            {formatCount(data.sampled.squads)} squads sampled.
+            {formatCount(data.sampled.squads)} group rides sampled.
           </p>
         </>
       ) : null}
@@ -124,7 +124,7 @@ function WhenGrid({ when }: { when: { grid: number[][]; plotted: number; peak: n
       <Card>
         <EmptyState
           title="Nothing to plot yet"
-          description="Once rides and squads have departure times, the week fills in here."
+          description="Once rides and group rides have departure times, the week fills in here."
         />
       </Card>
     );

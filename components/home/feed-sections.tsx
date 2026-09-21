@@ -74,23 +74,23 @@ export function NearbySquads({ center }: { center: LngLat | null }) {
   const squads = data?.items ?? [];
 
   return (
-    <Section title="Squads nearby" description="Groups gathering around you." href="/squads">
+    <Section title="Group Rides nearby" description="Groups gathering around you." href="/squads">
       {isPending || !center ? (
         <SkeletonRail />
       ) : isError ? (
         <EmptyState
           tone="error"
           icon={<Users className="h-5 w-5" />}
-          title="Couldn't load squads"
+          title="Couldn't load group rides"
         />
       ) : squads.length === 0 ? (
         <EmptyState
           icon={<Users className="h-5 w-5" />}
-          title="No squads forming nearby"
+          title="No group rides forming nearby"
           description="Start one, drop a meeting point, and everyone will see how far away they are."
           action={
             <Link href="/squads/new">
-              <Button size="sm">Start a squad</Button>
+              <Button size="sm">Start a group ride</Button>
             </Link>
           }
         />

@@ -427,7 +427,7 @@ export function ChatThreadView({
         </p>
         <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">
           {forbidden
-            ? 'Join the squad and the leader has to approve you before the chat opens.'
+            ? 'Join the group ride and the leader has to approve you before the chat opens.'
             : threadError instanceof Error
               ? threadError.message
               : 'Something went wrong loading the messages.'}

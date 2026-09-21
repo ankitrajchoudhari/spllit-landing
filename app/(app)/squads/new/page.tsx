@@ -262,13 +262,13 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
         <div className="flex items-center gap-3">
           <Link
             href="/squads"
-            aria-label="Back to squads"
+            aria-label="Back to group rides"
             className="rounded-md p-2 text-ink-subtle transition-colors hover:bg-surface-sunken hover:text-ink"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <h1 className="font-display text-[22px] font-semibold tracking-[-0.025em] text-ink">
-            Start a squad
+            Start a group ride
           </h1>
         </div>
 
@@ -277,15 +277,15 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
             <Users className="h-5 w-5" />
           </span>
           <h2 className="mt-4 font-display text-[19px] font-semibold tracking-[-0.02em] text-ink">
-            You already lead a squad
+            You already lead a group ride
           </h2>
           <p className="mt-2 text-[13.5px] leading-relaxed text-ink-muted">
             You are leading <span className="font-medium text-ink">{where}</span>. One
-            squad at a time — running two splits the people who could have
+            group ride at a time — running two splits the people who could have
             travelled together, and leaves both groups short.
           </p>
           <p className="mt-2 text-[13.5px] leading-relaxed text-ink-muted">
-            Mark it done or cancel it from the squad page, and this opens again.
+            Mark it done or cancel it from the group ride page, and this opens again.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2">
@@ -294,7 +294,7 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
             </Link>
             <Link href="/squads">
               <Button size="sm" variant="secondary">
-                Back to squads
+                Back to group rides
               </Button>
             </Link>
           </div>
@@ -308,13 +308,13 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
       <div className="flex items-center gap-3">
         <Link
           href="/squads"
-          aria-label="Back to squads"
+          aria-label="Back to group rides"
           className="rounded-md p-2 text-ink-subtle transition-colors hover:bg-surface-sunken hover:text-ink"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <h1 className="font-display text-[22px] font-semibold tracking-[-0.025em] text-ink">
-          Start a squad
+          Start a group ride
         </h1>
       </div>
 
@@ -348,7 +348,7 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
           proximity={aiOrigin ?? draft.origin ?? center}
         />
         <p className="mt-2 text-[12.5px] leading-relaxed text-ink-muted">
-          Choose the destination everyone in your Squad will travel to. Everything
+          Choose the destination everyone in your Group Ride will travel to. Everything
           after this is optional.
         </p>
 
@@ -411,7 +411,7 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
           </div>
 
           {/* Step 4 — name, pre-filled from destination + purpose. */}
-          <Field label="Squad name" hint="Auto-named. Edit if you like." htmlFor="squad-name">
+          <Field label="Group Ride name" hint="Auto-named. Edit if you like." htmlFor="squad-name">
             <Input
               id="squad-name"
               value={effectiveName}
@@ -563,7 +563,7 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
           {/* Step 7 — visibility. */}
           <div>
             <span className="mb-2 block text-[13px] font-medium text-ink">
-              Who can see your Squad?
+              Who can see your Group Ride?
             </span>
             <Segmented
               value={visibility}
@@ -584,15 +584,15 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
             */}
             {visibility === 'public' ? (
               <p className="mt-2 text-[12px] text-ink-subtle">
-                Nearby people heading the same way can find and join this squad.
+                Nearby people heading the same way can find and join this group ride.
               </p>
             ) : (
               <p className="mt-2 rounded-lg border border-warning/40 bg-warning-muted px-3 py-2 text-[12px] leading-relaxed text-ink-muted">
                 <span className="font-medium text-ink">
-                  This squad will not appear in anyone&apos;s search.
+                  This group ride will not appear in anyone&apos;s search.
                 </span>{' '}
                 It opens only to people you send the link or code to. You can make it
-                public later from the squad.
+                public later from the group ride.
               </p>
             )}
           </div>
@@ -607,7 +607,7 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
                     {destination.label.split(',')[0]}
                   </p>
                   <p className="truncate text-[13px] text-ink-muted">
-                    {effectiveName.trim() || 'Untitled squad'}
+                    {effectiveName.trim() || 'Untitled group ride'}
                   </p>
                 </div>
                 <Badge tone={visibility === 'public' ? 'brand' : 'neutral'}>
@@ -659,7 +659,7 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
               </div>
 
               <p className="mt-3 text-[12px] text-ink-subtle">
-                {profile?.name ? `${profile.name} leads` : 'You lead'} this squad.
+                {profile?.name ? `${profile.name} leads` : 'You lead'} this group ride.
               </p>
             </div>
           </div>
@@ -692,12 +692,12 @@ function NewSquadForm({ searchParams }: { searchParams: URLSearchParams }) {
           loading={create.isPending}
           onClick={submit}
         >
-          Create squad
+          Create group ride
         </Button>
 
         {create.isError ? (
           <p role="alert" className="mt-2 text-[13px] text-danger">
-            {create.error instanceof Error ? create.error.message : "Couldn't create the squad."}
+            {create.error instanceof Error ? create.error.message : "Couldn't create the group ride."}
           </p>
         ) : null}
       </div>

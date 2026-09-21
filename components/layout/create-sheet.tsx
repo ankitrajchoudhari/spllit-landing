@@ -14,7 +14,7 @@ const ACTIONS: { href: string; label: string; description: string; icon: LucideI
   },
   {
     href: '/squads/new',
-    label: 'Start a squad',
+    label: 'Start a group ride',
     description: 'Gather people around a meeting point and move together.',
     icon: Users,
   },

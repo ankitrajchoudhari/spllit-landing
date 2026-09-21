@@ -36,7 +36,7 @@ export function LiveBackdrop() {
       marker.kind === 'ride'
         ? `${marker.count} ride${marker.count === 1 ? '' : 's'}`
         : marker.kind === 'squad'
-          ? `${marker.count} squad${marker.count === 1 ? '' : 's'}`
+          ? `${marker.count} group ride${marker.count === 1 ? '' : 's'}`
           : `${marker.count} event${marker.count === 1 ? '' : 's'}`,
     subtitle: 'active nearby',
     live: true,

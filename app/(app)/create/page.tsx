@@ -31,7 +31,7 @@ const OPTIONS = [
   {
     href: '/squads/new',
     Icon: Users,
-    title: 'Start a squad',
+    title: 'Start a group ride',
     body: 'You are travelling with others. Pick a destination and meeting point, and approve who joins.',
     role: 'You become the leader',
   },
@@ -81,7 +81,7 @@ function CreateChooser() {
 
       {/* Creating is gated where joining is. The gate replaces both options
           rather than letting someone pick one and meet a 403 on save. */}
-      <VerificationGate action="create a ride or squad">
+      <VerificationGate action="create a ride or group ride">
         <ul className="space-y-2.5">
           {OPTIONS.map((option) => (
             <li key={option.href}>

@@ -9,7 +9,7 @@ import { LegalFooter } from '@/components/shared/legal-footer';
 export const metadata: Metadata = {
   title: 'Blog — Campus travel, fare splitting and safety',
   description:
-    'Practical guides on sharing rides between students: how to split a cab fare fairly, staying safe carpooling with classmates, and how travel squads work.',
+    'Practical guides on sharing rides between students: how to split a cab fare fairly, staying safe carpooling with classmates, and how travel group rides work.',
   alternates: { canonical: '/blog' },
   openGraph: {
     title: 'Spllit Blog — Campus travel, fare splitting and safety',
@@ -34,7 +34,7 @@ export default function BlogIndexPage() {
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
           How to split a fare without an argument, how to stay safe travelling with
-          people you have not met, and how squads actually work.
+          people you have not met, and how group rides actually work.
         </p>
 
         <ul className="mt-10 space-y-3">

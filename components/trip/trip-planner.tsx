@@ -400,7 +400,7 @@ export function TripPlanner() {
           layer: 'squads',
           position: [mySquad.lng, mySquad.lat],
           title: mySquad.name,
-          subtitle: 'Your squad',
+          subtitle: 'Your group ride',
           accent: MEETING_ACCENT,
           href: `/squads/${mySquad.id}`,
         });
@@ -601,7 +601,7 @@ export function TripPlanner() {
                  * group traveling together.
                  */
                 { key: 'me', label: 'Solo ride', Icon: User },
-                { key: 'squad', label: 'Group squad', Icon: Users },
+                { key: 'squad', label: 'Group ride', Icon: Users },
               ] as const
             ).map((option) => (
               <button
@@ -649,7 +649,7 @@ export function TripPlanner() {
             {searchQuery.isFetching
               ? 'Searching…'
               : mode === 'squad'
-                ? 'Find squad'
+                ? 'Find group ride'
                 : 'Find a ride'}
           </button>
 
@@ -943,7 +943,7 @@ export function TripPlanner() {
         ) : (
           <>
             <h1 className="font-display text-[26px] font-semibold tracking-[-0.03em] text-ink sm:text-[32px]">
-              Choose a squad
+              Choose a group ride
             </h1>
             <p className="mt-2 text-[14px] text-ink-muted">
               {destination
@@ -975,7 +975,7 @@ export function TripPlanner() {
                       {mySquad.name}
                     </p>
                     <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">
-                      Your squad ·{' '}
+                      Your group ride ·{' '}
                       {mySquad.memberCount === 1
                         ? 'nobody has joined yet'
                         : `${mySquad.memberCount} members`}
@@ -1003,7 +1003,7 @@ export function TripPlanner() {
                   <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-warning/40 bg-warning-muted px-3.5 py-2.5">
                     <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-ink-muted">
                       <span className="font-medium text-ink">Invite only.</span> Nobody
-                      can find this squad by searching — it opens only to people you
+                      can find this group ride by searching — it opens only to people you
                       send the link or code to.
                     </p>
                     <button
@@ -1051,7 +1051,7 @@ export function TripPlanner() {
                             ? destination
                               ? 'None heading there yet'
                               : 'None forming near you'
-                            : `${matching} squad${matching === 1 ? '' : 's'} ${
+                            : `${matching} group ride${matching === 1 ? '' : 's'} ${
                                 squadCountsQuery.data?.directional
                                   ? 'heading there'
                                   : 'forming nearby'
@@ -1085,15 +1085,15 @@ export function TripPlanner() {
                   <div className="rounded-2xl border border-line bg-surface-sunken px-5 py-6 text-center">
                     <p className="font-display text-[16px] font-semibold text-ink">
                       {destination
-                        ? 'No squad heading there yet'
-                        : 'No squad forming near you'}
+                        ? 'No group ride heading there yet'
+                        : 'No group ride forming near you'}
                     </p>
                     <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-ink-muted">
                       {destination
                         ? `Nobody has started a ${
                             SQUAD_PURPOSES.find((p) => p.value === purpose)?.label.toLowerCase() ??
                             ''
-                          } squad to ${destination.label.split(',')[0]} yet. Start one and people going the same way can find it.`
+                          } group ride to ${destination.label.split(',')[0]} yet. Start one and people going the same way can find it.`
                         : 'Start one and people going the same way can find it.'}
                     </p>
                     {mySquad ? (
@@ -1110,7 +1110,7 @@ export function TripPlanner() {
                         className="mt-4"
                         onClick={() => router.push('/squads/new')}
                       >
-                        Start a squad
+                        Start a group ride
                       </Button>
                     )}
                   </div>

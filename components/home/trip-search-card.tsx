@@ -183,7 +183,7 @@ export function TripSearchCard() {
             {(
               [
                 { key: 'rides', label: 'Host', Icon: Car, hint: 'Someone already driving' },
-                { key: 'squads', label: 'Squad', Icon: Users, hint: 'Travel together' },
+                { key: 'squads', label: 'Group Ride', Icon: Users, hint: 'Travel together' },
               ] as const
             ).map((option) => (
               <button
@@ -227,7 +227,7 @@ export function TripSearchCard() {
             )}
           >
             <Search className="h-4 w-4" />
-            {mode === 'rides' ? 'Find hosts' : 'Find squads'}
+            {mode === 'rides' ? 'Find hosts' : 'Find group rides'}
           </button>
 
           {!canSearch ? (

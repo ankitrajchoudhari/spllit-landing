@@ -6,7 +6,7 @@ const COLUMNS = [
     title: 'Product',
     links: [
       { href: '#rides', label: 'Ride Together' },
-      { href: '#squads', label: 'Squads' },
+      { href: '#squads', label: 'Group Rides' },
       { href: '#events', label: 'Events' },
       { href: '#soon', label: 'Coming soon' },
     ],
@@ -48,7 +48,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-ink-muted">
-              A location-based community platform. Rides, squads, events and
+              A location-based community platform. Rides, group rides, events and
               communities — on one map.
             </p>
           </div>

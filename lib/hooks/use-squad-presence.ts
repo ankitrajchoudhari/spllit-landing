@@ -80,7 +80,7 @@ export function useSquadPresence(
           sharing: false,
           error:
             error.code === error.PERMISSION_DENIED
-              ? 'Location permission is off, so the squad cannot see you.'
+              ? 'Location permission is off, so the group ride cannot see you.'
               : 'Could not read your location.',
         }));
       },

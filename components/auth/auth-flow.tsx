@@ -678,7 +678,7 @@ export function AuthFlow() {
                     What should we call you?
                   </h1>
                   <p className="mt-2 text-[14px] text-ink-muted">
-                    This is the name ride hosts and squad members see.
+                    This is the name ride hosts and group ride members see.
                   </p>
                   <div className="mt-7">
                     <Field label="Full name">
@@ -795,7 +795,7 @@ export function AuthFlow() {
                     Where do you study?
                   </h1>
                   <p className="mt-2 text-[14px] text-ink-muted">
-                    Your campus decides which rides, squads and events you see first.
+                    Your campus decides which rides, group rides and events you see first.
                   </p>
                   <div className="mt-7">
                     <Field label="Institute">

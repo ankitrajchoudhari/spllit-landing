@@ -350,11 +350,11 @@ function MeetingPointPicker({ query }: { query: string }) {
           <p className="font-display text-[15px] font-semibold text-ink">Map unavailable</p>
           <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
             The map can&apos;t load right now, so a meeting point can&apos;t be picked here.
-            You can still search for one by name on the squad form.
+            You can still search for one by name on the group ride form.
           </p>
         </div>
         <Link href={backHref}>
-          <Button variant="secondary">Back to squad</Button>
+          <Button variant="secondary">Back to group ride</Button>
         </Link>
       </div>
     );
@@ -408,7 +408,7 @@ function MeetingPointPicker({ query }: { query: string }) {
           <div className="pointer-events-auto mx-auto flex w-full max-w-md items-start gap-2 rounded-xl border border-line bg-surface p-2.5 shadow-float backdrop-blur-sm">
             <Link
               href={backHref}
-              aria-label="Back to squad"
+              aria-label="Back to group ride"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
             >
               <ArrowLeft className="h-[18px] w-[18px]" />
@@ -658,7 +658,7 @@ function MeetingPointPicker({ query }: { query: string }) {
               there. */}
           {!draft.destination ? (
             <p className="mt-2.5 rounded-lg bg-surface-sunken px-3 py-2 text-[12px] leading-relaxed text-ink-muted">
-              No squad in progress. Confirming keeps this pin and takes you to the squad
+              No group ride in progress. Confirming keeps this pin and takes you to the group ride
               form to pick a destination.
             </p>
           ) : null}
@@ -674,7 +674,7 @@ function MeetingPointPicker({ query }: { query: string }) {
                 What is it near?
               </p>
               <p className="mt-1 text-[12.5px] leading-snug text-ink-muted">
-                Your squad finds each other by name long before anyone opens the map.
+                Your group ride finds each other by name long before anyone opens the map.
               </p>
 
               <div className="mt-3">

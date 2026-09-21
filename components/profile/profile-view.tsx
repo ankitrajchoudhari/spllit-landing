@@ -95,7 +95,7 @@ export function ProfileView({ userId }: { userId?: string }) {
           icon={<Car className="h-3.5 w-3.5" />}
         />
         <Stat
-          label="Squads"
+          label="Group Rides"
           value={isOwner ? String(squads.data?.length ?? 0) : '—'}
           icon={<Users className="h-3.5 w-3.5" />}
         />
@@ -111,13 +111,13 @@ export function ProfileView({ userId }: { userId?: string }) {
           <LeaderboardCard />
 
           <div className="space-y-3">
-            <h2 className="font-display text-[15px] font-semibold text-ink">Your squads</h2>
+            <h2 className="font-display text-[15px] font-semibold text-ink">Your group rides</h2>
             {squads.isPending ? (
               <SkeletonList count={2} />
             ) : (squads.data ?? []).length === 0 ? (
               <EmptyState
                 icon={<Users className="h-5 w-5" />}
-                title="Not in a squad yet"
+                title="Not in a group ride yet"
                 action={
                   <Link href="/squads">
                     <Button size="sm" variant="secondary">

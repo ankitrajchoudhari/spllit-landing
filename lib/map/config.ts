@@ -39,7 +39,7 @@ export interface LayerConfig {
 
 export const LAYERS: Record<LayerKey, LayerConfig> = {
   rides: { key: 'rides', label: 'Rides', color: 'var(--brand)', defaultOn: true },
-  squads: { key: 'squads', label: 'Squads', color: 'var(--accent)', defaultOn: true },
+  squads: { key: 'squads', label: 'Group Rides', color: 'var(--accent)', defaultOn: true },
   events: { key: 'events', label: 'Events', color: '#f5a524', defaultOn: true },
   communities: { key: 'communities', label: 'Communities', color: '#8b5cf6', defaultOn: false },
   friends: { key: 'friends', label: 'Friends', color: '#ec4899', defaultOn: true },

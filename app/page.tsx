@@ -54,7 +54,7 @@ export default function LandingPage() {
                 Your campus, live on one map.
               </h2>
               <p className="mx-auto mt-4 max-w-md font-sans text-[16px] leading-relaxed text-ink-muted lg:mx-0">
-                Rides, squads and events from people who go where you go —
+                Rides, group rides and events from people who go where you go —
                 verified by campus email, updated as they move.
               </p>
             </div>

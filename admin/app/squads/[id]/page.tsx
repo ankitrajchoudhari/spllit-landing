@@ -50,7 +50,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
     if (detail.error instanceof ApiError && detail.error.isForbidden) {
       return <PermissionState permission="content.view" />;
     }
-    return <ErrorState title="Could not load this squad" description={detail.error.message} />;
+    return <ErrorState title="Could not load this group ride" description={detail.error.message} />;
   }
 
   if (detail.isLoading || !detail.data) return <SkeletonRows rows={6} />;
@@ -147,7 +147,7 @@ export default function SquadDetailPage({ params }: { params: Promise<{ id: stri
         </h2>
 
         {members.length === 0 ? (
-          <EmptyState title="No members" description="Nobody has joined this squad." />
+          <EmptyState title="No members" description="Nobody has joined this group ride." />
         ) : (
           <div className="flex flex-col gap-1.5">
             {members.map((member) => (

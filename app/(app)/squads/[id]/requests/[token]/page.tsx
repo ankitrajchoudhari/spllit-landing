@@ -113,8 +113,8 @@ export default function JoinRequestDecisionPage({
         <EmptyState
           icon={<X className="h-5 w-5" />}
           title="This request is no longer open"
-          description="It may have been answered already, withdrawn, or the link may have expired. Open the squad to see who is in it."
-          action={<Button onClick={() => router.replace(`/squads/${id}`)}>Open the squad</Button>}
+          description="It may have been answered already, withdrawn, or the link may have expired. Open the group ride to see who is in it."
+          action={<Button onClick={() => router.replace(`/squads/${id}`)}>Open the group ride</Button>}
         />
       </div>
     );
@@ -127,13 +127,13 @@ export default function JoinRequestDecisionPage({
       <div className="mx-auto max-w-md">
         <EmptyState
           icon={<Check className="h-5 w-5" />}
-          title={done === 'approve' ? 'Added to the squad' : 'Request declined'}
+          title={done === 'approve' ? 'Added to the group ride' : 'Request declined'}
           description={
             done === 'approve'
-              ? `${requester?.name ?? 'They'} can now see the meeting point and the squad chat.`
+              ? `${requester?.name ?? 'They'} can now see the meeting point and the group ride chat.`
               : `${requester?.name ?? 'They'} have been told, and can ask again later.`
           }
-          action={<Button onClick={() => router.replace(`/squads/${squad.id}`)}>Open the squad</Button>}
+          action={<Button onClick={() => router.replace(`/squads/${squad.id}`)}>Open the group ride</Button>}
         />
       </div>
     );
@@ -183,7 +183,7 @@ export default function JoinRequestDecisionPage({
           disabled={decide.isPending}
           onClick={() => decide.mutate('approve')}
         >
-          Add to squad
+          Add to group ride
         </Button>
         <Button
           variant={intent === 'reject' ? 'primary' : 'secondary'}

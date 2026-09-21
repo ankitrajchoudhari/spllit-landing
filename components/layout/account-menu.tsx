@@ -68,7 +68,7 @@ export function AccountMenu() {
   const close = () => setOpen(false);
 
   const primary: Item[] = [
-    { label: 'Your squads', href: '/squads', Icon: Users },
+    { label: 'Your group rides', href: '/squads', Icon: Users },
     { label: 'Your rides', href: '/rides', Icon: Car },
     { label: 'Messages', href: '/chat', Icon: MessageSquare },
     { label: 'Profile', href: '/profile', Icon: UserRound },

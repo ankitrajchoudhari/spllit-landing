@@ -21,7 +21,7 @@ import type { SearchTab } from '@/types';
 
 const TABS: { value: SearchTab; label: string }[] = [
   { value: 'people', label: 'People' },
-  { value: 'squads', label: 'Squads' },
+  { value: 'squads', label: 'Group Rides' },
   { value: 'events', label: 'Events' },
   { value: 'places', label: 'Places' },
   { value: 'rides', label: 'Rides' },
@@ -66,7 +66,7 @@ function SearchView() {
     <div className="mx-auto max-w-3xl space-y-5">
       <Input
         icon={<SearchIcon className="h-4 w-4" />}
-        placeholder="Search people, squads, events, places"
+        placeholder="Search people, group rides, events, places"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         autoFocus
@@ -84,7 +84,7 @@ function SearchView() {
         <EmptyState
           icon={<SearchIcon className="h-5 w-5" />}
           title="Search across Spllit"
-          description="Type at least two characters to search people, squads, events, places and rides."
+          description="Type at least two characters to search people, group rides, events, places and rides."
         />
       ) : isPending || isFetching ? (
         <SkeletonList count={4} />

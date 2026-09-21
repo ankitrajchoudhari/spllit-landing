@@ -150,7 +150,7 @@ export function TripResults() {
         {(
           [
             { key: 'rides', label: 'Rides', Icon: Car },
-            { key: 'squads', label: 'Squads', Icon: Users },
+            { key: 'squads', label: 'Group Rides', Icon: Users },
           ] as const
         ).map((option) => (
           <button
@@ -196,7 +196,7 @@ export function TripResults() {
         <div className="space-y-2">
           <LottieLoader
             variant={tab === 'rides' ? 'host' : 'squad'}
-            caption={tab === 'rides' ? 'Finding nearby hosts…' : 'Finding nearby squads…'}
+            caption={tab === 'rides' ? 'Finding nearby hosts…' : 'Finding nearby group rides…'}
             className="py-2 sm:py-3"
           />
           <Skeleton className="h-[92px] w-full rounded-2xl" />
@@ -216,12 +216,12 @@ export function TripResults() {
       ) : isEmpty ? (
         <div className="rounded-2xl border border-line bg-surface px-5 py-8 text-center">
           <p className="font-display text-[16px] font-semibold text-ink">
-            {tab === 'rides' ? 'No hosts available yet' : 'No squads heading there yet'}
+            {tab === 'rides' ? 'No hosts available yet' : 'No group rides heading there yet'}
           </p>
           <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-ink-muted">
             {tab === 'rides'
               ? `We couldn't find anyone going to ${destinationName} at this time.`
-              : 'No squads are heading this way yet. Create one and let others travelling the same way join you.'}
+              : 'No group rides are heading this way yet. Create one and let others travelling the same way join you.'}
           </p>
           {/*
             The create CTA carries the search forward, so the destination and
@@ -230,7 +230,7 @@ export function TripResults() {
             empty state must never stand in for "you are not allowed".
           */}
           <Button size="sm" className="mt-4" onClick={goCreate}>
-            + {tab === 'rides' ? 'Create a trip' : 'Create a Squad'}
+            + {tab === 'rides' ? 'Create a trip' : 'Create a Group Ride'}
           </Button>
         </div>
       ) : tab === 'rides' ? (
@@ -350,7 +350,7 @@ export function TripResults() {
         <div className="pt-1">
           <Button variant="outline" className="w-full" onClick={goCreate}>
             <Plus className="h-4 w-4" aria-hidden />
-            {tab === 'rides' ? 'Create a trip' : 'Create a Squad'}
+            {tab === 'rides' ? 'Create a trip' : 'Create a Group Ride'}
           </Button>
           <p className="mt-2 text-center text-[12px] leading-relaxed text-ink-subtle">
             {tab === 'rides'

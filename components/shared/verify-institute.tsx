@@ -88,7 +88,7 @@ export function VerifyInstituteBanner({ className }: { className?: string }) {
           <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">
             {verifiable ? (
               <>
-                Creating or joining rides and squads is limited to verified
+                Creating or joining rides and group rides is limited to verified
                 students. Sign in with your {institute?.name ?? 'institute'} Google
                 account — we never ask you to type your email address, Google
                 confirms it.
@@ -96,7 +96,7 @@ export function VerifyInstituteBanner({ className }: { className?: string }) {
             ) : (
               <>
                 {profile.college || 'Your institute'} has no verifiable email domain yet,
-                so rides and squads stay locked. Everything else works.
+                so rides and group rides stay locked. Everything else works.
               </>
             )}
           </p>

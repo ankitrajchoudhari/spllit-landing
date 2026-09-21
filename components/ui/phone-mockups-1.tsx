@@ -36,12 +36,12 @@ const screens: ScreenItem[] = [
   },
   {
     id: 'squad',
-    alt: 'A travel squad to Pondicherry with four of six seats filled',
+    alt: 'A travel group ride to Pondicherry with four of six seats filled',
     screen: <SquadScreen />,
   },
   {
     id: 'chat',
-    alt: 'The squad chat, confirming pickup and the split fare',
+    alt: 'The group ride chat, confirming pickup and the split fare',
     screen: <ChatScreen />,
   },
 ];

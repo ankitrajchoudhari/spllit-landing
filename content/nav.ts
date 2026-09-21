@@ -43,7 +43,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { href: '/home', label: 'Home', icon: Home, essential: true },
   { href: '/map', label: 'Map', icon: Map, essential: true },
   { href: '/rides', label: 'Rides', icon: Car, essential: true },
-  { href: '/squads', label: 'Squads', icon: Users, essential: true },
+  { href: '/squads', label: 'Group Rides', icon: Users, essential: true },
   { href: '/events', label: 'Events', icon: CalendarDays },
   { href: '/chat', label: 'Chat', icon: MessageCircle, essential: true },
 ];

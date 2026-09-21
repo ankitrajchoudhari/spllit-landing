@@ -22,7 +22,7 @@ function SocialProof() {
 
   const parts: string[] = [];
   if (data.activeRides > 0) parts.push(`${data.activeRides} rides live`);
-  if (data.activeSquads > 0) parts.push(`${data.activeSquads} squads moving`);
+  if (data.activeSquads > 0) parts.push(`${data.activeSquads} group rides moving`);
   if (data.colleges > 0) parts.push(`${data.colleges} campuses`);
   if (parts.length === 0) return null;
 

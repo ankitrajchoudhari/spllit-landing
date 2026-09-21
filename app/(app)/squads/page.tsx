@@ -202,7 +202,7 @@ export default function SquadsPage() {
               <div className="flex items-center justify-between bg-brand px-4 pb-6 pt-3">
                 <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-fg">
                   <Users className="h-3.5 w-3.5" />
-                  Your squads
+                  Your group rides
                 </span>
                 <span className="text-[12.5px] font-semibold text-brand-fg">
                   {squads.length}
@@ -228,7 +228,7 @@ export default function SquadsPage() {
                 <Link href={`/squads/${primary.id}`} className="mt-3 inline-block">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-sunken px-3 py-1.5 text-[12.5px] font-medium text-ink-muted transition-colors hover:text-ink">
                     <MapPin className="h-3.5 w-3.5" />
-                    Squad details
+                    Group Ride details
                   </span>
                 </Link>
               </div>
@@ -267,13 +267,13 @@ export default function SquadsPage() {
           <div className="border-b border-line bg-brand-muted px-6 py-5">
             <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.07em] text-brand">
               <Users className="h-3.5 w-3.5" />
-              Squads
+              Group Rides
             </span>
             <h1 className="mt-2 font-display text-[24px] font-semibold tracking-[-0.03em] text-ink">
               Travel together, not alone
             </h1>
             <p className="mt-1.5 max-w-md text-[13.5px] leading-relaxed text-ink-muted">
-              A squad is a group heading to the same place at the same time — an
+              A group ride is a group heading to the same place at the same time — an
               exam centre, the airport, a match. Pick where you&apos;re going, drop a
               meeting point, and everyone&apos;s ETA shows up on one map.
             </p>
@@ -301,7 +301,7 @@ export default function SquadsPage() {
             <Link href="/squads/new">
               <Button size="lg" className="w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
-                Start your first squad
+                Start your first group ride
               </Button>
             </Link>
           </div>
@@ -315,7 +315,7 @@ export default function SquadsPage() {
             <Users className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <p className="text-[13px] text-ink">Squads now lead with where you&apos;re going.</p>
+            <p className="text-[13px] text-ink">Group Rides now lead with where you&apos;re going.</p>
             <Link
               href="/squads/new"
               className="mt-0.5 inline-block text-[13px] font-semibold text-ink underline underline-offset-2"
@@ -339,7 +339,7 @@ export default function SquadsPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-[17px] font-semibold tracking-[-0.02em] text-ink">
-            Squads near you
+            Group Rides near you
           </h2>
           {/* Hidden while committed: the API rejects a second squad, so the
               button could only ever produce an error. */}
@@ -358,11 +358,11 @@ export default function SquadsPage() {
         ) : (nearby.data?.items.length ?? 0) === 0 ? (
           <EmptyState
             icon={<Users className="h-5 w-5" />}
-            title="No squads nearby"
+            title="No group rides nearby"
             description="Nothing forming around you right now. Start one and drop a meeting point."
             action={
               <Link href="/squads/new">
-                <Button size="sm">Start a squad</Button>
+                <Button size="sm">Start a group ride</Button>
               </Link>
             }
           />

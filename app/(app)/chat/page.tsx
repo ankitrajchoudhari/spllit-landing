@@ -25,7 +25,7 @@ function ChatIndex() {
     return (
       <div className="mx-auto max-w-2xl space-y-4">
         <h1 className="font-display text-[22px] font-semibold tracking-[-0.025em] text-ink">
-          {context === 'ride' ? 'Ride chat' : context === 'squad' ? 'Squad chat' : 'Chat'}
+          {context === 'ride' ? 'Ride chat' : context === 'squad' ? 'Group Ride chat' : 'Chat'}
         </h1>
         <ChatThreadView contextType={context} contextId={contextId} />
       </div>
@@ -41,7 +41,7 @@ function ChatIndex() {
           Chat
         </h1>
         <p className="mt-1 text-[14px] text-ink-muted">
-          Squads, rides, channels and direct messages in one place.
+          Group Rides, rides, channels and direct messages in one place.
         </p>
       </header>
 
@@ -51,7 +51,7 @@ function ChatIndex() {
         <EmptyState
           icon={<MessageCircle className="h-5 w-5" />}
           title="No conversations yet"
-          description="Join a ride or a squad and its chat will appear here."
+          description="Join a ride or a group ride and its chat will appear here."
         />
       ) : (
         <ul className="divide-y divide-line rounded-lg border border-line bg-surface">

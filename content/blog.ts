@@ -110,7 +110,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         heading: 'Tell one person outside the trip',
         paragraphs: [
-          'Share the destination and expected arrival with somebody not travelling with you. This costs nothing and changes the situation entirely if anything goes wrong. Live location sharing inside a squad does the same job for the group, but somebody outside the group should also know.',
+          'Share the destination and expected arrival with somebody not travelling with you. This costs nothing and changes the situation entirely if anything goes wrong. Live location sharing inside a group ride does the same job for the group, but somebody outside the group should also know.',
         ],
       },
       {
@@ -129,38 +129,38 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: 'what-is-a-travel-squad',
-    title: 'What is a travel squad, and when is it better than a carpool?',
+    title: 'What is a travel group ride, and when is it better than a carpool?',
     description:
-      'Squads coordinate a group heading to the same place — exam centre, airport, concert — with one meeting point and everyone\'s ETA on one map.',
+      'Group Rides coordinate a group heading to the same place — exam centre, airport, concert — with one meeting point and everyone\'s ETA on one map.',
     publishedAt: '2026-08-08',
     readingMinutes: 4,
-    tags: ['squads', 'group travel', 'how it works'],
+    tags: ['group rides', 'group travel', 'how it works'],
     excerpt:
-      'A carpool is one car with spare seats. A squad is a group of people going to the same place who have not worked out the transport yet. The difference matters more than it sounds.',
+      'A carpool is one car with spare seats. A group ride is a group of people going to the same place who have not worked out the transport yet. The difference matters more than it sounds.',
     sections: [
       {
-        heading: 'A carpool starts with a car. A squad starts with a destination.',
+        heading: 'A carpool starts with a car. A group ride starts with a destination.',
         paragraphs: [
           'If someone is already driving to the airport with three empty seats, that is a carpool: the vehicle exists, and the question is who fills it. If eleven people from the same batch have an exam at the same centre on Tuesday, there is no vehicle yet — and finding each other is the harder problem.',
-          'Squads solve the second case. You name the destination, drop a meeting point, and people heading the same way ask to join.',
+          'Group Rides solve the second case. You name the destination, drop a meeting point, and people heading the same way ask to join.',
         ],
       },
       {
         heading: 'The meeting point is the whole feature',
         paragraphs: [
-          'Groups do not fail because people cannot find a cab. They fail because eleven people are standing in four different places, each certain they are at "the main gate". A squad has exactly one meeting point, pinned on a map, with each member\'s walking ETA visible to everyone.',
+          'Groups do not fail because people cannot find a cab. They fail because eleven people are standing in four different places, each certain they are at "the main gate". A group ride has exactly one meeting point, pinned on a map, with each member\'s walking ETA visible to everyone.',
         ],
       },
       {
         heading: 'When to use which',
         bullets: [
           'Someone is already driving and has seats — post a ride',
-          'A group needs to get somewhere and nobody has transport yet — start a squad',
+          'A group needs to get somewhere and nobody has transport yet — start a group ride',
           'You are going alone and want to split a fare — search rides going your way',
         ],
       },
       {
-        heading: 'Typical squads',
+        heading: 'Typical group rides',
         paragraphs: [
           'The most common ones are the least glamorous: exam centres, airport runs at 4am, and getting back from a concert when surge pricing has tripled. These are exactly the trips where travelling alone is most expensive and least safe.',
         ],

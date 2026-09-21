@@ -177,7 +177,7 @@ export default function CampaignsPage() {
             Set <code className="font-mono text-xs">CAMPAIGN_EMAIL_FROM</code> to an address on a
             sending domain separate from transactional mail — for example{' '}
             <code className="font-mono text-xs">news.spllit.app</code>. Sharing the transactional
-            domain would let one spam complaint damage delivery of sign-in and squad email.
+            domain would let one spam complaint damage delivery of sign-in and group ride email.
           </p>
         </div>
       ) : null}

@@ -250,8 +250,8 @@ test('the summary names the squad the same way the manual form does', () => {
 
   // Literally the same function the manual form calls, so the two cannot drift.
   // (The old 'Taramani exam run' spelling predates suggestSquadName being
-  // rewritten to the '<place> <purpose> Squad' form.)
-  assert.equal(summarise(state).name, 'Taramani Exam Squad');
+  // rewritten to the '<place> <purpose> Group Ride' form.)
+  assert.equal(summarise(state).name, 'Taramani Exam Group Ride');
 });
 
 test('no meeting point falls back to the destination, and says so', () => {

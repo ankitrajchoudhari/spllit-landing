@@ -14,7 +14,7 @@ import { usersService } from '@/lib/services/users';
 import { useAuth } from '@/lib/auth/auth-provider';
 
 const SHARE_MESSAGE =
-  "I'm using Spllit to find people going the same way on campus — rides, squads, the lot. Join me:";
+  "I'm using Spllit to find people going the same way on campus — rides, group rides, the lot. Join me:";
 
 function Bullet({
   tone,
@@ -150,7 +150,7 @@ export default function InvitePage() {
           </h2>
           <ul className="mt-3 space-y-2.5">
             <Bullet tone="yes">
-              Rides and squads already running on <strong className="font-medium text-ink">your campus</strong>, not a
+              Rides and group rides already running on <strong className="font-medium text-ink">your campus</strong>, not a
               city-wide feed.
             </Bullet>
             <Bullet tone="yes">

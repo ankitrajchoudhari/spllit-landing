@@ -155,7 +155,7 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
                 if (item) go(item);
               }
             }}
-            placeholder="Search users, rides, squads, events, communities…"
+            placeholder="Search users, rides, group rides, events, communities…"
             aria-label="Search"
             className="w-full bg-transparent text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
           />

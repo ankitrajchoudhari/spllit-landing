@@ -34,7 +34,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'users', label: 'Users' },
   { value: 'rides', label: 'Rides' },
-  { value: 'squads', label: 'Squads' },
+  { value: 'squads', label: 'Group Rides' },
   { value: 'events', label: 'Events' },
   { value: 'communities', label: 'Communities' },
   { value: 'waitlist', label: 'Waitlist' },
@@ -143,7 +143,7 @@ export default function AdminPage() {
                 icon={<Car className="h-3.5 w-3.5" />}
               />
               <Stat
-                label="Squads"
+                label="Group Rides"
                 value={overview.data.squads.active}
                 sub={`${overview.data.squads.total} all time`}
                 icon={<Users className="h-3.5 w-3.5" />}

@@ -230,7 +230,7 @@ export function SquadScreen() {
 
       <div className="shrink-0 px-3.5 pb-4 pt-2">
         <div className="flex h-8 items-center justify-center rounded-full bg-ink">
-          <span className="text-[9.5px] font-semibold text-canvas">Join squad</span>
+          <span className="text-[9.5px] font-semibold text-canvas">Join group ride</span>
         </div>
       </div>
     </Screen>
@@ -245,7 +245,7 @@ export function ChatScreen() {
         <ArrowLeft className="h-3 w-3 shrink-0 text-ink-subtle" />
         <Avatar className="h-5 w-5 shrink-0 bg-brand-muted" />
         <div className="min-w-0">
-          <p className="truncate text-[9.5px] font-semibold leading-none">Pondicherry squad</p>
+          <p className="truncate text-[9.5px] font-semibold leading-none">Pondicherry group ride</p>
           <p className="mt-0.5 text-[7.5px] text-ink-subtle">6 members</p>
         </div>
       </div>

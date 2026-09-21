@@ -207,7 +207,7 @@ export function AiConcierge({
 
     create.mutate(
       {
-        name: summary.name || destination.label.split(',')[0] || 'Squad',
+        name: summary.name || destination.label.split(',')[0] || 'Group Ride',
         type: summary.purpose,
         visibility: 'public',
         memberLimit: 4,
@@ -264,7 +264,7 @@ export function AiConcierge({
       className="fixed inset-0 z-[60] flex flex-col bg-canvas"
       role="dialog"
       aria-modal="true"
-      aria-label="Spllit AI squad assistant"
+      aria-label="Spllit AI group ride assistant"
     >
       {/*
         Depth without a container: a warm glow behind the character, sized in
@@ -453,7 +453,7 @@ export function AiConcierge({
                   onClick={() => setStage('confirm')}
                   disabled={!isReady(state)}
                 >
-                  Review my squad
+                  Review my group ride
                 </Button>
               )}
             </div>
@@ -788,10 +788,10 @@ function ConfirmCard({ summary }: { summary: ReturnType<typeof summarise> }) {
     <div className="mt-3 overflow-hidden rounded-2xl border border-line bg-surface shadow-soft">
       <div className="border-b border-dashed border-line px-4 py-3 text-center">
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-subtle">
-          Your squad
+          Your group ride
         </p>
         <p className="mt-1 font-display text-[18px] font-semibold tracking-[-0.02em] text-ink">
-          {summary.name || 'Untitled squad'}
+          {summary.name || 'Untitled group ride'}
         </p>
       </div>
 
@@ -862,7 +862,7 @@ function ConfirmActions({
   return (
     <div>
       <Button className="w-full" onClick={onCreate} loading={creating}>
-        Create squad
+        Create group ride
       </Button>
       <button
         type="button"
@@ -874,7 +874,7 @@ function ConfirmActions({
 
       {error ? (
         <p role="alert" className="mt-1.5 text-center text-[13px] text-danger">
-          {error instanceof Error ? error.message : "Couldn't create the squad."}
+          {error instanceof Error ? error.message : "Couldn't create the group ride."}
         </p>
       ) : null}
     </div>

@@ -342,7 +342,7 @@ export function SquadMembersBoard({
                           </>
                         ) : null}
                         <MenuItem
-                          label="Remove from squad"
+                          label="Remove from group ride"
                           tone="danger"
                           Icon={UserMinus}
                           onClick={() => setPendingRemoval(entry.user)}
@@ -368,7 +368,7 @@ export function SquadMembersBoard({
         }}
         eyebrow="Remove member"
         title={pendingRemoval?.name ?? ''}
-        description="They lose the squad chat, the meeting point and everyone's live location. They can ask to join again."
+        description="They lose the group ride chat, the meeting point and everyone's live location. They can ask to join again."
         confirmLabel="Remove"
         confirmTone="danger"
         cancelLabel="Keep them"

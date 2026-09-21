@@ -144,10 +144,10 @@ export function JoinFeeDialog({
         details={[
           {
             label: 'Now available',
-            items: ['Group chat with the squad', 'Live location and ETAs', 'Navigation to the meeting point'],
+            items: ['Group chat with the group ride', 'Live location and ETAs', 'Navigation to the meeting point'],
           },
         ]}
-        confirmLabel="Open the squad"
+        confirmLabel="Open the group ride"
         cancelLabel="Close"
       />
     );

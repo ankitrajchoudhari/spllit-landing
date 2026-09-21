@@ -101,7 +101,7 @@ export function JoinByCodeForm({ className }: { className?: string }) {
       <Field
         label="Join with a code"
         htmlFor="squad-code"
-        hint="Six characters, from whoever set up the squad."
+        hint="Six characters, from whoever set up the group ride."
         error={error}
       >
         <Input
@@ -127,7 +127,7 @@ export function JoinByCodeForm({ className }: { className?: string }) {
       ) : null}
 
       <Button type="submit" className="w-full" loading={join.isPending} disabled={code.length !== 6}>
-        Join squad
+        Join group ride
       </Button>
     </form>
   );
