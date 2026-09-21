@@ -7,6 +7,7 @@ import { sweepAllRead } from '../services/notificationRetention.js';
 import { isEmailConfigured, sendTestEmail } from '../services/email.js';
 import { sweepJoinRequestTokens } from '../services/joinRequestTokens.js';
 import { sweepEmailSendLog } from '../services/emailPolicy.js';
+import { sweepDepartedRides, sweepStaleSquads } from '../services/staleSweep.js';
 import {
   generateReport,
   isReportWindow,
@@ -232,7 +233,65 @@ router.post('/sweep', async (req: Request, res: Response) => {
     results.emailLog = { error: 'failed' };
   }
 
+  /**
+   * The two below settle rows rather than delete them, which is why they run
+   * last. Everything above is housekeeping that frees storage; these change
+   * what a ride or a squad claims to be. Ordering costs nothing and keeps the
+   * cheap, reversible work from queueing behind the consequential work.
+   */
+  try {
+    results.staleRides = await sweepDepartedRides();
+  } catch (error) {
+    console.error('[maintenance] stale ride sweep failed', error);
+    results.staleRides = { error: 'failed' };
+  }
+
+  try {
+    results.staleSquads = await sweepStaleSquads();
+  } catch (error) {
+    console.error('[maintenance] stale squad sweep failed', error);
+    results.staleSquads = { error: 'failed' };
+  }
+
   console.log(`[maintenance] sweep: ${JSON.stringify(results)}`);
+  return ok(res, results);
+});
+
+/**
+ * POST /api/maintenance/sweep-stale?dryRun=1
+ *
+ * The ride and squad sweeps on their own, with a dry run.
+ *
+ * The other sweeps in this file delete data that has already served its
+ * purpose, and running one is uneventful. These two rewrite the status of rows
+ * that belong to people, so there has to be a way to see what a pass would
+ * touch before it touches it — `dryRun` reports the candidates and writes
+ * nothing. It is not the default: an unattended scheduler calling this wants
+ * the work done, and a flag that defaults to doing nothing is a sweep that
+ * silently never runs.
+ */
+router.post('/sweep-stale', async (req: Request, res: Response) => {
+  if (!authorised(req)) return fail(res, 404, 'Not found');
+
+  const dryRun = req.query.dryRun === '1' || req.query.dryRun === 'true';
+
+  const results: Record<string, unknown> = { dryRun };
+
+  try {
+    results.rides = await sweepDepartedRides({ dryRun });
+  } catch (error) {
+    console.error('[maintenance] stale ride sweep failed', error);
+    results.rides = { error: 'failed' };
+  }
+
+  try {
+    results.squads = await sweepStaleSquads({ dryRun });
+  } catch (error) {
+    console.error('[maintenance] stale squad sweep failed', error);
+    results.squads = { error: 'failed' };
+  }
+
+  console.log(`[maintenance] sweep-stale: ${JSON.stringify(results)}`);
   return ok(res, results);
 });
 

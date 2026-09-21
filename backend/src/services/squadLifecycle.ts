@@ -268,9 +268,24 @@ export async function markSquadActivity(squadId: string, at = new Date()): Promi
  * Returns the squad with its effective status, so a caller can pass through the
  * result without re-reading.
  */
+export interface SyncOptions {
+  /**
+   * Whether members are told the squad ended. Default true.
+   *
+   * Only ever false for the backlog sweep in services/staleSweep.ts, which
+   * settles squads whose meeting time passed weeks ago. Those members do not
+   * need a push notification now telling them a squad from August has
+   * finished — they know. The release itself still happens; it is the
+   * announcement that is suppressed, because the announcement is the part that
+   * is addressed to a person and the person has moved on.
+   */
+  notifyMembers?: boolean;
+}
+
 export async function syncSquadLifecycle<T extends LifecycleSquad & { id: string }>(
   squad: T,
   now = new Date(),
+  options: SyncOptions = {},
 ): Promise<T> {
   const members = await prisma.squadMember.findMany({
     where: { squadId: squad.id },
@@ -304,7 +319,7 @@ export async function syncSquadLifecycle<T extends LifecycleSquad & { id: string
   }
 
   if (TERMINAL.includes(decision.status)) {
-    await releaseSquad(squad.id, decision.reason);
+    await releaseSquad(squad.id, decision.reason, options.notifyMembers ?? true);
   }
 
   getIO()?.emit('squad:status', { squadId: squad.id, status: decision.status });
@@ -321,7 +336,11 @@ export async function syncSquadLifecycle<T extends LifecycleSquad & { id: string
  * got there. Chat is untouched: the thread and its messages stay as read-only
  * history.
  */
-async function releaseSquad(squadId: string, reason: LifecycleDecision['reason']): Promise<void> {
+async function releaseSquad(
+  squadId: string,
+  reason: LifecycleDecision['reason'],
+  notifyMembers = true,
+): Promise<void> {
   const squad = await prisma.squad.findUnique({
     where: { id: squadId },
     select: { name: true },
@@ -337,21 +356,23 @@ async function releaseSquad(squadId: string, reason: LifecycleDecision['reason']
     data: { status: 'left', lat: null, lng: null, locationAt: null },
   });
 
-  await Promise.all(
-    members.map((member) =>
-      notify({
-        userId: member.userId,
-        type: 'squad.joined',
-        title: `${squad?.name ?? 'Your squad'} has finished`,
-        body:
-          reason === 'arrival-quorum'
-            ? 'Everyone made it to the meeting point.'
-            : 'Thanks for travelling together.',
-        href: '/squads',
-        data: { squadId },
-      }),
-    ),
-  );
+  if (notifyMembers) {
+    await Promise.all(
+      members.map((member) =>
+        notify({
+          userId: member.userId,
+          type: 'squad.joined',
+          title: `${squad?.name ?? 'Your squad'} has finished`,
+          body:
+            reason === 'arrival-quorum'
+              ? 'Everyone made it to the meeting point.'
+              : 'Thanks for travelling together.',
+          href: '/squads',
+          data: { squadId },
+        }),
+      ),
+    );
+  }
 
   getIO()?.to(`squad:${squadId}`).emit('squad:members-changed', { squadId });
 }

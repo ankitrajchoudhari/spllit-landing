@@ -275,7 +275,14 @@ describe('scheduled maintenance', () => {
 describe('maintenance sweeps are all gated', () => {
   // Every route on this router must fail closed, not just the first one
   // written. A new sweep added without its guard is the failure this catches.
-  for (const path of ['sweep-chats', 'sweep-notifications', 'sweep', 'email-test']) {
+  for (const path of [
+    'sweep-chats',
+    'sweep-notifications',
+    'sweep',
+    'sweep-stale',
+    'generate-report',
+    'email-test',
+  ]) {
     it(`${path} does not exist without a key`, async () => {
       const response = await fetch(`${baseUrl}/api/maintenance/${path}`, { method: 'POST' });
       assert.equal(response.status, 404);

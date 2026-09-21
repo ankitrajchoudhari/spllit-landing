@@ -28,6 +28,7 @@ import {
   withFreeSeats,
 } from '../services/rideVisibility.js';
 import { instituteDomainList } from '../data/institutes.js';
+import { HOST_ONLY, normaliseStatus, TRANSITIONS } from '../services/rideLifecycle.js';
 
 const router = Router();
 
@@ -41,31 +42,10 @@ const USER_SUMMARY = {
 } as const;
 
 /**
- * The ride state machine. The client never writes `status` directly — it POSTs
- * an intent to /transition and the server decides whether the move is legal.
- *
- *   requested → accepted → arriving → in_progress → completed
- *             ↘──────────┴──────────┘
- *                    cancelled
+ * The state machine moved to services/rideLifecycle.ts when the stale-ride
+ * sweep needed the same rules. Behaviour here is unchanged — these are the
+ * same three definitions, imported rather than declared.
  */
-const TRANSITIONS: Record<string, string[]> = {
-  requested: ['accepted', 'cancelled'],
-  accepted: ['arriving', 'cancelled'],
-  arriving: ['in_progress', 'cancelled'],
-  in_progress: ['completed'],
-  completed: [],
-  cancelled: [],
-};
-
-/** Legacy rows use pending/matched; normalise before checking the machine. */
-function normaliseStatus(status: string): string {
-  if (status === 'pending') return 'requested';
-  if (status === 'matched') return 'accepted';
-  return status;
-}
-
-/** Transitions only the host may perform. */
-const HOST_ONLY = new Set(['accepted', 'arriving', 'in_progress', 'completed']);
 
 /**
  * Rides are the one surface where strangers get into a vehicle together, so
