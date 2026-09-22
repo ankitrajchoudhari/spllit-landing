@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   ArrowDown,
   ArrowUp,
+  Check,
   ChevronRight,
   Copy,
   ExternalLink,
@@ -270,6 +271,51 @@ function install() {
     .onFormSubmit()
     .create();
 }`;
+}
+
+/**
+ * A numbered step inside the role editor.
+ *
+ * Posting a role is five things done in order, and the panel used to present
+ * them as one undifferentiated column of fields — so "what else does this
+ * need?" could only be answered by remembering. Numbering them, and ticking
+ * the ones already satisfied, makes it answerable by looking.
+ *
+ * Step four cannot be ticked: whether the script was pasted into the Google
+ * Form happens on Google, and this console has no way to know. Claiming a tick
+ * there would be worse than leaving it open.
+ */
+function Step({
+  n,
+  title,
+  done,
+  note,
+  children,
+}: {
+  n: number;
+  title: string;
+  done?: boolean;
+  note?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mt-5 first:mt-0">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+        <span
+          className={cn(
+            'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
+            done ? 'bg-brand text-brand-fg' : 'bg-surface-sunken text-ink-subtle ring-1 ring-line',
+          )}
+          aria-hidden
+        >
+          {done ? <Check className="h-3 w-3" /> : n}
+        </span>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-ink">{title}</h4>
+        {note ? <span className="text-[11px] normal-case text-ink-subtle">{note}</span> : null}
+      </div>
+      <div className="mt-2.5 sm:pl-[32px]">{children}</div>
+    </section>
+  );
 }
 
 /** Marks a value that has to be changed before the script will work. */
@@ -627,7 +673,7 @@ export default function CareersPage() {
           afterwards. */}
       <Disclosure
         title="How to post a role"
-        description="Six steps, and what goes in each box."
+        description="Read this first if it is your first one. The role itself is numbered 1 to 5."
         defaultOpen={content.roles.length === 0}
       >
         <ol className="space-y-3 text-sm text-ink-muted">
@@ -777,83 +823,86 @@ export default function CareersPage() {
 
                   {expanded ? (
                     <div className="border-t border-line bg-surface p-4">
-                      {/* First thing in the panel, because it is the question
-                          an editor is actually asking: will this show up? */}
-                      <div className="rounded-md border border-line bg-surface-sunken p-3">
-                        <p className="text-xs font-medium text-ink-muted">Where this role shows</p>
-                        <div className="mt-2 flex gap-2">
-                          {(['hidden', 'open', 'closed'] as const).map((value) => {
-                            const active = visibility === value;
-                            return (
-                              <button
-                                key={value}
-                                type="button"
-                                disabled={!canEdit}
-                                onClick={() => updateRole(index, visibilityPatch(value))}
-                                className={cn(
-                                  'h-9 flex-1 rounded-md border text-sm font-medium transition-colors duration-snap',
-                                  active
-                                    ? VISIBILITY[value].active
-                                    : 'border-line bg-surface text-ink-muted hover:text-ink',
-                                )}
-                              >
-                                {VISIBILITY[value].label}
-                              </button>
-                            );
-                          })}
+                      <Step n={1} title="The role" done={!!role.title.trim() && !!role.team.trim()}>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label="Title" hint="As an applicant would search for it.">
+                            <Input
+                              value={role.title}
+                              placeholder="Campus Growth Intern"
+                              onChange={(e) => {
+                                const title = e.target.value;
+                                // Keep the id tracking the title until somebody
+                                // edits the id by hand. After that it is a
+                                // public link and must not move under anyone.
+                                const autoId =
+                                  !role.id ||
+                                  role.id.startsWith('new-role-') ||
+                                  role.id === slugify(role.title);
+                                updateRole(
+                                  index,
+                                  autoId ? { title, id: slugify(title) || role.id } : { title },
+                                );
+                              }}
+                            />
+                          </Field>
+                          <Field label="Team" hint="Which part of Spllit it sits in. Also a filter.">
+                            <Input
+                              value={role.team}
+                              placeholder="Growth"
+                              onChange={(e) => updateRole(index, { team: e.target.value })}
+                            />
+                          </Field>
+                          <Field label="Location" hint="Where the work happens. Also a filter.">
+                            <Picker
+                              value={role.location}
+                              options={LOCATIONS}
+                              onChange={(location) => updateRole(index, { location })}
+                            />
+                          </Field>
+                          <Field label="Type" hint="Internship, full-time, and so on. Also a filter.">
+                            <Picker
+                              value={role.type}
+                              options={TYPES}
+                              onChange={(type) => updateRole(index, { type })}
+                            />
+                          </Field>
                         </div>
-                        <p className="mt-2 text-[11px] text-ink-subtle">
-                          {VISIBILITY[visibility].help}
-                        </p>
-                      </div>
+                      </Step>
 
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <Field label="Title" hint="As an applicant would search for it.">
-                          <Input
-                            value={role.title}
-                            placeholder="Campus Growth Intern"
-                            onChange={(e) => {
-                              const title = e.target.value;
-                              // Keep the id tracking the title until somebody
-                              // edits the id by hand. After that it is a public
-                              // link, and must not move under anyone holding it.
-                              const autoId =
-                                !role.id ||
-                                role.id.startsWith('new-role-') ||
-                                role.id === slugify(role.title);
-                              updateRole(
-                                index,
-                                autoId ? { title, id: slugify(title) || role.id } : { title },
-                              );
-                            }}
+                      <Step
+                        n={2}
+                        title="What it involves"
+                        done={!!role.summary.trim() || role.responsibilities.length > 0}
+                      >
+                        <Field
+                          label="Summary"
+                          hint="One or two sentences on what the person will actually do."
+                        >
+                          <Textarea
+                            rows={2}
+                            value={role.summary}
+                            onChange={(v) => updateRole(index, { summary: v })}
                           />
                         </Field>
-                        <Field label="Team" hint="Which part of Spllit it sits in. Also a filter on the site.">
-                          <Input
-                            value={role.team}
-                            placeholder="Growth"
-                            onChange={(e) => updateRole(index, { team: e.target.value })}
-                          />
-                        </Field>
-                        <Field label="Location" hint="Where the work happens. Also a filter.">
-                          <Picker
-                            value={role.location}
-                            options={LOCATIONS}
-                            onChange={(location) => updateRole(index, { location })}
-                          />
-                        </Field>
-                        <Field label="Type" hint="Internship, full-time, and so on. Also a filter.">
-                          <Picker
-                            value={role.type}
-                            options={TYPES}
-                            onChange={(type) => updateRole(index, { type })}
-                          />
-                        </Field>
-                      </div>
+                        <div className="mt-3">
+                          <Field label="Responsibilities" hint="One per line. Three or four is plenty.">
+                            <Textarea
+                              rows={3}
+                              value={role.responsibilities.join('\n')}
+                              onChange={(v) =>
+                                updateRole(index, {
+                                  responsibilities: v
+                                    .split('\n')
+                                    .map((l) => l.trim())
+                                    .filter(Boolean),
+                                })
+                              }
+                            />
+                          </Field>
+                        </div>
+                      </Step>
 
-                      {/* The form link, with a way to open it. A URL you cannot
-                          click is a URL you cannot check before publishing it. */}
-                      <div className="mt-3">
+                      <Step n={3} title="The application form" done={isWebLink(role.applyUrl)}>
                         <Field
                           label="Google Form link"
                           hint="In Google Forms press Send, open the link tab, and paste the link here."
@@ -884,81 +933,94 @@ export default function CareersPage() {
                             )}
                           </div>
                         </Field>
-                      </div>
+                      </Step>
 
-                      {/* Sits with the form link, because the script belongs to
-                          that form. ROLE_ID is read live from the role, so it
-                          is always the id this role currently has — including
-                          while it is still hidden, which is exactly when the
-                          form is being set up. */}
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface-sunken px-3 py-2.5">
-                        <span className="min-w-0 text-[11px] leading-relaxed text-ink-subtle">
-                          Confirmation email script for this role, with{' '}
-                          <code className="font-mono text-ink-muted">ROLE_ID</code> already set to{' '}
-                          <code className="font-mono text-brand">{role.id || '…'}</code>
-                        </span>
-                        <Button
-                          size="sm"
-                          disabled={!role.id}
-                          onClick={() => {
-                            navigator.clipboard
-                              .writeText(appsScript(role.id))
-                              .then(() =>
-                                toast.success(
-                                  'Script copied. Paste it into the Google Form for this role, under Apps Script.',
-                                ),
-                              )
-                              .catch(() => toast.error('Could not reach the clipboard.'));
-                          }}
-                        >
-                          <Copy className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                          Copy script
-                        </Button>
-                      </div>
+                      {/* Not tickable: whether the script was pasted happens on
+                          Google, and this console cannot see it. */}
+                      <Step n={4} title="The confirmation email" note="once per form">
+                        <div className="rounded-md border border-line bg-surface-sunken p-3">
+                          <p className="text-[11px] leading-relaxed text-ink-subtle">
+                            Google hosts the form, so submitting it tells Spllit nothing on its own.
+                            Copy this, paste it into the form under{' '}
+                            <strong className="text-ink-muted">⋮ → Apps Script</strong>, replace the
+                            two highlighted values, and run{' '}
+                            <strong className="text-ink-muted">install()</strong> once.
+                          </p>
+                          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-[11px] text-ink-subtle">
+                              <code className="font-mono text-ink-muted">ROLE_ID</code> already set to{' '}
+                              <code className="font-mono text-brand">{role.id || '…'}</code>
+                            </span>
+                            <Button
+                              size="sm"
+                              disabled={!role.id}
+                              onClick={() => {
+                                navigator.clipboard
+                                  .writeText(appsScript(role.id))
+                                  .then(() =>
+                                    toast.success(
+                                      'Script copied. Paste it into the Google Form for this role, under Apps Script.',
+                                    ),
+                                  )
+                                  .catch(() => toast.error('Could not reach the clipboard.'));
+                              }}
+                            >
+                              <Copy className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                              Copy script
+                            </Button>
+                          </div>
+                          <p className="mt-2 text-[11px] text-ink-subtle">
+                            Skip this and the application still reaches the form responses — the
+                            applicant just hears nothing back. Full instructions are under
+                            Confirmation emails below.
+                          </p>
+                        </div>
+                      </Step>
 
-                      <div className="mt-3">
-                        <Field label="Summary" hint="One or two sentences on what the person will actually do.">
-                          <Textarea
-                            rows={2}
-                            value={role.summary}
-                            onChange={(v) => updateRole(index, { summary: v })}
-                          />
-                        </Field>
-                      </div>
+                      <Step n={5} title="Go live" done={visibility !== 'hidden'}>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label="Where this role shows">
+                            <div className="mt-1 flex gap-2">
+                              {(['hidden', 'open', 'closed'] as const).map((value) => {
+                                const active = visibility === value;
+                                return (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    disabled={!canEdit}
+                                    onClick={() => updateRole(index, visibilityPatch(value))}
+                                    className={cn(
+                                      'h-9 flex-1 rounded-md border text-sm font-medium transition-colors duration-snap',
+                                      active
+                                        ? VISIBILITY[value].active
+                                        : 'border-line bg-surface-sunken text-ink-muted hover:text-ink',
+                                    )}
+                                  >
+                                    {VISIBILITY[value].label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <span className="mt-1 block text-[11px] text-ink-subtle">
+                              {VISIBILITY[visibility].help}
+                            </span>
+                          </Field>
+                          <Field
+                            label="Closes on"
+                            hint="Optional. The site marks the role closed by itself once this date passes."
+                          >
+                            <Input
+                              type="date"
+                              value={toDateInput(role.closesAt)}
+                              onChange={(e) =>
+                                updateRole(index, { closesAt: fromDateInput(e.target.value) })
+                              }
+                            />
+                          </Field>
+                        </div>
+                      </Step>
 
-                      <div className="mt-3">
-                        <Field label="Responsibilities" hint="One per line. Three or four is plenty.">
-                          <Textarea
-                            rows={3}
-                            value={role.responsibilities.join('\n')}
-                            onChange={(v) =>
-                              updateRole(index, {
-                                responsibilities: v
-                                  .split('\n')
-                                  .map((l) => l.trim())
-                                  .filter(Boolean),
-                              })
-                            }
-                          />
-                        </Field>
-                      </div>
-
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <Field
-                          label="Closes on"
-                          hint="Optional. The site marks the role closed by itself once this date passes."
-                        >
-                          <Input
-                            type="date"
-                            value={toDateInput(role.closesAt)}
-                            onChange={(e) =>
-                              updateRole(index, { closesAt: fromDateInput(e.target.value) })
-                            }
-                          />
-                        </Field>
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+                      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
                         <span className="max-w-[300px] text-[11px] text-ink-subtle">
                           The public link for this role, and the ROLE_ID the form script needs.
                         </span>
@@ -978,9 +1040,7 @@ export default function CareersPage() {
                           Another role uses this link id. Both would share the same page anchor.
                         </p>
                       ) : null}
-                      <p className={cn('mt-3 border-t border-line pt-3 text-xs', outcome.tone)}>
-                        {outcome.text}
-                      </p>
+                      <p className={cn('mt-2 text-xs', outcome.tone)}>{outcome.text}</p>
                     </div>
                   ) : null}
                 </li>
