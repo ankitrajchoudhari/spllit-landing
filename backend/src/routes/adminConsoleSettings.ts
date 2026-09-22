@@ -58,7 +58,24 @@ async function revalidateLandingCareers(roleIds: string[] = []): Promise<void> {
     });
     if (!res.ok) {
       console.warn('[careers] landing revalidation refused', res.status);
+      return;
     }
+
+    /**
+     * Rebuild the pages now the expiry has landed.
+     *
+     * Separate requests, deliberately: the expiry is flushed when the call
+     * above ends, so anything fetched during it is the copy being thrown
+     * away. These arrive afterwards and are kept, which is the difference
+     * between the next visitor waiting ~2.4s and ~0.4s.
+     */
+    const warm = [
+      `${base}/careers`,
+      ...roleIds.slice(0, 25).map((id) => `${base}/careers/${encodeURIComponent(id)}/apply`)
+    ];
+    await Promise.allSettled(
+      warm.map((url) => fetch(url, { signal: AbortSignal.timeout(10000) }))
+    );
   } catch (error) {
     console.warn('[careers] landing revalidation failed', error);
   }

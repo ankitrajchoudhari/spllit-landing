@@ -32,27 +32,6 @@ function secretMatches(provided: string, expected: string): boolean {
   return crypto.timingSafeEqual(pa, pb) && a.length === b.length;
 }
 
-/**
- * Role ids from the caller, used only to build apply-page paths.
- *
- * Validated rather than trusted: the caller holds the secret, but a path is
- * still built from this, and a cap keeps one save from turning into an
- * unbounded number of renders.
- */
-async function readRoleIds(request: Request): Promise<string[]> {
-  try {
-    const body = await request.json();
-    if (!body || !Array.isArray(body.roleIds)) return [];
-    return body.roleIds
-      .filter((id: unknown): id is string => typeof id === 'string')
-      .map((id: string) => id.trim())
-      .filter((id: string) => /^[a-z0-9-]{1,80}$/.test(id))
-      .slice(0, 25);
-  } catch {
-    return [];
-  }
-}
-
 export async function POST(request: Request) {
   const expected = process.env.REVALIDATE_SECRET?.trim();
 
@@ -77,36 +56,13 @@ export async function POST(request: Request) {
   revalidatePath('/careers/[id]/apply', 'page');
 
   /**
-   * Rebuild them here rather than leaving the next visitor to do it.
+   * Answer at once. Rebuilding is the caller’s job, and has to be.
    *
-   * revalidatePath only drops the cache; whoever asks next is the one who
-   * waits for the backend to answer, and measured cold that is ~2.6s against
-   * ~0.5s warm. After a save the next visitor is usually the person who just
-   * saved, checking their change — the worst possible moment to be slow.
-   *
-   * Bounded and best-effort: a handful of roles, a short timeout, and failures
-   * ignored, because the pages are already correct. This only decides who pays
-   * for the first render.
+   * revalidatePath expires the entry, and that expiry is flushed when this
+   * request ends — so anything fetched from inside it is served the very
+   * page about to be discarded, and the next real visitor still pays for the
+   * regeneration. Measured at ~2.4s for them either way. Warming has to be a
+   * separate request, made after this one has returned.
    */
-  const roleIds = await readRoleIds(request);
-  const origin = new URL(request.url).origin;
-  const warm = [
-    ...PATHS,
-    ...roleIds.map((roleId) => `/careers/${encodeURIComponent(roleId)}/apply`),
-  ];
-  await Promise.allSettled(
-    warm.map((path) =>
-      // A plain request, deliberately. `cache: no-store` marks it as a cache
-      // bypass, so Vercel rendered the page and threw the result away —
-      // measured at 1840ms for the next visitor instead of ~350ms, because
-      // only the backend had been warmed and not the cache. This has to look
-      // like an ordinary visitor for the render to be kept.
-      fetch(origin + path, {
-        headers: { 'user-agent': 'spllit-revalidate' },
-        signal: AbortSignal.timeout(8000),
-      }),
-    ),
-  );
-
-  return NextResponse.json({ ok: true, revalidated: warm.length, paths: warm });
+  return NextResponse.json({ ok: true, revalidated: [...PATHS, '/careers/[id]/apply'] });
 }
