@@ -604,7 +604,7 @@ export default function CareersPage() {
                   </div>
 
                   <div className="mt-3">
-                    <Field label="Apply link" hint="Paste the Google Form URL. If you leave it empty the Apply button still works — it opens an email to support@spllit.app with the role in the subject.">
+                    <Field label="Apply link" hint="Paste the Google Form URL. If you leave it empty the Apply button still works — it opens an email to career@spllit.app with the role in the subject.">
                       <Input
                         value={role.applyUrl}
                         placeholder="https://forms.gle/…"

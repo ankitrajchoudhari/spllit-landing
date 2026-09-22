@@ -13,7 +13,12 @@
  * an applicant as though their application went nowhere.
  */
 
-export const CAREERS_SUPPORT_EMAIL = 'support@spllit.app';
+/**
+ * Careers has its own inbox. support@ still handles anything wrong with the
+ * site itself; an application or a question about a role goes here, so it is
+ * not competing with password resets for attention.
+ */
+export const CAREERS_SUPPORT_EMAIL = 'career@spllit.app';
 
 /** Where the work happens. Used as a filter, so keep the set small. */
 export type RoleLocation = 'Chennai' | 'Jaipur' | 'Remote (India)' | 'Hybrid';
@@ -110,7 +115,7 @@ export const CAREERS_FALLBACK: CareersContent = {
         'Work directly on the live map and realtime squad experience',
         'Set the frontend conventions the next five engineers will follow',
       ],
-      applyUrl: 'mailto:support@spllit.app?subject=Application%3A%20Founding%20Frontend%20Engineer',
+      applyUrl: 'mailto:career@spllit.app?subject=Application%3A%20Founding%20Frontend%20Engineer',
       closesAt: null,
       status: 'open',
     },
@@ -127,7 +132,7 @@ export const CAREERS_FALLBACK: CareersContent = {
         'Keep one design language across the app, the console and this site',
         'Sit with real students using the product and change your mind often',
       ],
-      applyUrl: 'mailto:support@spllit.app?subject=Application%3A%20Product%20Designer',
+      applyUrl: 'mailto:career@spllit.app?subject=Application%3A%20Product%20Designer',
       closesAt: null,
       status: 'open',
     },
@@ -144,7 +149,7 @@ export const CAREERS_FALLBACK: CareersContent = {
         'Sit with people while they use it and report what actually broke',
         'Turn what worked into a playbook the next campus can follow',
       ],
-      applyUrl: 'mailto:support@spllit.app?subject=Application%3A%20Campus%20Growth%20Intern',
+      applyUrl: 'mailto:career@spllit.app?subject=Application%3A%20Campus%20Growth%20Intern',
       closesAt: null,
       status: 'open',
     },

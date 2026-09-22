@@ -38,6 +38,9 @@ import {
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
+/** Careers correspondence is routed away from the general support queue. */
+const CAREERS_EMAIL = 'career@spllit.app';
+
 /** Absent key disables sending entirely, quietly. */
 function config() {
   const apiKey = process.env.RESEND_API_KEY?.trim();
@@ -105,6 +108,15 @@ interface SendInput {
    * comes first and show "Spllit Hi Ankit," to every recipient.
    */
   preheader?: string;
+  /**
+   * Overrides the global reply-to for this one message.
+   *
+   * Almost nothing should use this — a reply to a ride notification belongs
+   * with support like everything else. Careers is the exception: a reply to an
+   * application confirmation is about a job, and routing it into the general
+   * support queue buries it among people who cannot act on it.
+   */
+  replyTo?: string;
   /**
    * Stable per (event, recipient) so a retry cannot send twice. Resend honours
    * this for 24h, which is longer than any retry window here.
@@ -383,7 +395,7 @@ async function send(input: SendInput): Promise<boolean> {
       body: JSON.stringify({
         from: cfg.from,
         to: [input.to],
-        reply_to: cfg.replyTo,
+        reply_to: input.replyTo?.trim() || cfg.replyTo,
         subject: input.subject,
         html: render(input, cfg.appUrl),
         text: renderText(input, cfg.appUrl),
@@ -992,6 +1004,8 @@ export async function emailApplicationReceived(params: {
       `send it. It gets read with the rest of your application.`,
     actionLabel: 'See what we are building',
     actionUrl: `${cfg.appUrl}/careers`,
+    // A reply to this is about a job, not a support issue.
+    replyTo: CAREERS_EMAIL,
     idempotencyKey: `careers-application:${params.submissionId}`,
   });
 }
