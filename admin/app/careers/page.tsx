@@ -2,12 +2,12 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Plus, Trash2 } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import { Button, Card, Input, PageHeader, SectionHeader } from '@/components/ui/primitives';
+import { Button, Card, Input, PageHeader } from '@/components/ui/primitives';
 import { ErrorState, PermissionState, Spinner } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/ui/confirm';
 import { useToast } from '@/components/ui/toast';
@@ -15,25 +15,30 @@ import { useToast } from '@/components/ui/toast';
 /**
  * Careers page editor.
  *
- * Everything on spllit.app/careers is written from here — the copy at the top,
- * the three "why join now" blocks, and the roles. It saves one JSON document to
- * the `careers.content` platform setting; there is no careers table, because a
- * handful of roles edited a few times a year does not justify a production
- * migration.
+ * Everything on spllit.app/careers is written from here. It saves one JSON
+ * document to the `careers.content` platform setting; there is no careers
+ * table, because a handful of roles edited a few times a year does not justify
+ * a production migration.
+ *
+ * Laid out as a list of roles rather than a wall of fields. The first version
+ * showed every field of every role plus four blocks of page copy expanded at
+ * once, so adding one role meant scrolling past everything already there.
+ * Roles are now rows that open one at a time, and the page text and the email
+ * setup — both touched rarely — sit behind disclosures.
  *
  * Two things worth knowing while editing:
  *
- *  - A role closes on its own date. You do not have to come back and delete it,
- *    and you should not: a closed role stays on the page marked closed, so an
- *    applicant can see where their application went.
- *  - "Apply link" is where the Google Form goes, and a published open role has
- *    to have one. The public page gives an open role exactly one control —
- *    Apply — so a missing link would be a button that goes nowhere. To announce
- *    a role before its form exists, leave it as a draft or set it to closed.
+ *  - Closing a role and removing one are different. A closed role stays on the
+ *    site marked closed, so an applicant can see where their application went.
+ *    A removed one is gone.
+ *  - A live, open role has to have a form link. The site gives such a role
+ *    exactly one control — Apply — so without a link that button goes nowhere.
+ *    To announce a role before its form exists, leave it hidden or closed.
  */
 
 const LOCATIONS = ['Chennai', 'Jaipur', 'Remote (India)', 'Hybrid'] as const;
 const TYPES = ['Full-time', 'Part-time', 'Internship', 'Contract'] as const;
+const LIVE_URL = 'https://spllit.app/careers';
 
 interface Role {
   id: string;
@@ -93,6 +98,11 @@ function fromDateInput(value: string): string | null {
   // through the 30th rather than shutting at midnight as it begins.
   const d = new Date(`${value}T23:59:59.000Z`);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** Only an http(s) URL can be opened in a tab; a half-typed one cannot. */
+function isWebLink(value: string): boolean {
+  return /^https?:\/\/\S+$/i.test(value.trim());
 }
 
 function Field({
@@ -166,6 +176,63 @@ function Picker<T extends string>({
   );
 }
 
+/** Things edited once a quarter should not sit in front of things edited weekly. */
+function Disclosure({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="p-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-3 px-5 py-4 text-left"
+      >
+        <ChevronRight
+          className={cn(
+            'h-4 w-4 shrink-0 text-ink-subtle transition-transform duration-snap',
+            open && 'rotate-90',
+          )}
+          aria-hidden
+        />
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-ink">{title}</span>
+          <span className="block text-xs text-ink-muted">{description}</span>
+        </span>
+      </button>
+      {open ? <div className="border-t border-line p-5">{children}</div> : null}
+    </Card>
+  );
+}
+
+/** What this role is doing on the site right now, in one word. */
+function StatusChip({ role }: { role: Role }) {
+  if (role.draft) {
+    return (
+      <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-subtle ring-1 ring-line">
+        Hidden
+      </span>
+    );
+  }
+  const closed = (role.status ?? 'open') === 'closed';
+  return (
+    <span
+      className={cn(
+        'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+        closed ? 'bg-danger-muted text-danger' : 'bg-brand-muted text-brand',
+      )}
+    >
+      {closed ? 'Closed' : 'Live'}
+    </span>
+  );
+}
+
 export default function CareersPage() {
   const { can } = useAuth();
   const toast = useToast();
@@ -186,6 +253,8 @@ export default function CareersPage() {
   const [dirty, setDirty] = useState(false);
   /** Index of a single role awaiting confirmation, or 'closed' for the bulk sweep. */
   const [removing, setRemoving] = useState<number | 'closed' | null>(null);
+  /** Which role is expanded. One at a time, so the list stays readable as a list. */
+  const [openRole, setOpenRole] = useState<number | null>(null);
 
   const content = draft ?? loaded.data?.content ?? (loaded.isSuccess ? BLANK : null);
 
@@ -193,10 +262,10 @@ export default function CareersPage() {
     mutationFn: (body: Content) => api('/careers', { method: 'PUT', body }),
     onSuccess: () => {
       setDirty(false);
-      toast.success('Careers page saved. The site picks it up within about half a minute.');
+      toast.success('Published. The site picks it up within about half a minute.');
     },
     onError: (error) =>
-      toast.error(error instanceof ApiError ? error.message : 'Could not save the careers page.'),
+      toast.error(error instanceof ApiError ? error.message : 'Could not publish the changes.'),
   });
 
   const update = useCallback(
@@ -231,6 +300,8 @@ export default function CareersPage() {
       next[index] = b;
       next[target] = a;
       setDraft({ ...content, roles: next });
+      // Follow the role that moved, rather than leaving a different one open.
+      setOpenRole((cur) => (cur === index ? target : cur === target ? index : cur));
       setDirty(true);
     },
     [content],
@@ -246,6 +317,7 @@ export default function CareersPage() {
     (index: number) => {
       if (!content) return;
       setDraft({ ...content, roles: content.roles.filter((_, i) => i !== index) });
+      setOpenRole(null);
       setDirty(true);
       setRemoving(null);
     },
@@ -260,6 +332,7 @@ export default function CareersPage() {
   const removeAllClosed = useCallback(() => {
     if (!content) return;
     setDraft({ ...content, roles: content.roles.filter((r) => (r.status ?? 'open') !== 'closed') });
+    setOpenRole(null);
     setDirty(true);
     setRemoving(null);
   }, [content]);
@@ -267,7 +340,7 @@ export default function CareersPage() {
   /**
    * The public page gives an open role exactly one control: Apply. With no link
    * behind it the button points nowhere, so the server refuses to save this
-   * combination — surfaced here first, because finding out at save time is a
+   * combination — surfaced here first, because finding out at publish time is a
    * worse way to learn it.
    */
   const missingLink = useMemo(
@@ -294,7 +367,33 @@ export default function CareersPage() {
     return [...dupes];
   }, [content]);
 
-  const submit = useCallback(() => {
+  const addRole = useCallback(() => {
+    if (!content) return;
+    setDraft({
+      ...content,
+      roles: [
+        ...content.roles,
+        {
+          id: `new-role-${content.roles.length + 1}`,
+          title: '',
+          team: 'Engineering',
+          location: 'Chennai',
+          type: 'Full-time',
+          summary: '',
+          responsibilities: [],
+          applyUrl: '',
+          closesAt: null,
+          status: 'open',
+          draft: true,
+        },
+      ],
+    });
+    // Adding a role is always followed by filling it in, so open it.
+    setOpenRole(content.roles.length);
+    setDirty(true);
+  }, [content]);
+
+  const publish = useCallback(() => {
     if (!content) return;
     if (duplicateIds.length > 0) {
       toast.error(`Two roles share the id "${duplicateIds[0]}" — ids are public links.`);
@@ -303,8 +402,10 @@ export default function CareersPage() {
     if (missingLink.length > 0) {
       const first = missingLink[0];
       toast.error(
-        `"${first?.role.title || first?.role.id}" is open and published but has no apply link. Add the form URL, or set it to draft or closed.`,
+        `"${first?.role.title || first?.role.id}" is live but has no form link. Add it, or hide the role until you have one.`,
       );
+      // Open the offending role, so the fix is one scroll away rather than a hunt.
+      setOpenRole(first ? first.index : null);
       return;
     }
     save.mutate(content);
@@ -325,30 +426,42 @@ export default function CareersPage() {
   }
   if (!content) return null;
 
-  const openCount = content.roles.filter((r) => !r.draft).length;
+  const liveCount = content.roles.filter((r) => !r.draft && (r.status ?? 'open') === 'open').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Careers"
-        description={`What spllit.app/careers shows. ${content.roles.length} ${content.roles.length === 1 ? 'role' : 'roles'}, ${openCount} published.`}
+        description={`${liveCount} live on the site · ${content.roles.length} in total`}
         actions={
           <div className="flex items-center gap-2">
             <a
-              href="https://spllit.app/careers"
+              href={LIVE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-ink-muted hover:text-ink"
             >
-              View page
-              <ExternalLink className="h-3.5 w-3.5" />
+              View live page
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             </a>
-            <Button variant="primary" onClick={submit} disabled={!canEdit || save.isPending || !dirty}>
-              {save.isPending ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
+            <Button
+              variant="primary"
+              onClick={publish}
+              disabled={!canEdit || save.isPending || !dirty}
+            >
+              {save.isPending ? 'Publishing…' : dirty ? 'Publish' : 'Published'}
             </Button>
           </div>
         }
       />
+
+      {/* Nothing here reaches the site until Publish, so say so rather than
+          letting an editor close the tab believing it is live. */}
+      {dirty ? (
+        <p className="text-xs font-medium text-warning">
+          Unpublished changes — the site still shows the last published version.
+        </p>
+      ) : null}
 
       {!canEdit ? (
         <Card className="border-warning bg-warning-muted p-4 text-sm text-ink">
@@ -357,11 +470,312 @@ export default function CareersPage() {
         </Card>
       ) : null}
 
-      {/* Page copy */}
+      {/* Roles come first, and nothing is expanded above them: this is what the
+          page is for. */}
       <Card className="p-5">
-        <SectionHeader title="Page copy" />
-        <p className="mt-2 text-sm text-ink-muted">The top of the careers page.</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">Roles</h2>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              Click one to edit it. Closing keeps it listed and marked closed; removing takes it
+              off the site for good.
+            </p>
+          </div>
+          {canEdit ? (
+            <div className="flex items-center gap-2">
+              {closedCount > 0 ? (
+                <Button variant="danger" onClick={() => setRemoving('closed')}>
+                  <Trash2 className="mr-1.5 h-4 w-4" aria-hidden />
+                  Remove {closedCount} closed
+                </Button>
+              ) : null}
+              <Button variant="primary" onClick={addRole}>
+                <Plus className="mr-1.5 h-4 w-4" aria-hidden />
+                Add role
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        {content.roles.length === 0 ? (
+          <p className="mt-4 rounded-md border border-dashed border-line bg-surface-sunken p-6 text-center text-sm text-ink-muted">
+            No roles yet. The site shows its &ldquo;nothing open&rdquo; state until you add one.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {content.roles.map((role, index) => {
+              const expanded = openRole === index;
+              const dupe = duplicateIds.includes(role.id);
+              const needsLink =
+                !role.draft && (role.status ?? 'open') === 'open' && !role.applyUrl.trim();
+
+              return (
+                <li
+                  key={index}
+                  className={cn(
+                    'overflow-hidden rounded-lg border bg-surface-sunken',
+                    dupe ? 'border-danger' : needsLink ? 'border-warning' : 'border-line',
+                  )}
+                >
+                  {/* Collapsed row: enough to find a role, nothing to scroll
+                      past on the way to the next one. */}
+                  <div className="flex items-center gap-2 px-3 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setOpenRole(expanded ? null : index)}
+                      aria-expanded={expanded}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                    >
+                      <ChevronRight
+                        className={cn(
+                          'h-4 w-4 shrink-0 text-ink-subtle transition-transform duration-snap',
+                          expanded && 'rotate-90',
+                        )}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-ink">
+                          {role.title || <span className="text-ink-subtle">Untitled role</span>}
+                        </span>
+                        <span className="block truncate text-xs text-ink-muted">
+                          {role.team} · {role.location} · {role.type}
+                        </span>
+                      </span>
+                      <StatusChip role={role} />
+                    </button>
+
+                    <span className="flex shrink-0 items-center gap-1">
+                      <Button
+                        size="sm"
+                        onClick={() => moveRole(index, -1)}
+                        disabled={index === 0}
+                        title="Move up"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => moveRole(index, 1)}
+                        disabled={index === content.roles.length - 1}
+                        title="Move down"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={!canEdit}
+                        title="Remove from the site"
+                        onClick={() => setRemoving(index)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      </Button>
+                    </span>
+                  </div>
+
+                  {expanded ? (
+                    <div className="border-t border-line bg-surface p-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Title">
+                          <Input
+                            value={role.title}
+                            placeholder="Founding Frontend Engineer"
+                            onChange={(e) => {
+                              const title = e.target.value;
+                              // Keep the id tracking the title until somebody
+                              // edits the id by hand. After that it is a public
+                              // link, and must not move under anyone holding it.
+                              const autoId =
+                                !role.id ||
+                                role.id.startsWith('new-role-') ||
+                                role.id === slugify(role.title);
+                              updateRole(
+                                index,
+                                autoId ? { title, id: slugify(title) || role.id } : { title },
+                              );
+                            }}
+                          />
+                        </Field>
+                        <Field label="Team">
+                          <Input
+                            value={role.team}
+                            placeholder="Engineering"
+                            onChange={(e) => updateRole(index, { team: e.target.value })}
+                          />
+                        </Field>
+                        <Field label="Location">
+                          <Picker
+                            value={role.location}
+                            options={LOCATIONS}
+                            onChange={(location) => updateRole(index, { location })}
+                          />
+                        </Field>
+                        <Field label="Type">
+                          <Picker
+                            value={role.type}
+                            options={TYPES}
+                            onChange={(type) => updateRole(index, { type })}
+                          />
+                        </Field>
+                      </div>
+
+                      {/* The form link, with a way to open it. A URL you cannot
+                          click is a URL you cannot check before publishing it. */}
+                      <div className="mt-3">
+                        <Field
+                          label="Google Form link"
+                          hint="Where Apply sends people. A live role needs one."
+                        >
+                          <div className="mt-1 flex gap-2">
+                            <Input
+                              type="url"
+                              inputMode="url"
+                              value={role.applyUrl}
+                              placeholder="https://forms.gle/…"
+                              onChange={(e) => updateRole(index, { applyUrl: e.target.value })}
+                            />
+                            {isWebLink(role.applyUrl) ? (
+                              <a
+                                href={role.applyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-line px-3 text-sm font-medium text-ink transition-colors duration-snap hover:border-line-strong"
+                              >
+                                Open
+                                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                              </a>
+                            ) : (
+                              <span className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-line px-3 text-sm font-medium text-ink-subtle opacity-50">
+                                Open
+                                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                              </span>
+                            )}
+                          </div>
+                        </Field>
+                      </div>
+
+                      <div className="mt-3">
+                        <Field label="Summary" hint="One or two sentences, shown under the title.">
+                          <Textarea
+                            rows={2}
+                            value={role.summary}
+                            onChange={(v) => updateRole(index, { summary: v })}
+                          />
+                        </Field>
+                      </div>
+
+                      <div className="mt-3">
+                        <Field label="Responsibilities" hint="One per line.">
+                          <Textarea
+                            rows={3}
+                            value={role.responsibilities.join('\n')}
+                            onChange={(v) =>
+                              updateRole(index, {
+                                responsibilities: v
+                                  .split('\n')
+                                  .map((l) => l.trim())
+                                  .filter(Boolean),
+                              })
+                            }
+                          />
+                        </Field>
+                      </div>
+
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <Field
+                          label="Closes on"
+                          hint="Optional. After this date the site marks it closed on its own."
+                        >
+                          <Input
+                            type="date"
+                            value={toDateInput(role.closesAt)}
+                            onChange={(e) =>
+                              updateRole(index, { closesAt: fromDateInput(e.target.value) })
+                            }
+                          />
+                        </Field>
+                        <Field label="Status" hint="Closing by hand wins over the date.">
+                          {/* Two buttons rather than a dropdown: there are
+                              exactly two states, and they carry the same green
+                              and red the public page uses. */}
+                          <div className="mt-1 flex gap-2">
+                            {(['open', 'closed'] as const).map((value) => {
+                              const active = (role.status ?? 'open') === value;
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  disabled={!canEdit}
+                                  onClick={() => updateRole(index, { status: value })}
+                                  className={cn(
+                                    'h-9 flex-1 rounded-md border text-sm font-medium capitalize transition-colors duration-snap',
+                                    active &&
+                                      value === 'open' &&
+                                      'border-brand bg-brand-muted text-brand',
+                                    active &&
+                                      value === 'closed' &&
+                                      'border-danger bg-danger-muted text-danger',
+                                    !active &&
+                                      'border-line bg-surface-sunken text-ink-muted hover:text-ink',
+                                  )}
+                                >
+                                  {value}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </Field>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+                        <label className="flex items-center gap-2 text-sm text-ink-muted">
+                          <input
+                            type="checkbox"
+                            checked={!role.draft}
+                            disabled={!canEdit}
+                            onChange={(e) => updateRole(index, { draft: !e.target.checked })}
+                            className="h-4 w-4 rounded border-line"
+                          />
+                          Show on the site
+                        </label>
+                        <span className="flex items-center gap-2">
+                          <span className="text-[11px] text-ink-subtle">Link id</span>
+                          <Input
+                            value={role.id}
+                            title="Used in /careers#this-id, and as ROLE_ID in the form script"
+                            onChange={(e) => updateRole(index, { id: slugify(e.target.value) })}
+                            className="h-8 w-[200px] font-mono text-[11px]"
+                          />
+                        </span>
+                      </div>
+
+                      {dupe ? (
+                        <p className="mt-2 text-xs text-danger">
+                          Another role uses this link id. Both would share the same page anchor.
+                        </p>
+                      ) : null}
+                      {needsLink ? (
+                        <p className="mt-2 text-xs text-warning">
+                          Shown on the site with no form link. Add one, or untick &ldquo;Show on the
+                          site&rdquo; until you have it.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+
+      {/* Written once and rarely changed, so it sits behind a disclosure
+          instead of between an editor and the roles. */}
+      <Disclosure
+        title="Page text"
+        description="The headline, the intro, and what shows when nothing is open."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Eyebrow">
             <Input value={content.eyebrow} onChange={(e) => update({ eyebrow: e.target.value })} />
           </Field>
@@ -370,20 +784,19 @@ export default function CareersPage() {
           </Field>
         </div>
         <div className="mt-4">
-          <Field label="Standfirst" hint="The paragraph under the headline.">
+          <Field label="Intro paragraph" hint="The paragraph under the headline.">
             <Textarea value={content.standfirst} onChange={(v) => update({ standfirst: v })} />
           </Field>
         </div>
-      </Card>
 
-      {/* Why join */}
-      <Card className="p-5">
-        <SectionHeader title="What joining now means" />
-        <p className="mt-2 text-sm text-ink-muted">Three blocks. Leave a title empty to drop that block.</p>
-        <div className="mt-4 space-y-4">
+        <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+          What joining now means
+        </p>
+        <p className="mt-1 text-xs text-ink-muted">Three blocks. Leave a title empty to drop one.</p>
+        <div className="mt-3 space-y-3">
           {content.pitch.map((item, index) => (
             <div key={index} className="grid gap-3 sm:grid-cols-[1fr_2fr]">
-              <Field label={`Block ${index + 1} title`}>
+              <Field label={`Block ${index + 1}`}>
                 <Input
                   value={item.title}
                   onChange={(e) => {
@@ -407,288 +820,40 @@ export default function CareersPage() {
             </div>
           ))}
         </div>
-      </Card>
 
-      {/* Roles */}
-      <Card className="p-5">
-        <SectionHeader
-          title="Open roles"
-          aside={
-            canEdit ? (
-              <span className="flex items-center gap-2">
-                {closedCount > 0 ? (
-                  <Button variant="danger" onClick={() => setRemoving('closed')}>
-                    <Trash2 className="mr-1.5 h-4 w-4" />
-                    Remove {closedCount} closed
-                  </Button>
-                ) : null}
-                <Button
-                  onClick={() =>
-                    update({
-                      roles: [
-                        ...content.roles,
-                        {
-                          id: `new-role-${content.roles.length + 1}`,
-                          title: '',
-                          team: 'Engineering',
-                          location: 'Chennai',
-                          type: 'Full-time',
-                          summary: '',
-                          responsibilities: [],
-                          applyUrl: '',
-                          closesAt: null,
-                          status: 'open',
-                          draft: true,
-                        },
-                      ],
-                    })
-                  }
-                >
-                  <Plus className="mr-1.5 h-4 w-4" />
-                  Add role
-                </Button>
-              </span>
-            ) : null
-          }
-        />
-        <p className="mt-2 text-sm text-ink-muted">
-          Closing a role keeps it listed and marked closed. Removing takes it off
-          the site for good — the page updates within about half a minute.
+        <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+          When nothing is open
         </p>
+        <p className="mt-1 text-xs text-ink-muted">
+          Shown once every role is closed or hidden.
+        </p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-[1fr_2fr]">
+          <Field label="Title">
+            <Input
+              value={content.emptyState.title}
+              onChange={(e) =>
+                update({ emptyState: { ...content.emptyState, title: e.target.value } })
+              }
+            />
+          </Field>
+          <Field label="Body">
+            <Textarea
+              rows={2}
+              value={content.emptyState.body}
+              onChange={(v) => update({ emptyState: { ...content.emptyState, body: v } })}
+            />
+          </Field>
+        </div>
+      </Disclosure>
 
-        {content.roles.length === 0 ? (
-          <p className="mt-4 rounded-md border border-dashed border-line bg-surface-sunken p-6 text-center text-sm text-ink-muted">
-            No roles yet. The public page shows its empty state until you add one.
-          </p>
-        ) : (
-          <ul className="mt-4 space-y-4">
-            {content.roles.map((role, index) => {
-              const dupe = duplicateIds.includes(role.id);
-              return (
-                <li
-                  key={index}
-                  className={cn(
-                    'rounded-lg border bg-surface-sunken p-4',
-                    dupe
-                      ? 'border-danger'
-                      : !role.draft && (role.status ?? 'open') === 'open' && !role.applyUrl.trim()
-                        ? 'border-warning'
-                        : 'border-line',
-                  )}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-                      Role {index + 1}
-                      <span
-                        className={cn(
-                          'rounded-full px-2 py-0.5 text-[10px]',
-                          (role.status ?? 'open') === 'closed'
-                            ? 'bg-danger-muted text-danger'
-                            : 'bg-brand-muted text-brand',
-                        )}
-                      >
-                        {(role.status ?? 'open') === 'closed' ? 'Closed' : 'Open'}
-                      </span>
-                      {role.draft ? <span className="text-ink-subtle">· draft, hidden from the site</span> : null}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Button size="sm" onClick={() => moveRole(index, -1)} disabled={index === 0}>
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => moveRole(index, 1)}
-                        disabled={index === content.roles.length - 1}
-                      >
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        disabled={!canEdit}
-                        title="Remove from the site"
-                        onClick={() => setRemoving(index)}
-                      >
-                        <Trash2 className="mr-1 h-3.5 w-3.5" />
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <Field label="Title">
-                      <Input
-                        value={role.title}
-                        placeholder="Founding Frontend Engineer"
-                        onChange={(e) => {
-                          const title = e.target.value;
-                          // Keep the id tracking the title until somebody edits
-                          // the id by hand — after that it is a public link and
-                          // must not move under an applicant's feet.
-                          const autoId = !role.id || role.id.startsWith('new-role-') || role.id === slugify(role.title);
-                          updateRole(index, autoId ? { title, id: slugify(title) || role.id } : { title });
-                        }}
-                      />
-                    </Field>
-                    <Field label="Link id" hint="Used in the page link: /careers#this-id">
-                      <Input
-                        value={role.id}
-                        onChange={(e) => updateRole(index, { id: slugify(e.target.value) })}
-                      />
-                    </Field>
-                    <Field label="Team">
-                      <Input
-                        value={role.team}
-                        placeholder="Engineering"
-                        onChange={(e) => updateRole(index, { team: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Location">
-                      <Picker
-                        value={role.location}
-                        options={LOCATIONS}
-                        onChange={(location) => updateRole(index, { location })}
-                      />
-                    </Field>
-                    <Field label="Type">
-                      <Picker
-                        value={role.type}
-                        options={TYPES}
-                        onChange={(type) => updateRole(index, { type })}
-                      />
-                    </Field>
-                    <Field
-                      label="Closes on"
-                      hint="Leave empty to stay open. After this date the role shows as Closed."
-                    >
-                      <Input
-                        type="date"
-                        value={toDateInput(role.closesAt)}
-                        onChange={(e) =>
-                          updateRole(index, { closesAt: fromDateInput(e.target.value) })
-                        }
-                      />
-                    </Field>
-                    <Field
-                      label="Status"
-                      hint="Closing by hand wins over the date — use it the moment a role is filled."
-                    >
-                      {/* Two buttons rather than a dropdown: there are exactly
-                          two states, they are the thing an editor comes to this
-                          page to change, and they carry the same green and red
-                          the public page uses. */}
-                      <div className="mt-1 flex gap-2">
-                        {(['open', 'closed'] as const).map((value) => {
-                          const active = (role.status ?? 'open') === value;
-                          return (
-                            <button
-                              key={value}
-                              type="button"
-                              disabled={!canEdit}
-                              onClick={() => updateRole(index, { status: value })}
-                              className={cn(
-                                'h-9 flex-1 rounded-md border text-sm font-medium capitalize transition-colors duration-snap',
-                                active && value === 'open' &&
-                                  'border-brand bg-brand-muted text-brand',
-                                active && value === 'closed' &&
-                                  'border-danger bg-danger-muted text-danger',
-                                !active && 'border-line bg-surface-sunken text-ink-muted hover:text-ink',
-                              )}
-                            >
-                              {value}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </Field>
-                  </div>
-
-                  <div className="mt-3">
-                    <Field label="Apply link" hint="Paste the Google Form URL. If you leave it empty the Apply button still works — it opens an email to career@spllit.app with the role in the subject.">
-                      <Input
-                        value={role.applyUrl}
-                        placeholder="https://forms.gle/…"
-                        onChange={(e) => updateRole(index, { applyUrl: e.target.value })}
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="mt-3">
-                    <Field label="Summary">
-                      <Textarea
-                        rows={2}
-                        value={role.summary}
-                        onChange={(v) => updateRole(index, { summary: v })}
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="mt-3">
-                    <Field label="Responsibilities" hint="One per line.">
-                      <Textarea
-                        rows={4}
-                        value={role.responsibilities.join('\n')}
-                        onChange={(v) =>
-                          updateRole(index, {
-                            responsibilities: v.split('\n').map((l) => l.trim()).filter(Boolean),
-                          })
-                        }
-                      />
-                    </Field>
-                  </div>
-
-                  <label className="mt-3 flex items-center gap-2 text-sm text-ink-muted">
-                    <input
-                      type="checkbox"
-                      checked={!role.draft}
-                      onChange={(e) => updateRole(index, { draft: !e.target.checked })}
-                      className="h-4 w-4 rounded border-line"
-                    />
-                    Published on the site
-                  </label>
-
-                  {dupe ? (
-                    <p className="mt-2 text-xs text-danger">
-                      Another role uses this link id. Both would share the same page anchor.
-                    </p>
-                  ) : null}
-                  {!role.draft && (role.status ?? 'open') === 'open' && !role.applyUrl.trim() ? (
-                    <p className="mt-2 text-xs text-warning">
-                      Open and published, but no apply link. The site shows one Apply
-                      button per open role, so add the form URL — or set this role to
-                      draft or closed until you have one.
-                    </p>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
-
-      {removing !== null ? (
-        <ConfirmDialog
-          destructive
-          title={removing === 'closed' ? `Remove ${closedCount} closed roles?` : 'Remove this role?'}
-          confirmLabel="Remove"
-          description={
-            removing === 'closed'
-              ? 'They come off the careers page for good. Anyone holding a link to one of them will land on the page with no role. Closing a role instead keeps it listed and marked closed.'
-              : 'It comes off the careers page for good, and any link to it stops resolving. If you only want to stop applications, set the role to Closed instead — it stays listed so applicants can see what happened.'
-          }
-          onCancel={() => setRemoving(null)}
-          onConfirm={() => (removing === 'closed' ? removeAllClosed() : removeRole(removing))}
-        />
-      ) : null}
-
-      {/* Confirmation email setup */}
-      <Card className="p-5">
-        <SectionHeader title="Confirmation email" />
-        <p className="mt-2 text-sm text-ink-muted">
-          Google hosts the form, so submitting it tells Spllit nothing on its own.
-          To send an applicant a confirmation from Spllit, paste the script below
-          into the form once. Without it the application still arrives in the
-          form&apos;s responses — the applicant just gets no email from us.
+      <Disclosure
+        title="Confirmation emails"
+        description="One-time setup per form, so applicants hear back from Spllit."
+      >
+        <p className="text-sm text-ink-muted">
+          Google hosts the form, so submitting it tells Spllit nothing on its own. Paste the script
+          below into the form once and applicants get a confirmation from us. Without it the
+          application still arrives in the form responses — the applicant just hears nothing.
         </p>
 
         <ol className="mt-4 space-y-2 text-sm text-ink-muted">
@@ -696,23 +861,22 @@ export default function CareersPage() {
             1. Open the Google Form, then <strong className="text-ink">⋮ → Apps Script</strong>.
           </li>
           <li>
-            2. Replace the contents with the script below, putting this role&apos;s
-            link id in <code className="font-mono text-xs text-ink">ROLE_ID</code>.
+            2. Replace the contents with the script below, putting the Link id of the role in{' '}
+            <code className="font-mono text-xs text-ink">ROLE_ID</code>.
           </li>
           <li>
-            3. Run <strong className="text-ink">install()</strong> once and accept the
-            permission prompt. That is what attaches it to form submissions.
+            3. Run <strong className="text-ink">install()</strong> once and accept the permission
+            prompt. That is what attaches it to form submissions.
           </li>
         </ol>
 
         <pre className="mt-4 overflow-x-auto rounded-md border border-line bg-surface-sunken p-4 text-[12px] leading-relaxed text-ink-muted">
-{`const ENDPOINT = '<NEXT_PUBLIC_API_URL>/public/careers/application';
-// e.g. https://api.spllit.app/api/public/careers/application
+{`const ENDPOINT = 'https://api.spllit.app/api/public/careers/application';
 const SECRET   = '<CAREERS_WEBHOOK_SECRET from the backend env>';
-const ROLE_ID  = 'founding-frontend-engineer';   // the Link id shown above
+const ROLE_ID  = 'founding-frontend-engineer';   // the Link id of the role
 
-// Which questions hold the applicant's email and name. Match your form's
-// wording; the email item can also be the form's built-in email collection.
+// Which questions hold the email and the name. Match the wording of your
+// form; the email can also be the built-in email collection of the form.
 const EMAIL_QUESTION = 'Email';
 const NAME_QUESTION  = 'Full name';
 
@@ -748,37 +912,40 @@ function install() {
 }`}
         </pre>
 
-        <p className="mt-3 text-[12px] text-ink-subtle">
-          The endpoint refuses anything without the secret, and only sends for a
-          role id that exists and is published here — so it cannot be used to mail
-          arbitrary people. It returns 503 until{' '}
-          <code className="font-mono">CAREERS_WEBHOOK_SECRET</code> is set on the
-          backend.
-        </p>
-      </Card>
+        <dl className="mt-4 grid gap-2 text-[12px] text-ink-subtle sm:grid-cols-[130px_1fr]">
+          <dt className="font-medium text-ink-muted">Sent from</dt>
+          <dd className="font-mono">notifications@mail.spllit.app</dd>
+          <dt className="font-medium text-ink-muted">Replies go to</dt>
+          <dd className="font-mono">career@spllit.app</dd>
+          <dt className="font-medium text-ink-muted">Delivery webhook</dt>
+          <dd className="font-mono">https://api.spllit.app/webhooks/resend</dd>
+        </dl>
 
-      {/* Empty state */}
-      <Card className="p-5">
-        <SectionHeader title="When nothing is open" />
-        <p className="mt-2 text-sm text-ink-muted">Shown on the site once every role is closed or unpublished.</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_2fr]">
-          <Field label="Title">
-            <Input
-              value={content.emptyState.title}
-              onChange={(e) =>
-                update({ emptyState: { ...content.emptyState, title: e.target.value } })
-              }
-            />
-          </Field>
-          <Field label="Body">
-            <Textarea
-              rows={2}
-              value={content.emptyState.body}
-              onChange={(v) => update({ emptyState: { ...content.emptyState, body: v } })}
-            />
-          </Field>
-        </div>
-      </Card>
+        <p className="mt-3 text-[12px] text-ink-subtle">
+          The endpoint refuses anything without the secret, and only sends for a Link id that
+          exists and is shown on the site — so it cannot be used to mail arbitrary people. It
+          answers 503 until <code className="font-mono">CAREERS_WEBHOOK_SECRET</code> is set on
+          the backend.
+        </p>
+      </Disclosure>
+
+      {removing !== null ? (
+        <ConfirmDialog
+          destructive
+          // Removing edits the local draft; nothing is recorded until Publish,
+          // so a mandatory reason field here would collect text that goes nowhere.
+          requireReason={false}
+          title={removing === 'closed' ? `Remove ${closedCount} closed roles?` : 'Remove this role?'}
+          confirmLabel="Remove"
+          description={
+            removing === 'closed'
+              ? 'They come off the careers page for good. Anyone holding a link to one of them will land on the page with no role. Closing a role instead keeps it listed and marked closed.'
+              : 'It comes off the careers page for good, and any link to it stops resolving. If you only want to stop applications, set the role to Closed instead — it stays listed so applicants can see what happened.'
+          }
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => (removing === 'closed' ? removeAllClosed() : removeRole(removing))}
+        />
+      ) : null}
     </div>
   );
 }

@@ -181,8 +181,8 @@ export function roleStatus(role: CareerRole, now: Date = new Date()): RoleStatus
 /**
  * True when applications can be submitted at all.
  *
- * Deliberately not conditioned on `applyUrl`: an open role without a form link
- * still accepts applications, by email. Only a closed role turns them away.
+ * Deliberately not conditioned on `applyUrl`: a role that is published and open
+ * is required to have one, so only a close turns applicants away.
  */
 export function isAccepting(role: CareerRole, now: Date = new Date()): boolean {
   return roleStatus(role, now) !== 'closed';
