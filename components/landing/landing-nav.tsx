@@ -26,7 +26,7 @@ export function LandingNav() {
 
   return (
     <nav className="relative flex items-center justify-between px-6 pb-4 pt-5 lg:px-20 lg:pt-6">
-      <Link href="/" className="select-none">
+      <Link href="/" className="-my-1 select-none py-1">
         <span className="font-display text-[32px] font-semibold leading-none tracking-[-0.03em] text-ink lg:text-[40px]">
           spllit
         </span>
@@ -36,7 +36,7 @@ export function LandingNav() {
           wordmark or the action group become. */}
       <div className="absolute left-1/2 hidden -translate-x-1/2 gap-8 md:flex">
         {LINKS.map((link) => (
-          <a key={link.href} href={link.href} className="nav-control text-ink">
+          <a key={link.href} href={link.href} className="nav-control -my-2.5 py-2.5 text-ink">
             {link.label}
           </a>
         ))}
@@ -69,7 +69,7 @@ export function LandingNav() {
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
-          className="rounded-md p-1.5 text-ink md:hidden"
+          className="-mr-1 rounded-md p-2.5 text-ink md:hidden"
         >
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>

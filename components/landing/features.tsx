@@ -1,10 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import { motion } from 'motion/react';
-import { Car, KeyRound, Receipt, ShoppingBag } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { blurProps } from '@/lib/image-blur';
+import { PhoneFrame } from '@/components/ui/phone-frame';
 
 const reveal = {
   hidden: { opacity: 0, y: 24 },
@@ -39,7 +40,7 @@ function FeatureRow({
       viewport={{ once: true, margin: '-80px' }}
       transition={{ staggerChildren: 0.1 }}
       className={cn(
-        'grid items-center gap-7 py-10 sm:gap-9 sm:py-14 lg:grid-cols-2 lg:gap-20 lg:py-20',
+        'grid items-center gap-7 py-10 sm:gap-9 sm:py-12 lg:grid-cols-2 lg:gap-20 lg:py-14',
         flip && 'lg:[&>*:first-child]:order-2',
       )}
     >
@@ -60,115 +61,106 @@ function FeatureRow({
   );
 }
 
+/**
+ * Ride Together — one auto, five people, nobody covering for everyone.
+ *
+ * Just the drawing. It carried a small fare card hung off the bottom corner for
+ * a while; the card said the same thing the paragraph beside it already says,
+ * and a UI panel pasted onto an illustration reads as a sticker rather than as
+ * part of either one.
+ */
 function RideVisual() {
   return (
-    <div className="rounded-xl border border-line bg-surface p-5 shadow-raised">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-muted text-brand">
-            <Car className="h-4 w-4" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-ink">Airport T1</p>
-            <p className="text-xs text-ink-muted">Leaving in 18 min · 2 seats</p>
-          </div>
-        </div>
-        <Badge tone="live">Live</Badge>
-      </div>
-
-      {/* Route rail */}
-      <div className="mt-5 flex gap-3">
-        <div className="flex flex-col items-center pt-1">
-          <span className="h-2 w-2 rounded-full bg-accent" />
-          <span className="my-1 w-px flex-1 bg-line-strong" />
-          <span className="h-2 w-2 rounded-full bg-brand" />
-        </div>
-        <div className="flex-1 space-y-4 text-[13px]">
-          <p className="text-ink">Taramani Gate</p>
-          <p className="text-ink">Chennai Intl. Airport</p>
-        </div>
-        <div className="space-y-4 text-right text-[13px] tabular-nums text-ink-muted">
-          <p>now</p>
-          <p>42 min</p>
-        </div>
-      </div>
-
-      <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
-        <span className="text-[13px] text-ink-muted">Your share</span>
-        <span className="font-display text-lg font-semibold text-ink">₹210</span>
-      </div>
-    </div>
+    <Image
+      src="/editorial/auto-full-of-friends.png"
+      alt="Five friends riding together in one auto-rickshaw"
+      width={1040}
+      height={905}
+      sizes="(min-width: 1024px) 520px, 90vw"
+      {...blurProps('/editorial/auto-full-of-friends.png')}
+      className="mx-auto h-auto w-full max-w-[520px]"
+    />
   );
 }
 
+/**
+ * Group Rides — the two screens that actually make one, in order. Real
+ * screenshots rather than a drawn approximation, because this is the step
+ * people are deciding whether to trust.
+ */
 function SquadVisual() {
-  const members = [
-    { name: 'Meera', eta: '4 min', at: true },
-    { name: 'Arun', eta: '11 min', at: false },
-    { name: 'Dev', eta: '12 min', at: false },
-    { name: 'Sana', eta: 'arrived', at: true },
-  ];
-
   return (
-    <div className="rounded-xl border border-line bg-surface p-5 shadow-raised">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-ink">Friday Studio Session</p>
-          <p className="text-xs text-ink-muted">Meeting at Central Library steps</p>
-        </div>
-        <Badge tone="accent">4 going</Badge>
-      </div>
-
-      <ul className="mt-5 space-y-3">
-        {members.map((member) => (
-          <li key={member.name} className="flex items-center gap-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-sunken text-[11px] font-semibold text-ink-muted ring-1 ring-line">
-              {member.name.slice(0, 2).toUpperCase()}
-            </span>
-            <span className="flex-1 text-[13px] text-ink">{member.name}</span>
-            <span
-              className={cn(
-                'text-[12px] tabular-nums',
-                member.at ? 'text-brand' : 'text-ink-muted',
-              )}
-            >
-              {member.eta}
-            </span>
-          </li>
-        ))}
-      </ul>
+    <div
+      className={cn(
+        // A rail on a phone. Two phones shoulder to shoulder inside a 350px
+        // column are 157px wide each and nothing on either screen can be read,
+        // which makes them decoration. One at a time, at 62% of the viewport,
+        // they are legible and the swipe is something to do.
+        'no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-1',
+        'sm:mx-0 sm:items-end sm:justify-center sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 sm:snap-none',
+      )}
+    >
+      <PhoneFrame
+        src="/product/squad-size.jpg"
+        alt="Choosing a squad of four people and whether to travel by cab, auto or bike"
+        className="w-[62%] shrink-0 snap-center sm:w-[45%] sm:max-w-[228px] sm:shrink sm:translate-y-6"
+      />
+      <PhoneFrame
+        src="/product/squad-ready.jpg"
+        alt="The last step before creating a squad: destination, squad size and the safety checks"
+        className="w-[62%] shrink-0 snap-center sm:w-[45%] sm:max-w-[228px] sm:shrink sm:-translate-y-2"
+      />
     </div>
   );
 }
 
+/**
+ * Events & Communities.
+ *
+ * The crowd stands behind the listing rather than beside it, so the card reads
+ * as the thing that gathered them. The card itself is unchanged product UI —
+ * the photograph is the mood, not the evidence.
+ */
 function EventVisual() {
   return (
-    <div className="rounded-xl border border-line bg-surface p-5 shadow-raised">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="font-display text-base font-semibold text-ink">Open Mic · Quad</p>
-          <p className="mt-1 text-[13px] text-ink-muted">
-            Tonight, 8:00 PM · Open to all campuses
-          </p>
-        </div>
-        <div className="shrink-0 rounded-md bg-warning-muted px-2.5 py-1.5 text-center">
-          <p className="font-display text-base font-bold leading-none text-warning">3h</p>
-          <p className="mt-0.5 text-[9px] uppercase tracking-wide text-warning">to go</p>
-        </div>
-      </div>
+    <div className="relative mx-auto w-full max-w-[460px]">
+      <Image
+        src="/editorial/crowd.png"
+        alt="A crowd of people gathered together outdoors"
+        width={316}
+        height={128}
+        sizes="(min-width: 640px) 340px, 70vw"
+        {...blurProps('/editorial/crowd.png')}
+        className="mx-auto h-auto w-[76%] max-w-[316px]"
+      />
 
-      <div className="mt-5 flex items-center gap-3 border-t border-line pt-4">
-        <div className="flex -space-x-2">
-          {['A', 'R', 'K', 'M'].map((letter) => (
-            <span
-              key={letter}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-sunken text-[10px] font-semibold text-ink-muted ring-2 ring-surface"
-            >
-              {letter}
-            </span>
-          ))}
+      <div className="relative -mt-5 rounded-2xl border border-line bg-surface p-5 shadow-float sm:-mt-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-display text-base font-semibold text-ink">Open Mic · Quad</p>
+            <p className="mt-1 text-[13px] text-ink-muted">
+              Tonight, 8:00 PM · Open to all campuses
+            </p>
+          </div>
+          <div className="shrink-0 rounded-md bg-warning-muted px-2.5 py-1.5 text-center">
+            <p className="font-display text-base font-bold leading-none text-warning">3h</p>
+            <p className="mt-0.5 text-[9px] uppercase tracking-wide text-warning">to go</p>
+          </div>
         </div>
-        <span className="text-[13px] text-ink-muted">64 going</span>
+
+        <div className="mt-5 flex items-center gap-3 border-t border-line pt-4">
+          <div className="flex -space-x-2">
+            {['A', 'R', 'K', 'M'].map((letter) => (
+              <span
+                key={letter}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-sunken text-[10px] font-semibold text-ink-muted ring-2 ring-surface"
+              >
+                {letter}
+              </span>
+            ))}
+          </div>
+          <span className="text-[13px] text-ink-muted">64 going</span>
+        </div>
       </div>
     </div>
   );
@@ -176,19 +168,36 @@ function EventVisual() {
 
 const SOON = [
   {
-    icon: KeyRound,
     title: 'Rentals',
     body: 'Borrow a bike, a camera, a projector — from people on your campus.',
+    src: '/soon/rent-due.png',
+    alt: 'A torn rent notice stamped RENT DUE, over a photograph of an apartment block',
+    width: 447,
+    height: 470,
+    // Heights are per picture, not shared: a dense collage, a flat drawing and
+    // a cluster of number plates carry very different weight at the same size.
+    img: 'h-[134px] sm:h-[152px]',
+    sizes: '170px',
   },
   {
-    icon: Receipt,
     title: 'Bill Splitting',
     body: 'One running balance per person across every ride, rental and dinner.',
+    src: '/soon/card-in-hand.png',
+    alt: 'A hand holding out a payment card',
+    width: 187,
+    height: 113,
+    img: 'h-[92px] sm:h-[102px]',
+    sizes: '160px',
   },
   {
-    icon: ShoppingBag,
-    title: 'Marketplace',
-    body: 'Buy and sell inside your campus, with mapped pickup points.',
+    title: 'Trips',
+    body: 'Weekend runs and long hauls, planned in one place. Post the route, fill the seats, split the fuel.',
+    src: '/soon/road-trip.png',
+    alt: 'Number plates and road signs arranged to read ROAD TRIP',
+    width: 260,
+    height: 102,
+    img: 'h-[68px] sm:h-[78px]',
+    sizes: '190px',
   },
 ];
 
@@ -216,7 +225,7 @@ export function Features() {
         id="events"
         eyebrow="Events & Communities"
         title="What's happening, actually near you."
-        body="Events plot on the same map as everything else, with live attendance. Communities give each campus its own channels for placements, internships and everything in between."
+        body="Events plot on the same map as everything else, with live attendance. Communities follow who you are — your campus while you are studying, your industry once you are working — and any ride can be limited to women only."
         visual={<EventVisual />}
       />
 
@@ -231,26 +240,53 @@ export function Features() {
           </span>
         </div>
 
-        <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
-          {SOON.map((item, index) => {
-            const Icon = item.icon;
-            return (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.08 }}
-                className="rounded-lg border border-dashed border-line bg-surface-sunken p-5"
-              >
-                <Icon className="h-[18px] w-[18px] text-ink-subtle" />
-                <p className="mt-4 text-sm font-semibold text-ink-muted">{item.title}</p>
+        {/* A picture each, on a recessed shelf, instead of a grey line icon.
+            These stay quieter than the shipped features — dashed edge, muted
+            type, a "soon" tag — because none of them has shipped, but they are
+            no longer three identical boxes with a glyph in the corner. */}
+        <div
+          className={cn(
+            // Stacked, three teasers for things that have not shipped cost a
+            // thousand pixels of scrolling. On a rail they cost one swipe.
+            'no-scrollbar -mx-5 mt-7 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1',
+            'sm:mx-0 sm:mt-8 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 sm:snap-none',
+          )}
+        >
+          {SOON.map((item, index) => (
+            <motion.article
+              key={item.title}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: index * 0.08 }}
+              className={cn(
+                'w-[74%] shrink-0 snap-start overflow-hidden rounded-xl border border-dashed',
+                'border-line bg-surface-sunken sm:w-auto sm:shrink',
+              )}
+            >
+              <div className="relative flex h-[164px] items-center justify-center px-5 sm:h-[184px]">
+                <Image
+                  src={item.src}
+                  alt={item.alt}
+                  width={item.width}
+                  height={item.height}
+                  sizes={item.sizes}
+                  {...blurProps(item.src)}
+                  className={cn('w-auto', item.img)}
+                />
+                <span className="absolute right-3 top-3 rounded-full bg-canvas px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-subtle">
+                  Soon
+                </span>
+              </div>
+
+              <div className="border-t border-dashed border-line p-5">
+                <p className="text-sm font-semibold text-ink-muted">{item.title}</p>
                 <p className="mt-1.5 text-[13px] leading-relaxed text-ink-subtle">
                   {item.body}
                 </p>
-              </motion.div>
-            );
-          })}
+              </div>
+            </motion.article>
+          ))}
         </div>
       </section>
     </div>

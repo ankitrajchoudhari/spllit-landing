@@ -3,21 +3,26 @@
 import { useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'motion/react';
+import { motion, useScroll, useSpring, useTransform } from 'motion/react';
 import { Facebook, Instagram, Linkedin, Twitter, type LucideIcon } from 'lucide-react';
 
 import { Testimonials } from '@/components/landing/testimonials';
+import { blurProps } from '@/lib/image-blur';
 
 /**
- * Landing footer with a two-speed scroll: the road photograph is pinned to the
- * section while the vehicle layer travels through it, so the page reads as
- * arriving somewhere rather than simply ending.
+ * Landing footer.
  *
- * The card is deliberately fixed to the light treatment — it always sits on a
- * photograph, so the usual ink/surface tokens (which invert in dark mode)
- * would put white text on a white card. Neutral scale utilities are used
- * inside the card for exactly that reason; brand colour still comes from the
- * `brand` token, which is the same green in both themes.
+ * This replaces a full-viewport photograph of a road with a vehicle layer
+ * parallaxing through it. That version spent a whole screen of scrolling to
+ * deliver one picture, and the card sitting on the photo had to be nailed to
+ * the light treatment — white panel, neutral-900 type — because ink-on-surface
+ * tokens would have put white text on a white card. The footer was the one part
+ * of the page that could never follow the theme.
+ *
+ * Now the artwork is a single cut-out driving along a dashed line over the same
+ * faint street map the closing call to action uses, everything else is drawn
+ * from tokens, and the whole thing works in both themes at a couple of hundred
+ * pixels instead of a viewport.
  */
 
 const COLUMNS = [
@@ -60,121 +65,180 @@ const SOCIALS: { label: string; href: string; Icon: LucideIcon }[] = [
 ];
 
 export function ParallaxFooter() {
-  const sectionRef = useRef<HTMLElement>(null);
+  const roadRef = useRef<HTMLDivElement>(null);
 
-  const { scrollYProgress } = useScroll({ target: sectionRef });
-  // The vehicle runs 200px against a section that scrolls a full viewport,
-  // which is the whole parallax effect. Starting above zero means it is
-  // already in shot when the section enters, rather than sliding up into it.
-  const vehicleY = useTransform(scrollYProgress, [0, 1], [-50, 150]);
+  /**
+   * `end end` rather than `end start`: nothing scrolls past a footer, so a
+   * range that only completes once the section leaves the top of the screen
+   * would leave the car stranded mid-journey at the bottom of the page.
+   */
+  const { scrollYProgress } = useScroll({
+    target: roadRef,
+    offset: ['start end', 'end end'],
+  });
+  /**
+   * The car is positioned by its TRAILING edge, not its leading one.
+   *
+   * A plain left percentage is a fraction of the container, and the car is a
+   * fraction of the container too — a much larger one on a phone. 84% parked it
+   * neatly on a desktop and drove it clean off the right-hand edge at 390px.
+   * Offsetting the car by its own width means 100% always lands its right edge
+   * on the container edge, whatever either of them measures.
+   */
+  /**
+   * Shorter travel, and sprung.
+   *
+   * Mapping the whole scroll range onto almost the full width made the car
+   * cross the footer in a flick — scroll speed became car speed, so it read as
+   * darting rather than driving. It now covers a third of that distance, and
+   * the spring lets it lag the scroll slightly and settle, which is what reads
+   * as weight.
+   */
+  const carTarget = useTransform(scrollYProgress, [0, 1], ['62%', '100%']);
+  const carLeft = useSpring(carTarget, { stiffness: 42, damping: 18, mass: 1.1 });
 
   return (
     <>
-      {/* Run-up. The parallax below needs travel to be scrolled *through*, but
-          half a viewport of nothing is dead weight — testimonials give the
-          same scroll distance something to be. */}
       <section className="bg-surface py-12 sm:py-16 lg:py-20">
         <Testimonials />
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 0.45 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="mt-10 text-center text-[11px] font-bold uppercase tracking-[0.5em] text-ink-subtle sm:mt-14 lg:mt-20"
-        >
-          View Below
-        </motion.p>
       </section>
 
-      <section
-        ref={sectionRef}
-        className="relative h-dvh overflow-hidden bg-[url('/footer/footer-road.webp')] bg-cover bg-center"
-      >
-        <div className="absolute top-0 w-full px-4 pt-12 sm:px-6 md:pt-24 lg:pt-12">
-          <motion.footer
-            initial={{ opacity: 0, y: -20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
-            className="mx-auto max-w-7xl overflow-hidden rounded-xl bg-white/95 shadow-xl backdrop-blur-sm lg:rounded-2xl"
-          >
-            <div className="flex flex-col justify-between gap-10 p-6 sm:p-8 md:flex-row md:gap-8 lg:p-10">
-              <Link href="/" className="flex items-center gap-3 self-start">
+      <footer className="relative overflow-hidden border-t border-line">
+        {/* Same street map as the closing call to action, on multiply so only
+            the roads and parks tint the canvas. Light mode only: multiplying a
+            near-white photograph into a near-black canvas returns black. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 dark:hidden">
+          <Image
+            src="/product/map-texture.jpg"
+            alt=""
+            fill
+            sizes="100vw"
+            {...blurProps('/product/map-texture.jpg')}
+            className="object-cover opacity-70 mix-blend-multiply"
+          />
+        </div>
+
+        <div className="relative mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
+          <div ref={roadRef} className="pt-10 sm:pt-14">
+            <div className="relative h-[54px] sm:h-[74px] lg:h-[86px]">
+              <motion.div style={{ left: carLeft }} className="absolute bottom-0">
+                <div className="relative w-[136px] -translate-x-full sm:w-[196px] lg:w-[240px]">
+                  <Image
+                    src="/editorial/red-car.png"
+                    alt=""
+                    width={320}
+                    height={95}
+                    sizes="(min-width: 1024px) 240px, (min-width: 640px) 196px, 136px"
+                    {...blurProps('/editorial/red-car.png')}
+                    className="h-auto w-full"
+                  />
+
+                  {/* Exhaust. Three puffs on the same loop at staggered delays
+                      read as a continuous trail without needing a sprite, and
+                      they leave from the car's back end — the tail fins are on
+                      the left, so the smoke drifts left as it climbs. */}
+                  {[0, 1, 2].map((i) => (
+                    <motion.span
+                      key={i}
+                      aria-hidden
+                      className="absolute bottom-[14%] left-[1%] block h-2.5 w-2.5 rounded-full bg-ink-subtle blur-[1.5px]"
+                      animate={{
+                        x: [0, -42],
+                        y: [0, -16],
+                        scale: [0.5, 2.7],
+                        opacity: [0.45, 0],
+                      }}
+                      transition={{
+                        duration: 2.1,
+                        repeat: Infinity,
+                        delay: i * 0.7,
+                        ease: 'easeOut',
+                      }}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* The road: a centre line, not a border. */}
+            <div
+              aria-hidden
+              className="h-[2px] w-full"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(90deg, var(--line-strong) 0 22px, transparent 22px 44px)',
+              }}
+            />
+          </div>
+
+          <div className="flex flex-col gap-10 py-10 sm:py-12 md:flex-row md:justify-between md:gap-8 lg:py-14">
+            <div>
+              <Link href="/" className="inline-flex items-center gap-3">
                 <Image
                   src="/logo-icon.png"
                   alt=""
                   width={48}
                   height={48}
-                  className="h-10 w-10 rounded-lg shadow-inner lg:h-12 lg:w-12"
+                  className="h-10 w-10 rounded-lg lg:h-11 lg:w-11"
                 />
-                <span className="font-display text-2xl font-bold tracking-tighter text-neutral-900 lg:text-3xl">
+                <span className="font-display text-2xl font-bold tracking-tighter text-ink lg:text-3xl">
                   Spllit
                 </span>
               </Link>
-
-              <div className="flex flex-wrap gap-x-12 gap-y-8 sm:gap-x-16">
-                {COLUMNS.map((column) => (
-                  <div key={column.title}>
-                    <p className="text-sm font-bold uppercase tracking-widest text-neutral-900">
-                      {column.title}
-                    </p>
-                    <ul className="mt-4 space-y-2.5">
-                      {column.links.map((link) => (
-                        <li key={link.href}>
-                          <Link
-                            href={link.href}
-                            className="text-sm font-medium text-neutral-500 transition-colors duration-300 hover:text-brand"
-                          >
-                            {link.label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center justify-between gap-5 border-t border-neutral-100 bg-white px-6 py-5 sm:flex-row sm:px-8 lg:px-10">
-              <p className="text-sm font-medium text-neutral-500">
-                © {new Date().getFullYear()} Spllit. All rights reserved.
+              <p className="mt-4 max-w-[34ch] text-[14px] leading-relaxed text-ink-muted">
+                Campus rides, group rides and events on one live map — split down
+                the middle before anyone gets out of the car.
               </p>
-              <div className="flex gap-3">
-                {SOCIALS.map(({ label, href, Icon }) => (
-                  <a
-                    key={label}
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={label}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-100 text-neutral-500 transition-all duration-300 hover:border-brand hover:bg-brand hover:text-brand-fg"
-                  >
-                    <Icon className="h-5 w-5" />
-                  </a>
-                ))}
-              </div>
             </div>
-          </motion.footer>
-        </div>
 
-        <motion.div
-          aria-hidden
-          style={{ y: vehicleY }}
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-full"
-        >
-          {/* Scaled per breakpoint rather than sized: the artwork is a wide
-              crop, so on narrow viewports object-contain would shrink it to a
-              sliver across the bottom of the section. */}
-          <Image
-            src="/footer/footer-vehicle.webp"
-            alt=""
-            fill
-            sizes="100vw"
-            className="origin-bottom scale-[1.5] object-contain object-bottom sm:scale-110 md:scale-[2.0] lg:scale-105"
-          />
-        </motion.div>
-      </section>
+            <div className="flex flex-wrap gap-x-12 gap-y-8 sm:gap-x-16">
+              {COLUMNS.map((column) => (
+                <div key={column.title}>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink">
+                    {column.title}
+                  </p>
+                  {/* Padding on the link rather than gap between rows: these
+                      were 17px tall, which is a fine click target and a poor
+                      thumb target. The row pitch is unchanged — the space just
+                      moved inside the tappable area. */}
+                  <ul className="mt-4 space-y-0.5 sm:space-y-2">
+                    {column.links.map((link) => (
+                      <li key={link.href}>
+                        <Link
+                          href={link.href}
+                          className="block py-3 text-sm font-medium text-ink-muted transition-colors duration-snap hover:text-brand sm:py-1"
+                        >
+                          {link.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center justify-between gap-5 border-t border-line py-6 sm:flex-row">
+            <p className="text-sm text-ink-subtle">
+              © {new Date().getFullYear()} Spllit. All rights reserved.
+            </p>
+            <div className="flex gap-3">
+              {SOCIALS.map(({ label, href, Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink-muted transition-all duration-snap hover:border-brand hover:bg-brand hover:text-brand-fg"
+                >
+                  <Icon className="h-[18px] w-[18px]" />
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </footer>
     </>
   );
 }

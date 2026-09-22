@@ -6,6 +6,19 @@ const nextConfig = {
   // doesn't walk up and pick the wrong one.
   outputFileTracingRoot: import.meta.dirname,
   images: {
+    /**
+     * AVIF first, WebP as the fallback. The artwork on the landing page is flat
+     * illustration, which is exactly what AVIF compresses best.
+     *
+     * The cache TTL is the important one: without it the optimiser re-derives
+     * every image on a short cycle, so the same picture is rebuilt on the server
+     * again and again for no benefit — these files only change when somebody
+     * replaces them by hand. NOTE the trade-off: replacing an image while
+     * keeping its filename will keep serving the old one until this expires, so
+     * either change the filename or clear the image cache when you swap art.
+     */
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' }, // Google profile photos
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },

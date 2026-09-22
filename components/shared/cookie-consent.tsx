@@ -101,7 +101,7 @@ export function CookieConsent() {
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="ml-auto text-[12.5px] font-medium text-ink-muted underline underline-offset-2 hover:text-ink"
+              className="-my-2 ml-auto px-1 py-2 text-[12.5px] font-medium text-ink-muted underline underline-offset-2 hover:text-ink"
             >
               Customise
             </button>

@@ -58,7 +58,22 @@ export function LiveBackdrop() {
       {/* Legibility is handled by the page-level top fade, which also covers
           the nav. A second scrim here would grey the map out entirely. Only the
           bottom edge is softened so the section blends into what follows. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-canvas to-transparent" />
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[220px] sm:h-[280px]"
+        style={{
+          /**
+           * Eased, not linear. A two-stop canvas-to-transparent ramp
+           * spends its whole length visibly greying the map and still lands
+           * on a readable line where the section ends — the map looked cut
+           * off rather than dissolved. These stops hold near-transparent
+           * through the top two thirds, so the map stays itself for longer,
+           * then close on solid canvas well before the edge so there is no
+           * boundary left to see.
+           */
+          background:
+            'linear-gradient(0deg, var(--canvas) 0%, var(--canvas) 7%, color-mix(in srgb, var(--canvas) 84%, transparent) 21%, color-mix(in srgb, var(--canvas) 54%, transparent) 43%, color-mix(in srgb, var(--canvas) 24%, transparent) 66%, color-mix(in srgb, var(--canvas) 7%, transparent) 85%, transparent 100%)',
+        }}
+      />
     </div>
   );
 }

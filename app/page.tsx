@@ -1,11 +1,15 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 import { LandingNav } from '@/components/landing/landing-nav';
 import { Hero } from '@/components/landing/hero';
 import { LiveBackdrop } from '@/components/landing/live-backdrop';
+import { WhySpllit } from '@/components/landing/why-spllit';
 import { Features } from '@/components/landing/features';
+import { Backers } from '@/components/landing/backers';
 import { ParallaxFooter } from '@/components/landing/parallax-footer';
-import PhoneMockupBasic from '@/components/ui/phone-mockups-1';
+import { WhereWeAre } from '@/components/landing/where-we-are';
+import { blurProps } from '@/lib/image-blur';
 
 /**
  * Landing page. Does not use AppShell — it has its own nav and a full-bleed
@@ -39,46 +43,80 @@ export default function LandingPage() {
       </section>
 
       <main>
+        {/* Straight out of the map fade: the case for the product, before the
+            tour of it. */}
+        <WhySpllit />
+
         <Features />
 
-        {/* App showcase. Two columns from lg so the phones and the copy share
-            the fold; stacked below that, with the copy first — a phone
-            carousel above the sentence explaining it reads as decoration. */}
-        <section className="border-t border-line bg-surface-sunken">
-          <div className="mx-auto grid max-w-6xl items-center gap-8 px-5 py-10 sm:px-6 sm:py-14 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-20">
-            <div className="text-center lg:text-left">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-subtle">
-                In your pocket
-              </p>
-              <h2 className="mt-4 font-sans text-[clamp(1.6rem,4vw,2.5rem)] font-medium leading-tight tracking-[-0.04em] text-ink">
-                Your campus, live on one map.
-              </h2>
-              <p className="mx-auto mt-4 max-w-md font-sans text-[16px] leading-relaxed text-ink-muted lg:mx-0">
-                Rides, group rides and events from people who go where you go —
-                verified by campus email, updated as they move.
-              </p>
-            </div>
+        {/* Where the product actually is. Replaces a generic "in your pocket"
+            phone shot: this one says something only Spllit can say. */}
+        <WhereWeAre />
 
-            <div className="min-w-0">
-              <PhoneMockupBasic />
-            </div>
+        <Backers />
+
+        {/* Closing call to action.
+
+            The map texture is a callback to the live map the page opened on —
+            the copy says "see the map light up", so the page ends on a ghost of
+            the thing it started with. Multiply blend means only the streets and
+            parks darken the canvas; it never lightens the section, which is what
+            a plain opacity layer over near-white artwork would have done. */}
+        <section className="relative overflow-hidden border-t border-line">
+          <div aria-hidden className="pointer-events-none absolute inset-0 dark:hidden">
+            <Image
+              src="/product/map-texture.jpg"
+              alt=""
+              fill
+              sizes="100vw"
+              {...blurProps('/product/map-texture.jpg')}
+              className="object-cover opacity-80 mix-blend-multiply"
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(180deg, var(--canvas) 0%, transparent 28%, transparent 72%, var(--canvas) 100%)',
+              }}
+            />
           </div>
-        </section>
 
-        <section className="border-t border-line">
-          <div className="mx-auto max-w-6xl px-5 py-12 text-center sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-            <h2 className="mx-auto max-w-2xl font-sans text-[clamp(1.75rem,4vw,2.75rem)] font-medium leading-tight tracking-[-0.04em] text-ink">
-              Everyone near you is already going somewhere.
-            </h2>
-            <p className="mx-auto mt-4 max-w-md font-sans text-[17px] leading-relaxed text-ink-muted">
-              Join with your campus email and see the map light up.
-            </p>
-            <Link
-              href="/auth"
-              className="mt-9 inline-block rounded-full bg-ink px-7 py-4 font-sans text-[15px] font-medium uppercase tracking-[0.04em] text-canvas transition-all duration-snap hover:opacity-85 active:scale-95"
-            >
-              Get started — it&apos;s free
-            </Link>
+          <div className="relative mx-auto grid max-w-6xl items-center gap-8 px-5 py-14 sm:gap-10 sm:px-6 sm:py-18 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:px-8 lg:py-24">
+            {/* Picture first on a phone so the section opens on a face rather
+                than on another heading; alongside the copy from lg. */}
+            <div className="order-2 text-center lg:order-1 lg:text-left">
+              <h2 className="mx-auto max-w-2xl font-sans text-[clamp(1.75rem,4vw,2.75rem)] font-medium leading-tight tracking-[-0.04em] text-ink lg:mx-0">
+                Everyone near you is already going somewhere.
+              </h2>
+              <p className="mx-auto mt-4 max-w-md font-sans text-[17px] leading-relaxed text-ink-muted lg:mx-0">
+                Join with your campus email and see the map light up.
+              </p>
+              <Link
+                href="/auth"
+                className="mt-8 inline-block rounded-full bg-ink px-7 py-4 font-sans text-[15px] font-medium uppercase tracking-[0.04em] text-canvas transition-all duration-snap hover:opacity-85 active:scale-95 sm:mt-9"
+              >
+                Get started — it&apos;s free
+              </Link>
+            </div>
+
+            <div className="order-1 lg:order-2">
+              <Image
+                src="/editorial/more-friends-lower-cost.png"
+                alt="Three friends waving, above a speech bubble reading: more friends, lower cost"
+                width={720}
+                height={806}
+                sizes="(min-width: 1024px) 420px, 62vw"
+                {...blurProps('/editorial/more-friends-lower-cost.png')}
+                className="mx-auto h-auto w-[62%] max-w-[420px] lg:w-full"
+                /* The artwork is cropped through the hoodie, so an unmasked
+                   edge reads as a photo with its bottom sliced off rather
+                   than a cut-out. Dissolving the last stretch hides the cut. */
+                style={{
+                  maskImage: 'linear-gradient(to bottom, #000 84%, transparent 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, #000 84%, transparent 100%)',
+                }}
+              />
+            </div>
           </div>
         </section>
       </main>

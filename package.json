@@ -2,7 +2,7 @@
   "name": "spllit-web",
   "private": true,
   "version": "1.0.0",
-  "description": "Spllit \u2014 location-based community platform. Web app.",
+  "description": "Spllit — location-based community platform. Web app.",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "next build",
@@ -35,6 +35,8 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.3",
     "@opennextjs/cloudflare": "1.20.2",
     "@types/mapbox-gl": "^3.4.0",
     "@types/node": "^22.10.2",

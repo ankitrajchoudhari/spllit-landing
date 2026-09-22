@@ -1,7 +1,4 @@
-'use client';
-
-import { motion } from 'motion/react';
-import { Quote } from 'lucide-react';
+import Image from 'next/image';
 
 import { cn } from '@/lib/utils';
 
@@ -10,6 +7,12 @@ import { cn } from '@/lib/utils';
  * students. Replace every entry with an attributed quote you actually have
  * permission to use before launch — invented testimonials on a live marketing
  * page are a straightforward misrepresentation.
+ *
+ * The avatars are deliberately illustrated rather than photographic, for the
+ * same reason: a stock headshot next to an invented quote reads as a real
+ * person who said a thing they never said. They are generated from the name as
+ * a seed by scripts/generate-avatars.mjs and served as static SVGs, so nothing
+ * is fetched from a third party at render time.
  */
 const TESTIMONIALS = [
   {
@@ -17,64 +20,81 @@ const TESTIMONIALS = [
       'Four of us were booking separate cabs to the airport in the same hour. Now we just split one.',
     name: 'Meera K.',
     detail: 'IIT Madras',
-    initials: 'MK',
+    avatar: '/avatars/meera-k.svg',
   },
   {
     quote:
       'The map is the part that clicked for me. You can see who is actually heading your way instead of guessing in a group chat.',
     name: 'Arjun R.',
     detail: 'VIT Chennai',
-    initials: 'AR',
+    avatar: '/avatars/arjun-r.svg',
   },
   {
     quote:
       'Campus email verification means it is never a stranger. That is the only reason I use it at night.',
     name: 'Divya S.',
     detail: 'Anna University',
-    initials: 'DS',
+    avatar: '/avatars/divya-s.svg',
   },
 ];
 
 export function Testimonials({ className }: { className?: string }) {
   return (
-    <div className={cn('mx-auto w-full max-w-6xl px-5 lg:px-8', className)}>
-      <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-subtle">
+    <div className={cn('w-full', className)}>
+      <p className="px-5 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-subtle lg:px-8">
         From campus
       </p>
 
-      <ul className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5">
-        {TESTIMONIALS.map((entry, index) => (
-          <motion.li
+      {/* A rail on a phone, a grid from md. Three stacked cards were six hundred
+          pixels of scrolling for three sentences. */}
+      <ul
+        className={cn(
+          'no-scrollbar mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-1 sm:mt-8',
+          'md:mx-auto md:max-w-6xl md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-6 md:pb-0 md:snap-none lg:px-8',
+        )}
+      >
+        {TESTIMONIALS.map((entry) => (
+          <li
             key={entry.name}
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.5, ease: 'easeOut', delay: index * 0.08 }}
             className={cn(
-              'flex flex-col rounded-2xl border border-line bg-surface p-4 shadow-soft sm:p-5',
-              // The third card is the odd one out in a 2-column layout; letting
-              // it span both keeps the grid from ending on a ragged half-row.
-              'sm:last:col-span-2 lg:last:col-span-1',
+              'relative flex w-[84%] shrink-0 snap-start flex-col overflow-hidden rounded-2xl',
+              'border border-line bg-surface p-5 shadow-soft sm:w-[62%] sm:p-6 md:w-auto md:shrink',
             )}
           >
-            <Quote className="h-4 w-4 shrink-0 text-brand" aria-hidden />
-            <p className="mt-3 flex-1 text-[14px] leading-relaxed text-ink">
+            {/* Watermark, set in the dead space to the right of the name so it
+                is texture behind the card rather than a second thing to read.
+                It sat at the top corner first and the card clipped it into a
+                grey wedge that read as a rendering fault. */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute bottom-1 right-4 select-none font-display text-[76px] leading-[0.62] text-line-strong"
+            >
+              &rdquo;
+            </span>
+
+            <p className="relative flex-1 text-[14.5px] leading-relaxed text-ink sm:text-[15px]">
               {entry.quote}
             </p>
-            <div className="mt-5 flex items-center gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-muted text-[11px] font-semibold text-brand">
-                {entry.initials}
-              </span>
+
+            <div className="relative mt-6 flex items-center gap-3 border-t border-line pt-4">
+              <Image
+                src={entry.avatar}
+                alt=""
+                width={96}
+                height={96}
+                unoptimized
+                className="h-11 w-11 shrink-0 rounded-full ring-1 ring-line"
+              />
               <span className="min-w-0">
-                <span className="block truncate text-[13px] font-medium text-ink">
+                <span className="block truncate text-[14px] font-semibold text-ink">
                   {entry.name}
                 </span>
-                <span className="block truncate text-[12px] text-ink-muted">
+                <span className="block truncate text-[12.5px] text-ink-muted">
                   {entry.detail}
                 </span>
               </span>
             </div>
-          </motion.li>
+          </li>
         ))}
       </ul>
     </div>
