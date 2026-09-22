@@ -21,6 +21,13 @@ import * as audit from '../services/auditLog.js';
 import { notify } from '../services/notifications.js';
 import { getBounded, invalidateSettingsCache } from '../services/platformSettings.js';
 import { datasetFor, explore, publicSchema } from '../services/explorer.js';
+import {
+  CAREERS_SETTING_KEY,
+  careersContentSchema,
+  findDuplicateRoleIds,
+  readCareersContent,
+  writeCareersContent,
+} from '../services/careers.js';
 
 /**
  * Admin console — settings, broadcasts and exports.
@@ -35,6 +42,83 @@ import { datasetFor, explore, publicSchema } from '../services/explorer.js';
 const router = Router();
 
 router.use(identify, requireConsoleAdmin);
+
+// ---------------------------------------------------------------------------
+// Careers page content
+//
+// Lives here rather than in its own router because it is a platform setting
+// like any other — one JSON blob the public site reads — and it is gated on the
+// same settings.view / settings.edit permissions.
+// ---------------------------------------------------------------------------
+
+/** GET /careers — current content, including drafts, for the editor. */
+router.get(
+  '/careers',
+  requirePermission('settings.view'),
+  async (_req: AdminRequest, res: Response) => {
+    try {
+      const content = await readCareersContent();
+      // Null is a normal first-run answer, not an error; the console opens an
+      // empty editor rather than showing a failure the first time it is used.
+      return ok(res, { content, published: content !== null });
+    } catch (error) {
+      console.error('[console/careers:get]', error);
+      return fail(res, 500, 'Failed to load careers content');
+    }
+  }
+);
+
+/** PUT /careers — replace the whole document. */
+router.put(
+  '/careers',
+  requirePermission('settings.edit'),
+  async (req: AdminRequest, res: Response) => {
+    const admin = req.admin!;
+    try {
+      const parsed = careersContentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const first = parsed.error.issues[0];
+        return fail(
+          res,
+          400,
+          first ? `${first.path.join('.')}: ${first.message}` : 'Invalid careers content'
+        );
+      }
+
+      const duplicates = findDuplicateRoleIds(parsed.data.roles);
+      if (duplicates.length > 0) {
+        // Ids are anchors and React keys on the public page, so a duplicate is
+        // a broken link rather than a cosmetic problem.
+        return fail(res, 400, `Duplicate role ids: ${duplicates.join(', ')}`);
+      }
+
+      const before = await readCareersContent();
+      const saved = await writeCareersContent(parsed.data, admin.userId);
+      invalidateSettingsCache();
+
+      await audit.record(
+        admin,
+        {
+          action: 'settings.update',
+          targetType: 'setting',
+          targetId: CAREERS_SETTING_KEY,
+          targetLabel: 'Careers page content',
+          before: before ? { roles: before.roles.length } : null,
+          after: {
+            roles: saved.roles.length,
+            open: saved.roles.filter((r) => !r.draft).length
+          }
+        },
+        req
+      );
+
+      return ok(res, { content: saved, published: true });
+    } catch (error) {
+      console.error('[console/careers:put]', error);
+      return fail(res, 500, 'Failed to save careers content');
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Platform settings

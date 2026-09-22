@@ -8,10 +8,16 @@ import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { SignInDrawer } from '@/components/ui/family-signin-drawer';
 
+/**
+ * The first three are anchors on this page; Careers is a real route. Both kinds
+ * render as the same control, and an anchor works from /careers too because it
+ * is written absolute rather than as a bare hash.
+ */
 const LINKS = [
-  { href: '#rides', label: 'Rides' },
-  { href: '#squads', label: 'Group Rides' },
-  { href: '#events', label: 'Events' },
+  { href: '/#rides', label: 'Rides' },
+  { href: '/#squads', label: 'Group Rides' },
+  { href: '/#events', label: 'Events' },
+  { href: '/careers', label: 'Careers' },
 ];
 
 /**
@@ -34,7 +40,7 @@ export function LandingNav() {
 
       {/* Absolutely centred so the links stay put regardless of how wide the
           wordmark or the action group become. */}
-      <div className="absolute left-1/2 hidden -translate-x-1/2 gap-8 md:flex">
+      <div className="absolute left-1/2 hidden -translate-x-1/2 gap-6 md:flex lg:gap-8">
         {LINKS.map((link) => (
           <a key={link.href} href={link.href} className="nav-control -my-2.5 py-2.5 text-ink">
             {link.label}

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 
 import prisma from '../utils/prisma.js';
 import { ok, fail, boundingBox, parseCoords } from '../utils/respond.js';
+import { publicView, readCareersContent } from '../services/careers.js';
 
 const router = Router();
 
@@ -107,6 +108,28 @@ router.get('/map-preview', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[public/map-preview]', error);
     return fail(res, 500, 'Failed to load preview');
+  }
+});
+
+/**
+ * Careers page content.
+ *
+ * Anonymous by construction: this is marketing copy and a list of open roles,
+ * nothing about a user. Drafts are stripped here rather than on the client, so
+ * an unpublished role never crosses the wire.
+ *
+ * A 404 is a normal answer. The setting does not exist until somebody saves it
+ * in the console, and the site falls back to its built-in copy — so an empty
+ * store must not read as a server error.
+ */
+router.get('/careers', async (_req: Request, res: Response) => {
+  try {
+    const content = await readCareersContent();
+    if (!content) return fail(res, 404, 'Careers content has not been published yet');
+    return ok(res, publicView(content));
+  } catch (error) {
+    console.error('[public/careers]', error);
+    return fail(res, 500, 'Failed to load careers content');
   }
 });
 

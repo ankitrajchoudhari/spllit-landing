@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import {
   BarChart3,
+  Briefcase,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -57,6 +58,7 @@ const NAV: NavItem[] = [
   { href: '/content', label: 'Content', icon: Layers, permission: 'content.view' },
   { href: '/messages', label: 'Messages', icon: Send, permission: 'content.view' },
   { href: '/insights', label: 'Insights', icon: BarChart3, permission: 'analytics.view' },
+  { href: '/careers', label: 'Careers', icon: Briefcase, permission: 'settings.view' },
   { href: '/settings', label: 'Settings', icon: SlidersHorizontal, permission: 'settings.view' },
 ];
 
