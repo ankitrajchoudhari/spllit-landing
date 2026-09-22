@@ -89,6 +89,10 @@ const SECRETS = {
   // returns 503 and sends nothing, so an install that has not set one up
   // cannot be used as a mail relay. See routes/publicData.ts.
   CAREERS_WEBHOOK_SECRET: 'spllit-careers-webhook-secret',
+  // Shared with the landing site so a console save can drop its cached
+  // /careers pages at once. Not in REQUIRED: without it the page is still
+  // correct within its own 30s refresh, just not instant.
+  LANDING_REVALIDATE_SECRET: 'spllit-landing-revalidate-secret',
 };
 
 /** Without these the container starts and then fails every real request. */

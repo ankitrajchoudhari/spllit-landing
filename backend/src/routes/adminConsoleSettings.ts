@@ -30,6 +30,39 @@ import {
 } from '../services/careers.js';
 
 /**
+ * Ask the landing site to drop its cached careers pages.
+ *
+ * Fire and forget, deliberately. The save has already succeeded by the time
+ * this runs, and a landing site that is slow, redeploying or unreachable must
+ * not turn a successful save into a failed request. Without it the page is
+ * still correct within its own thirty-second refresh — this only removes the
+ * wait, so failing quietly costs freshness and nothing else.
+ */
+async function revalidateLandingCareers(): Promise<void> {
+  const secret = process.env.LANDING_REVALIDATE_SECRET?.trim();
+  if (!secret) return;
+
+  const base = (process.env.FRONTEND_URL?.trim() || 'https://spllit.app').replace(/\/$/, '');
+
+  try {
+    const res = await fetch(`${base}/api/revalidate`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-spllit-revalidate-secret': secret
+      },
+      body: JSON.stringify({ reason: 'careers.content' }),
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) {
+      console.warn('[careers] landing revalidation refused', res.status);
+    }
+  } catch (error) {
+    console.warn('[careers] landing revalidation failed', error);
+  }
+}
+
+/**
  * Admin console — settings, broadcasts and exports.
  *
  * The three surfaces that change something outside the console itself: a
@@ -95,6 +128,9 @@ router.put(
       const before = await readCareersContent();
       const saved = await writeCareersContent(parsed.data, admin.userId);
       invalidateSettingsCache();
+
+      // Not awaited: the save is done, and the site is correct either way.
+      void revalidateLandingCareers();
 
       await audit.record(
         admin,
