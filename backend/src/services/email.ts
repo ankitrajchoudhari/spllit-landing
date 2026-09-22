@@ -41,6 +41,17 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 /** Careers correspondence is routed away from the general support queue. */
 const CAREERS_EMAIL = 'career@spllit.app';
 
+/**
+ * Careers mail is sent from its own verified domain.
+ *
+ * career.spllit.app is a separate sending domain in Resend from the one the
+ * rest of the product uses. Reputation is per sending domain, so an
+ * application confirmation cannot be dragged down by anything a notification
+ * does, and vice versa. The reply-to is still career@spllit.app — the group
+ * that actually receives mail; this subdomain only sends.
+ */
+const CAREERS_FROM = process.env.CAREERS_EMAIL_FROM?.trim() || 'Spllit Careers <careers@career.spllit.app>';
+
 /** Absent key disables sending entirely, quietly. */
 function config() {
   const apiKey = process.env.RESEND_API_KEY?.trim();
@@ -117,6 +128,13 @@ interface SendInput {
    * support queue buries it among people who cannot act on it.
    */
   replyTo?: string;
+  /**
+   * Overrides the global sender for this one message.
+   *
+   * Same reasoning as replyTo, and the same warning: it must be a domain
+   * verified in Resend, or the send is rejected outright.
+   */
+  from?: string;
   /**
    * Stable per (event, recipient) so a retry cannot send twice. Resend honours
    * this for 24h, which is longer than any retry window here.
@@ -393,7 +411,7 @@ async function send(input: SendInput): Promise<boolean> {
         'Idempotency-Key': input.idempotencyKey,
       },
       body: JSON.stringify({
-        from: cfg.from,
+        from: input.from?.trim() || cfg.from,
         to: [input.to],
         reply_to: input.replyTo?.trim() || cfg.replyTo,
         subject: input.subject,
@@ -1004,7 +1022,9 @@ export async function emailApplicationReceived(params: {
       `send it. It gets read with the rest of your application.`,
     actionLabel: 'See what we are building',
     actionUrl: `${cfg.appUrl}/careers`,
-    // A reply to this is about a job, not a support issue.
+    // Sent from the careers domain; a reply to it is about a job, not a
+    // support issue, so it goes to the group rather than the support queue.
+    from: CAREERS_FROM,
     replyTo: CAREERS_EMAIL,
     idempotencyKey: `careers-application:${params.submissionId}`,
   });

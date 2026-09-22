@@ -2,7 +2,15 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, ChevronRight, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -210,6 +218,66 @@ function Disclosure({
       </button>
       {open ? <div className="border-t border-line p-5">{children}</div> : null}
     </Card>
+  );
+}
+
+const APPLICATION_ENDPOINT = 'https://api.spllit.app/api/public/careers/application';
+
+/**
+ * The exact script to paste into a Google Form, with one role filled in.
+ *
+ * ROLE_ID is substituted here rather than left as a placeholder, because a
+ * wrong one fails as a 404 from the endpoint and no email — a silence nobody
+ * notices until an applicant says they never heard back. The secret stays a
+ * placeholder: it is not sent to this console, and it should not be.
+ */
+function appsScript(roleId: string): string {
+  return `const ENDPOINT = '${APPLICATION_ENDPOINT}';
+const SECRET   = 'PASTE_THE_SECRET_HERE';
+const ROLE_ID  = '${roleId}';
+
+// Must match the question titles on your form, word for word.
+const EMAIL_QUESTION = 'Email';
+const NAME_QUESTION  = 'Full name';
+
+function onSubmit(e) {
+  const answers = {};
+  e.response.getItemResponses().forEach(r => {
+    answers[r.getItem().getTitle().trim()] = r.getResponse();
+  });
+
+  const email = answers[EMAIL_QUESTION] || e.response.getRespondentEmail();
+  if (!email) return;                       // nothing to send to
+
+  UrlFetchApp.fetch(ENDPOINT, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'x-spllit-careers-secret': SECRET },
+    muteHttpExceptions: true,
+    payload: JSON.stringify({
+      email: email,
+      name: answers[NAME_QUESTION] || '',
+      roleId: ROLE_ID,
+      submissionId: e.response.getId()      // stops a retry sending twice
+    })
+  });
+}
+
+// Run this once, by hand, to attach onSubmit to the form.
+function install() {
+  ScriptApp.newTrigger('onSubmit')
+    .forForm(FormApp.getActiveForm())
+    .onFormSubmit()
+    .create();
+}`;
+}
+
+/** Marks a value that has to be changed before the script will work. */
+function Swap({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-[3px] bg-warning-muted px-1 font-semibold text-warning ring-1 ring-warning/40">
+      {children}
+    </span>
   );
 }
 
@@ -905,89 +973,116 @@ export default function CareersPage() {
         description="One-time setup per form, so applicants hear back from Spllit."
       >
         <p className="text-sm text-ink-muted">
-          Google hosts the form, so submitting it tells Spllit nothing on its own. Paste the script
-          below into the form once and applicants get a confirmation from us. Without it the
-          application still arrives in the form responses — the applicant just hears nothing.
+          Google hosts the form, so submitting it tells Spllit nothing on its own. Pasting this
+          script into the form is what sends the applicant a confirmation. Without it the
+          application still lands in the form responses — the applicant just hears nothing back.
         </p>
+
+        {/* Named before the script appears, so the highlighted values already
+            mean something by the time they are on screen. */}
+        <div className="mt-4 rounded-md border border-warning bg-warning-muted p-3">
+          <p className="text-xs font-semibold text-ink">Replace the highlighted values</p>
+          <ol className="mt-2 space-y-2 text-xs text-ink-muted">
+            <li>
+              <Swap>PASTE_THE_SECRET_HERE</Swap> — the value of{' '}
+              <code className="font-mono">CAREERS_WEBHOOK_SECRET</code>, which is in{' '}
+              <code className="font-mono">backend/.env</code>. Keep the quotes around it.
+            </li>
+            <li>
+              <Swap>Email</Swap> and <Swap>Full name</Swap> — the titles of those two questions on
+              your form, word for word. If yours is called &ldquo;Your email address&rdquo;, then
+              that is what goes here.
+            </li>
+          </ol>
+          <p className="mt-2.5 text-[11px] text-ink-subtle">
+            ROLE_ID needs no editing — use the copy button next to a role below and it comes with
+            the right one already in it.
+          </p>
+        </div>
+
+        <pre className="mt-4 overflow-x-auto rounded-md border border-line bg-surface-sunken p-4 text-[12px] leading-relaxed text-ink-muted">
+{`const ENDPOINT = '`}
+          <span className="text-ink">{APPLICATION_ENDPOINT}</span>
+{`';
+const SECRET   = '`}
+          <Swap>PASTE_THE_SECRET_HERE</Swap>
+{`';
+const ROLE_ID  = '`}
+          <span className="text-brand">campus-growth-intern</span>
+{`';   // already filled in
+
+// Must match the question titles on your form, word for word.
+const EMAIL_QUESTION = '`}
+          <Swap>Email</Swap>
+{`';
+const NAME_QUESTION  = '`}
+          <Swap>Full name</Swap>
+{`';
+
+function onSubmit(e) { … }   // the rest sends the submission to Spllit
+function install()  { … }   // run this one by hand, once`}
+        </pre>
 
         <ol className="mt-4 space-y-2 text-sm text-ink-muted">
           <li>
-            1. Open the Google Form, then <strong className="text-ink">⋮ → Apps Script</strong>.
+            1. Copy the script for the role, using the button beside it below.
           </li>
           <li>
-            2. Replace the contents with the script below, putting the Link id of the role in{' '}
-            <code className="font-mono text-xs text-ink">ROLE_ID</code>.
+            2. Open that Google Form, then <strong className="text-ink">⋮ → Apps Script</strong>.
           </li>
           <li>
-            3. Run <strong className="text-ink">install()</strong> once and accept the permission
-            prompt. That is what attaches it to form submissions.
+            3. Delete whatever is in the editor, paste the script, and replace the two highlighted
+            values. Save.
+          </li>
+          <li>
+            4. Run <strong className="text-ink">install()</strong> once and accept the permission
+            prompt. That is the step that attaches it to submissions — without it nothing runs.
+          </li>
+          <li>
+            5. Submit the form yourself once. The confirmation should arrive within a minute.
           </li>
         </ol>
 
-        <pre className="mt-4 overflow-x-auto rounded-md border border-line bg-surface-sunken p-4 text-[12px] leading-relaxed text-ink-muted">
-{`const ENDPOINT = 'https://api.spllit.app/api/public/careers/application';
-const SECRET   = '<CAREERS_WEBHOOK_SECRET from the backend env>';
-const ROLE_ID  = 'founding-frontend-engineer';   // the Link id of the role
-
-// Which questions hold the email and the name. Match the wording of your
-// form; the email can also be the built-in email collection of the form.
-const EMAIL_QUESTION = 'Email';
-const NAME_QUESTION  = 'Full name';
-
-function onSubmit(e) {
-  const answers = {};
-  e.response.getItemResponses().forEach(r => {
-    answers[r.getItem().getTitle().trim()] = r.getResponse();
-  });
-
-  const email = answers[EMAIL_QUESTION] || e.response.getRespondentEmail();
-  if (!email) return;                       // nothing to send to
-
-  UrlFetchApp.fetch(ENDPOINT, {
-    method: 'post',
-    contentType: 'application/json',
-    headers: { 'x-spllit-careers-secret': SECRET },
-    muteHttpExceptions: true,
-    payload: JSON.stringify({
-      email: email,
-      name: answers[NAME_QUESTION] || '',
-      roleId: ROLE_ID,
-      submissionId: e.response.getId()      // stops a retry sending twice
-    })
-  });
-}
-
-// Run this once, by hand, to attach onSubmit to the form.
-function install() {
-  ScriptApp.newTrigger('onSubmit')
-    .forForm(FormApp.getActiveForm())
-    .onFormSubmit()
-    .create();
-}`}
-        </pre>
-
-        {/* The one value that differs per form, listed so it can be copied
-           rather than remembered. A wrong ROLE_ID fails as a 404 from the
-           endpoint and no email, which is a slow thing to notice. */}
+        {/* One button per role, because the only thing that differs between
+            forms is the id, and typing it by hand is the mistake that fails
+            silently. */}
         {content.roles.filter((r) => !r.draft).length > 0 ? (
           <div className="mt-4 rounded-md border border-line bg-surface-sunken p-3">
-            <p className="text-xs font-semibold text-ink-muted">ROLE_ID for each role on the site</p>
-            <ul className="mt-2 space-y-1.5">
+            <p className="text-xs font-semibold text-ink-muted">Script for each role on the site</p>
+            <ul className="mt-2 space-y-2">
               {content.roles
                 .filter((r) => !r.draft)
                 .map((r, i) => (
-                  <li key={i} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs">
-                    <span className="text-ink-muted">{r.title || 'Untitled role'}</span>
-                    <code className="font-mono text-ink">{r.id}</code>
+                  <li key={i} className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0 text-xs">
+                      <span className="text-ink">{r.title || 'Untitled role'}</span>
+                      <span className="ml-2 font-mono text-[11px] text-ink-subtle">{r.id}</span>
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard
+                          .writeText(appsScript(r.id))
+                          .then(() => toast.success(`Script copied, with ROLE_ID "${r.id}" filled in.`))
+                          .catch(() => toast.error('Could not reach the clipboard.'));
+                      }}
+                    >
+                      <Copy className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                      Copy script
+                    </Button>
                   </li>
                 ))}
             </ul>
           </div>
-        ) : null}
+        ) : (
+          <p className="mt-4 text-xs text-ink-subtle">
+            Add a role and set it to Open or Closed, and its ready-to-paste script appears here.
+          </p>
+        )}
 
         <dl className="mt-4 grid gap-2 text-[12px] text-ink-subtle sm:grid-cols-[130px_1fr]">
           <dt className="font-medium text-ink-muted">Sent from</dt>
-          <dd className="font-mono">notifications@mail.spllit.app</dd>
+          <dd className="font-mono">careers@career.spllit.app</dd>
           <dt className="font-medium text-ink-muted">Replies go to</dt>
           <dd className="font-mono">career@spllit.app</dd>
           <dt className="font-medium text-ink-muted">Delivery webhook</dt>
@@ -995,10 +1090,9 @@ function install() {
         </dl>
 
         <p className="mt-3 text-[12px] text-ink-subtle">
-          The endpoint refuses anything without the secret, and only sends for a Link id that
-          exists and is shown on the site — so it cannot be used to mail arbitrary people. It
-          answers 503 until <code className="font-mono">CAREERS_WEBHOOK_SECRET</code> is set on
-          the backend.
+          The endpoint refuses anything without the secret, and only sends for a role id that is on
+          the site — so it cannot be used to mail arbitrary people. A wrong ROLE_ID is answered with
+          a 404 and no email, which is why the copy buttons above fill it in.
         </p>
       </Disclosure>
 
