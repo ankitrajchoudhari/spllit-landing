@@ -38,7 +38,7 @@ import {
  * still correct within its own thirty-second refresh — this only removes the
  * wait, so failing quietly costs freshness and nothing else.
  */
-async function revalidateLandingCareers(): Promise<void> {
+async function revalidateLandingCareers(roleIds: string[] = []): Promise<void> {
   const secret = process.env.LANDING_REVALIDATE_SECRET?.trim();
   if (!secret) return;
 
@@ -51,7 +51,9 @@ async function revalidateLandingCareers(): Promise<void> {
         'content-type': 'application/json',
         'x-spllit-revalidate-secret': secret
       },
-      body: JSON.stringify({ reason: 'careers.content' }),
+      // The ids let the site rebuild each apply page too, so the first
+      // visitor after a save is not the one who waits for it.
+      body: JSON.stringify({ reason: 'careers.content', roleIds }),
       signal: AbortSignal.timeout(5000)
     });
     if (!res.ok) {
@@ -130,7 +132,9 @@ router.put(
       invalidateSettingsCache();
 
       // Not awaited: the save is done, and the site is correct either way.
-      void revalidateLandingCareers();
+      void revalidateLandingCareers(
+        saved.roles.filter((role) => !role.draft).map((role) => role.id),
+      );
 
       await audit.record(
         admin,
