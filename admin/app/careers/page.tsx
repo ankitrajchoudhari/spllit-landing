@@ -344,14 +344,6 @@ export default function CareersPage() {
       toast.error(error instanceof ApiError ? error.message : 'Could not publish the changes.'),
   });
 
-  const update = useCallback(
-    (patch: Partial<Content>) => {
-      if (!content) return;
-      setDraft({ ...content, ...patch });
-      setDirty(true);
-    },
-    [content],
-  );
 
   const updateRole = useCallback(
     (index: number, patch: Partial<Role>) => {
@@ -900,82 +892,13 @@ export default function CareersPage() {
         )}
       </Card>
 
-      {/* Written once and rarely changed, so it sits behind a disclosure
-          instead of between an editor and the roles. */}
-      <Disclosure
-        title="Page text"
-        description="The headline, the intro, and what shows when nothing is open."
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Eyebrow">
-            <Input value={content.eyebrow} onChange={(e) => update({ eyebrow: e.target.value })} />
-          </Field>
-          <Field label="Headline">
-            <Input value={content.headline} onChange={(e) => update({ headline: e.target.value })} />
-          </Field>
-        </div>
-        <div className="mt-4">
-          <Field label="Intro paragraph" hint="The paragraph under the headline.">
-            <Textarea value={content.standfirst} onChange={(v) => update({ standfirst: v })} />
-          </Field>
-        </div>
-
-        <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-          What joining now means
-        </p>
-        <p className="mt-1 text-xs text-ink-muted">Three blocks. Leave a title empty to drop one.</p>
-        <div className="mt-3 space-y-3">
-          {content.pitch.map((item, index) => (
-            <div key={index} className="grid gap-3 sm:grid-cols-[1fr_2fr]">
-              <Field label={`Block ${index + 1}`}>
-                <Input
-                  value={item.title}
-                  onChange={(e) => {
-                    const pitch = [...content.pitch];
-                    pitch[index] = { title: e.target.value, body: item.body };
-                    update({ pitch });
-                  }}
-                />
-              </Field>
-              <Field label="Body">
-                <Textarea
-                  rows={2}
-                  value={item.body}
-                  onChange={(v) => {
-                    const pitch = [...content.pitch];
-                    pitch[index] = { title: item.title, body: v };
-                    update({ pitch });
-                  }}
-                />
-              </Field>
-            </div>
-          ))}
-        </div>
-
-        <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-          When nothing is open
-        </p>
-        <p className="mt-1 text-xs text-ink-muted">
-          Shown once every role is closed or hidden.
-        </p>
-        <div className="mt-3 grid gap-4 sm:grid-cols-[1fr_2fr]">
-          <Field label="Title">
-            <Input
-              value={content.emptyState.title}
-              onChange={(e) =>
-                update({ emptyState: { ...content.emptyState, title: e.target.value } })
-              }
-            />
-          </Field>
-          <Field label="Body">
-            <Textarea
-              rows={2}
-              value={content.emptyState.body}
-              onChange={(v) => update({ emptyState: { ...content.emptyState, body: v } })}
-            />
-          </Field>
-        </div>
-      </Disclosure>
+      {/* The page copy is fixed in content/careers.ts on the site. Roles are
+          the only thing here that changes without a deploy, so they are the
+          only thing this page edits. */}
+      <p className="px-1 text-xs text-ink-subtle">
+        The heading and the paragraphs on spllit.app/careers are part of the site itself and are
+        not edited here. This page sets which roles are open.
+      </p>
 
       <Disclosure
         title="Confirmation emails"
@@ -1042,6 +965,25 @@ function install() {
     .create();
 }`}
         </pre>
+
+        {/* The one value that differs per form, listed so it can be copied
+           rather than remembered. A wrong ROLE_ID fails as a 404 from the
+           endpoint and no email, which is a slow thing to notice. */}
+        {content.roles.filter((r) => !r.draft).length > 0 ? (
+          <div className="mt-4 rounded-md border border-line bg-surface-sunken p-3">
+            <p className="text-xs font-semibold text-ink-muted">ROLE_ID for each role on the site</p>
+            <ul className="mt-2 space-y-1.5">
+              {content.roles
+                .filter((r) => !r.draft)
+                .map((r, i) => (
+                  <li key={i} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs">
+                    <span className="text-ink-muted">{r.title || 'Untitled role'}</span>
+                    <code className="font-mono text-ink">{r.id}</code>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ) : null}
 
         <dl className="mt-4 grid gap-2 text-[12px] text-ink-subtle sm:grid-cols-[130px_1fr]">
           <dt className="font-medium text-ink-muted">Sent from</dt>

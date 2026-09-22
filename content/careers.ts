@@ -72,18 +72,23 @@ export interface CareersContent {
 }
 
 /**
- * Fallback content.
+ * The page copy.
  *
- * What renders when the API cannot be reached, and per field whenever the
- * console leaves one blank. The copy is real; `roles` is deliberately empty.
+ * Everything the careers page says other than the roles: the eyebrow, the
+ * headline, the paragraph under it, the three blocks on joining now, and what
+ * shows when nothing is open. It lives here rather than in the console because
+ * it is the positioning of the company — written once, changed deliberately —
+ * not something to retype between meetings. Leaving it editable is how
+ * "Testing" and a row of a's ended up on a live page.
  *
- * It used to hold three examples so the page was not bare on first deploy.
- * That made any failure to reach the API put three fabricated openings on a
- * live page, which is worse than an empty board: an applicant spends real
- * effort on a job that does not exist. Roles come from the console or not
- * at all, and an empty board says so honestly.
+ * The type forbids roles outright. An earlier version of this carried three
+ * example ones so the page was not bare on first deploy, which turned any
+ * failure to reach the API into three fabricated openings on a live site.
+ * Roles come from the console or the board is empty and says so.
  */
-export const CAREERS_FALLBACK: CareersContent = {
+export type CareersCopy = Omit<CareersContent, 'roles'>;
+
+export const CAREERS_COPY: CareersCopy = {
   eyebrow: 'Careers',
   headline: 'Build the thing before it exists.',
   standfirst:
@@ -102,7 +107,6 @@ export const CAREERS_FALLBACK: CareersContent = {
       body: 'Most of what Spllit will be has not been decided. Joining now means being in the room for that, not inheriting it.',
     },
   ],
-  roles: [],
   emptyState: {
     title: 'No open roles right now.',
     body: 'We hire in bursts and it is usually decided quickly. Send us what you would want to work on and we will keep it for the next burst.',

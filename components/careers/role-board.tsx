@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { ArrowUpRight, Check, Clock, MapPin, Users } from 'lucide-react';
 
@@ -149,11 +150,11 @@ function RoleCard({ role, applied }: { role: CareerRole; applied: boolean }) {
               Applications expired
             </span>
           ) : (
-            <a
-              href={role.applyUrl}
-              {...(/^https?:/i.test(role.applyUrl)
-                ? { target: '_blank', rel: 'noopener noreferrer' }
-                : {})}
+            /* Apply goes to a page on Spllit that frames the Google Form,
+               rather than throwing the applicant onto docs.google.com with no
+               sign of whose form it is and no way back. */
+            <Link
+              href={`/careers/${role.id}/apply`}
               onClick={() => markApplied(role.id)}
               aria-label={applied ? `Open the application for ${role.title} again` : `Apply for ${role.title}`}
               className={cn(
@@ -175,7 +176,7 @@ function RoleCard({ role, applied }: { role: CareerRole; applied: boolean }) {
                   <ArrowUpRight className="h-4 w-4" aria-hidden />
                 </>
               )}
-            </a>
+            </Link>
           )}
 
           {!closed && role.closesAt ? (
