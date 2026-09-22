@@ -96,8 +96,12 @@ export async function POST(request: Request) {
   ];
   await Promise.allSettled(
     warm.map((path) =>
+      // A plain request, deliberately. `cache: no-store` marks it as a cache
+      // bypass, so Vercel rendered the page and threw the result away —
+      // measured at 1840ms for the next visitor instead of ~350ms, because
+      // only the backend had been warmed and not the cache. This has to look
+      // like an ordinary visitor for the render to be kept.
       fetch(origin + path, {
-        cache: 'no-store',
         headers: { 'user-agent': 'spllit-revalidate' },
         signal: AbortSignal.timeout(8000),
       }),
