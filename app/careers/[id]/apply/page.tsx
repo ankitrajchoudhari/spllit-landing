@@ -26,6 +26,28 @@ import { SITE } from '@/content/site';
 
 export const revalidate = 30;
 
+/**
+ * Prerender an apply page for every role currently open.
+ *
+ * Without this the route is rendered on demand and never cached at all —
+  * measured on the live site at a steady ~1.0s MISS, against ~0.45s for the
+ * board, which is cached. An applicant lands here straight after pressing
+ * Apply, with a Google iframe still to load, so the second is worth having.
+ *
+ * Roles added after a build still work: dynamicParams stays on by default, so
+ * an unknown id renders on demand and is cached from then on.
+ *
+ * This cannot fail the build. careersService.roles() answers [] when the
+ * backend cannot be reached, and an empty list here means "prerender none",
+ * not "the build is broken".
+ */
+export async function generateStaticParams() {
+  const roles = await careersService.roles();
+  return roles
+    .filter((role) => !role.draft && role.applyUrl.trim().length > 0)
+    .map((role) => ({ id: role.id }));
+}
+
 type Params = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
