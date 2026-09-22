@@ -84,6 +84,11 @@ const SECRETS = {
   // without it and throws nothing either. See docs/EMAIL-SYSTEM.md.
   RESEND_API_KEY: 'spllit-resend-api-key',
   RESEND_WEBHOOK_SECRET: 'spllit-resend-webhook-secret',
+  // Shared secret the Google Form Apps Script presents on
+  // /api/public/careers/application. Not in REQUIRED: without it that route
+  // returns 503 and sends nothing, so an install that has not set one up
+  // cannot be used as a mail relay. See routes/publicData.ts.
+  CAREERS_WEBHOOK_SECRET: 'spllit-careers-webhook-secret',
 };
 
 /** Without these the container starts and then fails every real request. */

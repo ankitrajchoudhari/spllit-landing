@@ -72,15 +72,16 @@ export interface CareersContent {
 }
 
 /**
- * Seeded content.
+ * Fallback content.
  *
- * ⚠️ The roles below are examples so the page is not blank on first deploy.
- * Replace or remove them in the admin console before pointing anyone at this
- * page — a listed role nobody intends to fill wastes an applicant's time.
+ * What renders when the API cannot be reached, and per field whenever the
+ * console leaves one blank. The copy is real; `roles` is deliberately empty.
  *
- * Their apply links are mailto: on purpose. A placeholder form URL would be a
- * dead link on a live page, whereas an email reaches somebody; once real roles
- * are configured in the console with real form links, none of this renders.
+ * It used to hold three examples so the page was not bare on first deploy.
+ * That made any failure to reach the API put three fabricated openings on a
+ * live page, which is worse than an empty board: an applicant spends real
+ * effort on a job that does not exist. Roles come from the console or not
+ * at all, and an empty board says so honestly.
  */
 export const CAREERS_FALLBACK: CareersContent = {
   eyebrow: 'Careers',
@@ -101,59 +102,7 @@ export const CAREERS_FALLBACK: CareersContent = {
       body: 'Most of what Spllit will be has not been decided. Joining now means being in the room for that, not inheriting it.',
     },
   ],
-  roles: [
-    {
-      id: 'founding-frontend-engineer',
-      title: 'Founding Frontend Engineer',
-      team: 'Engineering',
-      location: 'Chennai',
-      type: 'Full-time',
-      summary:
-        'Own the app people actually touch — the live map, the squad room, the flows that turn four strangers into one cab.',
-      responsibilities: [
-        'Build and ship product surfaces end to end in Next.js and TypeScript',
-        'Work directly on the live map and realtime squad experience',
-        'Set the frontend conventions the next five engineers will follow',
-      ],
-      applyUrl: 'mailto:career@spllit.app?subject=Application%3A%20Founding%20Frontend%20Engineer',
-      closesAt: null,
-      status: 'open',
-    },
-    {
-      id: 'product-designer',
-      title: 'Product Designer',
-      team: 'Design',
-      location: 'Remote (India)',
-      type: 'Full-time',
-      summary:
-        'Decide what Spllit feels like. Money between friends is awkward; the design is most of what makes it not awkward.',
-      responsibilities: [
-        'Own flows end to end, from the problem to the shipped screens',
-        'Keep one design language across the app, the console and this site',
-        'Sit with real students using the product and change your mind often',
-      ],
-      applyUrl: 'mailto:career@spllit.app?subject=Application%3A%20Product%20Designer',
-      closesAt: null,
-      status: 'open',
-    },
-    {
-      id: 'campus-growth-intern',
-      title: 'Campus Growth Intern',
-      team: 'Growth',
-      location: 'Jaipur',
-      type: 'Internship',
-      summary:
-        'Get Spllit working on one campus properly, then write down how you did it so the next campus is faster.',
-      responsibilities: [
-        'Run Spllit on your own campus and recruit the first hundred users',
-        'Sit with people while they use it and report what actually broke',
-        'Turn what worked into a playbook the next campus can follow',
-      ],
-      applyUrl: 'mailto:career@spllit.app?subject=Application%3A%20Campus%20Growth%20Intern',
-      closesAt: null,
-      status: 'open',
-    },
-  ],
+  roles: [],
   emptyState: {
     title: 'No open roles right now.',
     body: 'We hire in bursts and it is usually decided quickly. Send us what you would want to work on and we will keep it for the next burst.',

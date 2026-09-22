@@ -23,6 +23,20 @@ function asStringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
 }
 
+/**
+ * Blank is absent, not an intent.
+ *
+ * The console writes every field on every publish, so a box nobody filled in
+ * arrives as "" rather than missing. Rendering that literally is how the live
+ * page lost its eyebrow and its opening paragraph: the setting was published
+ * with them empty, and `asString` only falls back when the value is not a
+ * string at all. Nobody means "show no headline here", so blank falls back.
+ */
+function asFilled(value: unknown, fallback: string): string {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text || fallback;
+}
+
 function parseRole(value: unknown, index: number): CareerRole | null {
   if (!isRecord(value)) return null;
   const title = asString(value.title).trim();
@@ -63,14 +77,14 @@ function parseContent(value: unknown): CareersContent | null {
   const empty = isRecord(value.emptyState) ? value.emptyState : {};
 
   return {
-    eyebrow: asString(value.eyebrow, CAREERS_FALLBACK.eyebrow).trim(),
+    eyebrow: asFilled(value.eyebrow, CAREERS_FALLBACK.eyebrow),
     headline: headline || CAREERS_FALLBACK.headline,
-    standfirst: asString(value.standfirst, CAREERS_FALLBACK.standfirst).trim(),
+    standfirst: asFilled(value.standfirst, CAREERS_FALLBACK.standfirst),
     pitch: pitch.length > 0 ? pitch : CAREERS_FALLBACK.pitch,
     roles,
     emptyState: {
-      title: asString(empty.title, CAREERS_FALLBACK.emptyState.title).trim(),
-      body: asString(empty.body, CAREERS_FALLBACK.emptyState.body).trim(),
+      title: asFilled(empty.title, CAREERS_FALLBACK.emptyState.title),
+      body: asFilled(empty.body, CAREERS_FALLBACK.emptyState.body),
     },
   };
 }
