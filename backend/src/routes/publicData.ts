@@ -3,6 +3,9 @@ import { Router, Request, Response } from 'express';
 import prisma from '../utils/prisma.js';
 import { ok, fail, boundingBox, parseCoords } from '../utils/respond.js';
 import { publicView, readCareersContent } from '../services/careers.js';
+import crypto from 'node:crypto';
+import { z } from 'zod';
+import { emailApplicationReceived } from '../services/email.js';
 
 const router = Router();
 
@@ -130,6 +133,91 @@ router.get('/careers', async (_req: Request, res: Response) => {
   } catch (error) {
     console.error('[public/careers]', error);
     return fail(res, 500, 'Failed to load careers content');
+  }
+});
+
+/**
+ * Confirmation email for a careers application.
+ *
+ * Called by an Apps Script bound to the Google Form's onFormSubmit trigger,
+ * because a form hosted by Google tells this server nothing on its own. It is
+ * on the public router only in the sense of being unauthenticated by a user
+ * session — it is not open. An endpoint that emails an arbitrary address on
+ * request is a spam relay, so:
+ *
+ *  - It does nothing at all unless CAREERS_WEBHOOK_SECRET is set, and returns
+ *    503 rather than pretending to have worked.
+ *  - The secret is compared in constant time, so the comparison cannot be used
+ *    to guess it a byte at a time.
+ *  - The role must exist and be one we published. An attacker who somehow had
+ *    the secret still could not use this to send arbitrary text.
+ *  - The body is fixed. Nothing the caller sends is rendered into the email
+ *    except the applicant's own name, and the role title comes from our own
+ *    stored content rather than from the request.
+ */
+function secretMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  // timingSafeEqual throws on a length mismatch, which would itself leak the
+  // length, so pad to a common size first.
+  const len = Math.max(a.length, b.length);
+  const pa = Buffer.alloc(len);
+  const pb = Buffer.alloc(len);
+  a.copy(pa);
+  b.copy(pb);
+  return crypto.timingSafeEqual(pa, pb) && a.length === b.length;
+}
+
+const applicationSchema = z.object({
+  email: z.string().trim().email().max(320),
+  name: z.string().trim().max(120).optional(),
+  /** Matches the role id shown in the console. */
+  roleId: z.string().trim().min(1).max(80),
+  /** The form's own response id, so a retry cannot send a second email. */
+  submissionId: z.string().trim().min(1).max(200)
+});
+
+router.post('/careers/application', async (req: Request, res: Response) => {
+  try {
+    const expected = process.env.CAREERS_WEBHOOK_SECRET?.trim();
+    if (!expected) {
+      return fail(res, 503, 'Careers application webhook is not configured');
+    }
+
+    const provided = String(req.headers['x-spllit-careers-secret'] ?? '');
+    if (!provided || !secretMatches(provided, expected)) {
+      return fail(res, 401, 'Invalid webhook secret');
+    }
+
+    const parsed = applicationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
+      return fail(res, 400, first ? `${first.path.join('.')}: ${first.message}` : 'Invalid payload');
+    }
+
+    const content = await readCareersContent();
+    const role = content?.roles.find((r) => r.id === parsed.data.roleId && !r.draft);
+    if (!role) {
+      // Named roles only. This is what stops the endpoint being a way to send
+      // mail about anything at all.
+      return fail(res, 404, `No published role with id "${parsed.data.roleId}"`);
+    }
+
+    const sent = await emailApplicationReceived({
+      to: parsed.data.email,
+      name: parsed.data.name,
+      roleTitle: role.title,
+      submissionId: parsed.data.submissionId
+    });
+
+    // 202 either way: the form has already taken the application, and telling
+    // Apps Script the send failed would make it retry a submission that was
+    // never at risk. A failed send is logged here, not pushed back to Google.
+    if (!sent) console.error('[public/careers/application] email not sent', { roleId: role.id });
+    return ok(res, { received: true, emailed: sent }, 202);
+  } catch (error) {
+    console.error('[public/careers/application]', error);
+    return fail(res, 500, 'Failed to record the application');
   }
 });
 

@@ -945,6 +945,57 @@ export async function emailWelcome(params: { userId: string }): Promise<void> {
  * is the least useful answer when you are trying to establish whether mail
  * works at all.
  */
+/**
+ * Confirmation that an application arrived.
+ *
+ * WHAT TRIGGERS THIS. Applications are collected on a Google Form, which is
+ * hosted by Google and tells us nothing on its own — there is no callback from
+ * a form submission to this server. This is therefore fired by a small Apps
+ * Script bound to the form's onFormSubmit trigger, which posts here. That means
+ * two things worth being clear about: no email goes out unless that script is
+ * installed on the form, and this endpoint is told the address rather than
+ * looking it up, so it can only be as accurate as what the applicant typed.
+ *
+ * Deliberately plain. Somebody has just spent twenty minutes on a form for a
+ * job they want; the useful reply says what happened, what happens next, and
+ * roughly when — not how excited we are. No detail rows either: there is one
+ * fact here and it is in the heading.
+ */
+export async function emailApplicationReceived(params: {
+  to: string;
+  name?: string;
+  roleTitle: string;
+  /** Used for the idempotency key, so a form retry cannot send twice. */
+  submissionId: string;
+}): Promise<boolean> {
+  const cfg = config();
+  if (!cfg) return false;
+
+  const role = params.roleTitle.trim() || 'the role you applied for';
+
+  return send({
+    to: params.to,
+    name: params.name,
+    subject: `We have your application — ${role}`,
+    preheader: `It is in. Here is what happens next, and roughly when.`,
+    heading: 'Your application is in',
+    body:
+      `Thanks for applying for <strong>${escapeHtml(role)}</strong>. A person reads every ` +
+      `application here — there is no filter deciding for us, and no automated rejection.` +
+      `<br><br>` +
+      `We read in batches rather than as they arrive, so give us about a week. If what you ` +
+      `sent fits, you will hear from someone directly to arrange a conversation. If it does ` +
+      `not, you will still hear from us — we would rather tell you than leave you wondering.` +
+      `<br><br>` +
+      `If you have something that says more than a form can — a repository, a piece of ` +
+      `writing, something you built that nobody asked you to build — reply to this email and ` +
+      `send it. It gets read with the rest of your application.`,
+    actionLabel: 'See what we are building',
+    actionUrl: `${cfg.appUrl}/careers`,
+    idempotencyKey: `careers-application:${params.submissionId}`,
+  });
+}
+
 export async function sendTestEmail(
   to: string,
 ): Promise<{ sent: boolean; reason?: string }> {

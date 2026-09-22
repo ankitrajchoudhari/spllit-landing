@@ -681,6 +681,82 @@ export default function CareersPage() {
         />
       ) : null}
 
+      {/* Confirmation email setup */}
+      <Card className="p-5">
+        <SectionHeader title="Confirmation email" />
+        <p className="mt-2 text-sm text-ink-muted">
+          Google hosts the form, so submitting it tells Spllit nothing on its own.
+          To send an applicant a confirmation from Spllit, paste the script below
+          into the form once. Without it the application still arrives in the
+          form&apos;s responses — the applicant just gets no email from us.
+        </p>
+
+        <ol className="mt-4 space-y-2 text-sm text-ink-muted">
+          <li>
+            1. Open the Google Form, then <strong className="text-ink">⋮ → Apps Script</strong>.
+          </li>
+          <li>
+            2. Replace the contents with the script below, putting this role&apos;s
+            link id in <code className="font-mono text-xs text-ink">ROLE_ID</code>.
+          </li>
+          <li>
+            3. Run <strong className="text-ink">install()</strong> once and accept the
+            permission prompt. That is what attaches it to form submissions.
+          </li>
+        </ol>
+
+        <pre className="mt-4 overflow-x-auto rounded-md border border-line bg-surface-sunken p-4 text-[12px] leading-relaxed text-ink-muted">
+{`const ENDPOINT = '<NEXT_PUBLIC_API_URL>/public/careers/application';
+// e.g. https://api.spllit.app/api/public/careers/application
+const SECRET   = '<CAREERS_WEBHOOK_SECRET from the backend env>';
+const ROLE_ID  = 'founding-frontend-engineer';   // the Link id shown above
+
+// Which questions hold the applicant's email and name. Match your form's
+// wording; the email item can also be the form's built-in email collection.
+const EMAIL_QUESTION = 'Email';
+const NAME_QUESTION  = 'Full name';
+
+function onSubmit(e) {
+  const answers = {};
+  e.response.getItemResponses().forEach(r => {
+    answers[r.getItem().getTitle().trim()] = r.getResponse();
+  });
+
+  const email = answers[EMAIL_QUESTION] || e.response.getRespondentEmail();
+  if (!email) return;                       // nothing to send to
+
+  UrlFetchApp.fetch(ENDPOINT, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'x-spllit-careers-secret': SECRET },
+    muteHttpExceptions: true,
+    payload: JSON.stringify({
+      email: email,
+      name: answers[NAME_QUESTION] || '',
+      roleId: ROLE_ID,
+      submissionId: e.response.getId()      // stops a retry sending twice
+    })
+  });
+}
+
+// Run this once, by hand, to attach onSubmit to the form.
+function install() {
+  ScriptApp.newTrigger('onSubmit')
+    .forForm(FormApp.getActiveForm())
+    .onFormSubmit()
+    .create();
+}`}
+        </pre>
+
+        <p className="mt-3 text-[12px] text-ink-subtle">
+          The endpoint refuses anything without the secret, and only sends for a
+          role id that exists and is published here — so it cannot be used to mail
+          arbitrary people. It returns 503 until{' '}
+          <code className="font-mono">CAREERS_WEBHOOK_SECRET</code> is set on the
+          backend.
+        </p>
+      </Card>
+
       {/* Empty state */}
       <Card className="p-5">
         <SectionHeader title="When nothing is open" />
