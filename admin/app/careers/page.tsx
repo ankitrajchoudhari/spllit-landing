@@ -180,13 +180,15 @@ function Picker<T extends string>({
 function Disclosure({
   title,
   description,
+  defaultOpen = false,
   children,
 }: {
   title: string;
   description: string;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <Card className="p-0">
       <button
@@ -211,24 +213,98 @@ function Disclosure({
   );
 }
 
-/** What this role is doing on the site right now, in one word. */
-function StatusChip({ role }: { role: Role }) {
-  if (role.draft) {
-    return (
-      <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-subtle ring-1 ring-line">
-        Hidden
-      </span>
-    );
+/**
+ * Where a role shows, as one choice instead of two.
+ *
+ * It used to be a "published" checkbox and a separate open/closed pair, which
+ * between them spelled four states for three real ones, and left the common
+ * mistake wide open: add a role, fill it in, press Publish, and see nothing on
+ * the site, because the checkbox at the bottom of the panel was never ticked.
+ * One control, three buttons, and the site can only be in one of them.
+ */
+type Visibility = 'hidden' | 'open' | 'closed';
+
+function visibilityOf(role: Role): Visibility {
+  if (role.draft) return 'hidden';
+  return (role.status ?? 'open') === 'closed' ? 'closed' : 'open';
+}
+
+/** Hidden keeps whatever open/closed it had; it does not matter while hidden. */
+function visibilityPatch(value: Visibility): Partial<Role> {
+  return value === 'hidden' ? { draft: true } : { draft: false, status: value };
+}
+
+const VISIBILITY: Record<
+  Visibility,
+  { label: string; help: string; active: string; chip: string }
+> = {
+  hidden: {
+    label: 'Hidden',
+    help: 'Only you can see it. Nothing about it appears on spllit.app.',
+    active: 'border-line-strong bg-surface-raised text-ink',
+    chip: 'bg-surface text-ink-subtle ring-1 ring-line',
+  },
+  open: {
+    label: 'Open',
+    help: 'On the site with an Apply button. Needs a Google Form link.',
+    active: 'border-brand bg-brand-muted text-brand',
+    chip: 'bg-brand-muted text-brand',
+  },
+  closed: {
+    label: 'Closed',
+    help: 'Still listed, marked closed in red, with no Apply button.',
+    active: 'border-danger bg-danger-muted text-danger',
+    chip: 'bg-danger-muted text-danger',
+  },
+};
+
+/**
+ * What pressing Publish will actually do to this role, said plainly.
+ *
+ * The console cannot show a preview, so it says the consequence instead. Most
+ * of the confusion here is one of three things: no title (the site drops the
+ * role), no form link (Publish refuses it), or still Hidden (Publish works and
+ * nothing changes on the site, which reads as a broken button).
+ */
+function outcomeFor(role: Role, visibility: Visibility, needsLink: boolean) {
+  if (!role.title.trim()) {
+    return { tone: 'text-warning', text: 'Give it a title. A role without one is not shown at all.' };
   }
-  const closed = (role.status ?? 'open') === 'closed';
+  if (needsLink) {
+    return {
+      tone: 'text-warning',
+      text: 'Open with no form link, so Publish will refuse it. Paste the Google Form link above, or set it to Hidden until you have one.',
+    };
+  }
+  if (visibility === 'hidden') {
+    return {
+      tone: 'text-ink-subtle',
+      text: 'Hidden, so publishing changes nothing on the site. Choose Open above when you want applications.',
+    };
+  }
+  if (visibility === 'closed') {
+    return {
+      tone: 'text-ink-subtle',
+      text: 'Listed on the site and marked closed in red, with no Apply button.',
+    };
+  }
+  return {
+    tone: 'text-brand',
+    text: 'Goes live on spllit.app/careers with an Apply button when you press Publish.',
+  };
+}
+
+/** The same word the control uses, so the row and the editor agree. */
+function StatusChip({ role }: { role: Role }) {
+  const state = visibilityOf(role);
   return (
     <span
       className={cn(
         'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-        closed ? 'bg-danger-muted text-danger' : 'bg-brand-muted text-brand',
+        VISIBILITY[state].chip,
       )}
     >
-      {closed ? 'Closed' : 'Live'}
+      {VISIBILITY[state].label}
     </span>
   );
 }
@@ -402,7 +478,7 @@ export default function CareersPage() {
     if (missingLink.length > 0) {
       const first = missingLink[0];
       toast.error(
-        `"${first?.role.title || first?.role.id}" is live but has no form link. Add it, or hide the role until you have one.`,
+        `"${first?.role.title || first?.role.id}" is set to Open but has no Google Form link. Paste the link, or set it to Hidden until you have one.`,
       );
       // Open the offending role, so the fix is one scroll away rather than a hunt.
       setOpenRole(first ? first.index : null);
@@ -432,7 +508,7 @@ export default function CareersPage() {
     <div className="space-y-5">
       <PageHeader
         title="Careers"
-        description={`${liveCount} live on the site · ${content.roles.length} in total`}
+        description={`${liveCount} open on the site · ${content.roles.length} in total`}
         actions={
           <div className="flex items-center gap-2">
             <a
@@ -457,11 +533,27 @@ export default function CareersPage() {
 
       {/* Nothing here reaches the site until Publish, so say so rather than
           letting an editor close the tab believing it is live. */}
+      {/* A four-second toast is easy to miss, so the state is stated here and
+          stays stated. "I pressed Publish and cannot see anything" is usually
+          this line having said the work was already published. */}
       {dirty ? (
         <p className="text-xs font-medium text-warning">
           Unpublished changes — the site still shows the last published version.
         </p>
-      ) : null}
+      ) : (
+        <p className="text-xs text-ink-subtle">
+          Everything here is published.{' '}
+          <a
+            href={LIVE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-ink"
+          >
+            Open spllit.app/careers
+          </a>{' '}
+          to see it. Only roles set to Open or Closed appear there.
+        </p>
+      )}
 
       {!canEdit ? (
         <Card className="border-warning bg-warning-muted p-4 text-sm text-ink">
@@ -470,8 +562,57 @@ export default function CareersPage() {
         </Card>
       ) : null}
 
-      {/* Roles come first, and nothing is expanded above them: this is what the
-          page is for. */}
+      {/* Opens by itself while the board is empty, which is exactly when
+          somebody is doing this for the first time, and stays out of the way
+          afterwards. */}
+      <Disclosure
+        title="How to post a role"
+        description="Six steps, and what goes in each box."
+        defaultOpen={content.roles.length === 0}
+      >
+        <ol className="space-y-3 text-sm text-ink-muted">
+          <li>
+            <strong className="text-ink">1. Make the Google Form first.</strong> A role cannot go
+            live without one. In Google Forms start a blank form and ask for the things you will
+            actually sort on — name, email, phone, course and year, and a link to a CV or portfolio.
+            Turn on <em>Collect email addresses</em>. Then press <strong>Send</strong>, open the
+            link tab and copy the link.
+          </li>
+          <li>
+            <strong className="text-ink">2. Press Add role</strong> and fill the top four boxes.
+            Title is what somebody would search for, so &ldquo;Campus Growth Intern&rdquo; rather
+            than &ldquo;Intern (Growth) 2026&rdquo;. Team, Location and Type are the three filters
+            on the public page, so keep them consistent between roles.
+          </li>
+          <li>
+            <strong className="text-ink">3. Paste the form link</strong> into Google Form link, then
+            press <strong>Open</strong> beside it. If it does not load for you it will not load for
+            an applicant either.
+          </li>
+          <li>
+            <strong className="text-ink">4. Write the Summary and Responsibilities.</strong> Summary
+            is one or two sentences on what the person will actually do — it is the line an
+            applicant decides on. Responsibilities are one per line; three or four beats ten.
+          </li>
+          <li>
+            <strong className="text-ink">5. Set Where this role shows to Open.</strong> A new role
+            starts Hidden, so this is the step that puts it on the site. Closes on is optional — set
+            it and the role marks itself closed after that date without you coming back.
+          </li>
+          <li>
+            <strong className="text-ink">6. Press Publish.</strong> The site picks it up within
+            about half a minute. Nothing you type here reaches spllit.app until you press it.
+          </li>
+        </ol>
+        <p className="mt-4 text-xs text-ink-subtle">
+          Applicants only get a confirmation email from Spllit if you also paste the script under
+          Confirmation emails into that form. Without it the application still lands in the form
+          responses — the applicant just hears nothing back.
+        </p>
+      </Disclosure>
+
+      {/* Roles are the point of the page, so nothing else is expanded above
+          them once the board has something on it. */}
       <Card className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -506,8 +647,9 @@ export default function CareersPage() {
             {content.roles.map((role, index) => {
               const expanded = openRole === index;
               const dupe = duplicateIds.includes(role.id);
-              const needsLink =
-                !role.draft && (role.status ?? 'open') === 'open' && !role.applyUrl.trim();
+              const visibility = visibilityOf(role);
+              const needsLink = visibility === 'open' && !role.applyUrl.trim();
+              const outcome = outcomeFor(role, visibility, needsLink);
 
               return (
                 <li
@@ -575,11 +717,41 @@ export default function CareersPage() {
 
                   {expanded ? (
                     <div className="border-t border-line bg-surface p-4">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Title">
+                      {/* First thing in the panel, because it is the question
+                          an editor is actually asking: will this show up? */}
+                      <div className="rounded-md border border-line bg-surface-sunken p-3">
+                        <p className="text-xs font-medium text-ink-muted">Where this role shows</p>
+                        <div className="mt-2 flex gap-2">
+                          {(['hidden', 'open', 'closed'] as const).map((value) => {
+                            const active = visibility === value;
+                            return (
+                              <button
+                                key={value}
+                                type="button"
+                                disabled={!canEdit}
+                                onClick={() => updateRole(index, visibilityPatch(value))}
+                                className={cn(
+                                  'h-9 flex-1 rounded-md border text-sm font-medium transition-colors duration-snap',
+                                  active
+                                    ? VISIBILITY[value].active
+                                    : 'border-line bg-surface text-ink-muted hover:text-ink',
+                                )}
+                              >
+                                {VISIBILITY[value].label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="mt-2 text-[11px] text-ink-subtle">
+                          {VISIBILITY[visibility].help}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <Field label="Title" hint="As an applicant would search for it.">
                           <Input
                             value={role.title}
-                            placeholder="Founding Frontend Engineer"
+                            placeholder="Campus Growth Intern"
                             onChange={(e) => {
                               const title = e.target.value;
                               // Keep the id tracking the title until somebody
@@ -596,21 +768,21 @@ export default function CareersPage() {
                             }}
                           />
                         </Field>
-                        <Field label="Team">
+                        <Field label="Team" hint="Which part of Spllit it sits in. Also a filter on the site.">
                           <Input
                             value={role.team}
-                            placeholder="Engineering"
+                            placeholder="Growth"
                             onChange={(e) => updateRole(index, { team: e.target.value })}
                           />
                         </Field>
-                        <Field label="Location">
+                        <Field label="Location" hint="Where the work happens. Also a filter.">
                           <Picker
                             value={role.location}
                             options={LOCATIONS}
                             onChange={(location) => updateRole(index, { location })}
                           />
                         </Field>
-                        <Field label="Type">
+                        <Field label="Type" hint="Internship, full-time, and so on. Also a filter.">
                           <Picker
                             value={role.type}
                             options={TYPES}
@@ -624,7 +796,7 @@ export default function CareersPage() {
                       <div className="mt-3">
                         <Field
                           label="Google Form link"
-                          hint="Where Apply sends people. A live role needs one."
+                          hint="In Google Forms press Send, open the link tab, and paste the link here."
                         >
                           <div className="mt-1 flex gap-2">
                             <Input
@@ -655,7 +827,7 @@ export default function CareersPage() {
                       </div>
 
                       <div className="mt-3">
-                        <Field label="Summary" hint="One or two sentences, shown under the title.">
+                        <Field label="Summary" hint="One or two sentences on what the person will actually do.">
                           <Textarea
                             rows={2}
                             value={role.summary}
@@ -665,7 +837,7 @@ export default function CareersPage() {
                       </div>
 
                       <div className="mt-3">
-                        <Field label="Responsibilities" hint="One per line.">
+                        <Field label="Responsibilities" hint="One per line. Three or four is plenty.">
                           <Textarea
                             rows={3}
                             value={role.responsibilities.join('\n')}
@@ -684,7 +856,7 @@ export default function CareersPage() {
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         <Field
                           label="Closes on"
-                          hint="Optional. After this date the site marks it closed on its own."
+                          hint="Optional. The site marks the role closed by itself once this date passes."
                         >
                           <Input
                             type="date"
@@ -694,50 +866,12 @@ export default function CareersPage() {
                             }
                           />
                         </Field>
-                        <Field label="Status" hint="Closing by hand wins over the date.">
-                          {/* Two buttons rather than a dropdown: there are
-                              exactly two states, and they carry the same green
-                              and red the public page uses. */}
-                          <div className="mt-1 flex gap-2">
-                            {(['open', 'closed'] as const).map((value) => {
-                              const active = (role.status ?? 'open') === value;
-                              return (
-                                <button
-                                  key={value}
-                                  type="button"
-                                  disabled={!canEdit}
-                                  onClick={() => updateRole(index, { status: value })}
-                                  className={cn(
-                                    'h-9 flex-1 rounded-md border text-sm font-medium capitalize transition-colors duration-snap',
-                                    active &&
-                                      value === 'open' &&
-                                      'border-brand bg-brand-muted text-brand',
-                                    active &&
-                                      value === 'closed' &&
-                                      'border-danger bg-danger-muted text-danger',
-                                    !active &&
-                                      'border-line bg-surface-sunken text-ink-muted hover:text-ink',
-                                  )}
-                                >
-                                  {value}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </Field>
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
-                        <label className="flex items-center gap-2 text-sm text-ink-muted">
-                          <input
-                            type="checkbox"
-                            checked={!role.draft}
-                            disabled={!canEdit}
-                            onChange={(e) => updateRole(index, { draft: !e.target.checked })}
-                            className="h-4 w-4 rounded border-line"
-                          />
-                          Show on the site
-                        </label>
+                        <span className="max-w-[300px] text-[11px] text-ink-subtle">
+                          The public link for this role, and the ROLE_ID the form script needs.
+                        </span>
                         <span className="flex items-center gap-2">
                           <span className="text-[11px] text-ink-subtle">Link id</span>
                           <Input
@@ -754,12 +888,9 @@ export default function CareersPage() {
                           Another role uses this link id. Both would share the same page anchor.
                         </p>
                       ) : null}
-                      {needsLink ? (
-                        <p className="mt-2 text-xs text-warning">
-                          Shown on the site with no form link. Add one, or untick &ldquo;Show on the
-                          site&rdquo; until you have it.
-                        </p>
-                      ) : null}
+                      <p className={cn('mt-3 border-t border-line pt-3 text-xs', outcome.tone)}>
+                        {outcome.text}
+                      </p>
                     </div>
                   ) : null}
                 </li>
