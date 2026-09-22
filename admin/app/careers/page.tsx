@@ -886,6 +886,36 @@ export default function CareersPage() {
                         </Field>
                       </div>
 
+                      {/* Sits with the form link, because the script belongs to
+                          that form. ROLE_ID is read live from the role, so it
+                          is always the id this role currently has — including
+                          while it is still hidden, which is exactly when the
+                          form is being set up. */}
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface-sunken px-3 py-2.5">
+                        <span className="min-w-0 text-[11px] leading-relaxed text-ink-subtle">
+                          Confirmation email script for this role, with{' '}
+                          <code className="font-mono text-ink-muted">ROLE_ID</code> already set to{' '}
+                          <code className="font-mono text-brand">{role.id || '…'}</code>
+                        </span>
+                        <Button
+                          size="sm"
+                          disabled={!role.id}
+                          onClick={() => {
+                            navigator.clipboard
+                              .writeText(appsScript(role.id))
+                              .then(() =>
+                                toast.success(
+                                  'Script copied. Paste it into the Google Form for this role, under Apps Script.',
+                                ),
+                              )
+                              .catch(() => toast.error('Could not reach the clipboard.'));
+                          }}
+                        >
+                          <Copy className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                          Copy script
+                        </Button>
+                      </div>
+
                       <div className="mt-3">
                         <Field label="Summary" hint="One or two sentences on what the person will actually do.">
                           <Textarea
@@ -1043,42 +1073,14 @@ function install()  { … }   // run this one by hand, once`}
           </li>
         </ol>
 
-        {/* One button per role, because the only thing that differs between
-            forms is the id, and typing it by hand is the mistake that fails
-            silently. */}
-        {content.roles.filter((r) => !r.draft).length > 0 ? (
-          <div className="mt-4 rounded-md border border-line bg-surface-sunken p-3">
-            <p className="text-xs font-semibold text-ink-muted">Script for each role on the site</p>
-            <ul className="mt-2 space-y-2">
-              {content.roles
-                .filter((r) => !r.draft)
-                .map((r, i) => (
-                  <li key={i} className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="min-w-0 text-xs">
-                      <span className="text-ink">{r.title || 'Untitled role'}</span>
-                      <span className="ml-2 font-mono text-[11px] text-ink-subtle">{r.id}</span>
-                    </span>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        navigator.clipboard
-                          .writeText(appsScript(r.id))
-                          .then(() => toast.success(`Script copied, with ROLE_ID "${r.id}" filled in.`))
-                          .catch(() => toast.error('Could not reach the clipboard.'));
-                      }}
-                    >
-                      <Copy className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                      Copy script
-                    </Button>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        ) : (
-          <p className="mt-4 text-xs text-ink-subtle">
-            Add a role and set it to Open or Closed, and its ready-to-paste script appears here.
-          </p>
-        )}
+        {/* The button lives with the role rather than here. A role needs its
+            script while it is still hidden and its form is being built, which
+            is before it would appear in any list of what is on the site. */}
+        <p className="mt-4 rounded-md border border-line bg-surface-sunken p-3 text-xs text-ink-muted">
+          Every role has its own <strong className="text-ink">Copy script</strong> button, in the
+          role itself beside its Google Form link. What it copies always carries the link id that
+          role currently has — rename a role and the script corrects itself, with nothing to edit.
+        </p>
 
         <dl className="mt-4 grid gap-2 text-[12px] text-ink-subtle sm:grid-cols-[130px_1fr]">
           <dt className="font-medium text-ink-muted">Sent from</dt>
@@ -1087,7 +1089,14 @@ function install()  { … }   // run this one by hand, once`}
           <dd className="font-mono">career@spllit.app</dd>
           <dt className="font-medium text-ink-muted">Delivery webhook</dt>
           <dd className="font-mono">https://api.spllit.app/webhooks/resend</dd>
+          <dt className="font-medium text-ink-muted">Events to send</dt>
+          <dd className="font-mono">email.bounced, email.complained</dd>
         </dl>
+
+        <p className="mt-3 text-[12px] text-ink-subtle">
+          Those are the only two events acted on: a hard bounce or a spam complaint suppresses
+          that address so Spllit stops mailing it. Sending the others is harmless but pointless.
+        </p>
 
         <p className="mt-3 text-[12px] text-ink-subtle">
           The endpoint refuses anything without the secret, and only sends for a role id that is on
