@@ -241,6 +241,18 @@ const ROLE_ID  = '${roleId}';
 const EMAIL_QUESTION = 'Email';
 const NAME_QUESTION  = 'Full name';
 
+/** Run this by hand first. It checks the secret and the role, and sends nothing. */
+function check() {
+  const res = post({ email: 'check@example.com', name: 'Check', roleId: ROLE_ID,
+                     submissionId: 'check-' + Date.now(), dryRun: true });
+  const code = res.getResponseCode();
+  if (code === 200) { Logger.log('OK — secret and role id are both good.'); return; }
+  if (code === 401) throw new Error('The SECRET above does not match the one on the server.');
+  if (code === 404) throw new Error('No role on the site has id "' + ROLE_ID + '".');
+  if (code === 503) throw new Error('The server has no careers secret set at all.');
+  throw new Error('Unexpected ' + code + ': ' + res.getContentText());
+}
+
 function onSubmit(e) {
   const answers = {};
   e.response.getItemResponses().forEach(r => {
@@ -250,17 +262,27 @@ function onSubmit(e) {
   const email = answers[EMAIL_QUESTION] || e.response.getRespondentEmail();
   if (!email) return;                       // nothing to send to
 
-  UrlFetchApp.fetch(ENDPOINT, {
+  const res = post({
+    email: email,
+    name: answers[NAME_QUESTION] || '',
+    roleId: ROLE_ID,
+    submissionId: e.response.getId()        // stops a retry sending twice
+  });
+
+  // Throwing makes a failure visible: it shows in Executions, and Google
+  // emails you. Swallowing it is how "nobody got a confirmation" goes unnoticed.
+  if (res.getResponseCode() !== 202) {
+    throw new Error('Spllit rejected it: ' + res.getResponseCode() + ' ' + res.getContentText());
+  }
+}
+
+function post(payload) {
+  return UrlFetchApp.fetch(ENDPOINT, {
     method: 'post',
     contentType: 'application/json',
     headers: { 'x-spllit-careers-secret': SECRET },
-    muteHttpExceptions: true,
-    payload: JSON.stringify({
-      email: email,
-      name: answers[NAME_QUESTION] || '',
-      roleId: ROLE_ID,
-      submissionId: e.response.getId()      // stops a retry sending twice
-    })
+    muteHttpExceptions: true,               // so the code can be read, not thrown
+    payload: JSON.stringify(payload)
   });
 }
 
@@ -943,8 +965,9 @@ export default function CareersPage() {
                             Google hosts the form, so submitting it tells Spllit nothing on its own.
                             Copy this, paste it into the form under{' '}
                             <strong className="text-ink-muted">⋮ → Apps Script</strong>, replace the
-                            two highlighted values, and run{' '}
-                            <strong className="text-ink-muted">install()</strong> once.
+                            two highlighted values, then run{' '}
+                            <strong className="text-ink-muted">check()</strong> and{' '}
+                            <strong className="text-ink-muted">install()</strong>, in that order.
                           </p>
                           <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
                             <span className="text-[11px] text-ink-subtle">
@@ -1125,11 +1148,18 @@ function install()  { … }   // run this one by hand, once`}
             values. Save.
           </li>
           <li>
-            4. Run <strong className="text-ink">install()</strong> once and accept the permission
-            prompt. That is the step that attaches it to submissions — without it nothing runs.
+            4. Run <strong className="text-ink">check()</strong> from the dropdown at the top and
+            accept the permission prompt. It sends no email — it just proves the secret and the
+            role id are right, and says which one is wrong if not. Do not go on until it logs OK.
           </li>
           <li>
-            5. Submit the form yourself once. The confirmation should arrive within a minute.
+            5. Run <strong className="text-ink">install()</strong> once. That is the step that
+            attaches it to submissions — without it nothing runs, however correct the script is.
+          </li>
+          <li>
+            6. Submit the form yourself once. The confirmation should arrive within a minute. If it
+            does not, open <strong className="text-ink">Executions</strong> in Apps Script: a
+            failed run there says exactly what the server answered.
           </li>
         </ol>
 

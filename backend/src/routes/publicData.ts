@@ -174,7 +174,17 @@ const applicationSchema = z.object({
   /** Matches the role id shown in the console. */
   roleId: z.string().trim().min(1).max(80),
   /** The form's own response id, so a retry cannot send a second email. */
-  submissionId: z.string().trim().min(1).max(200)
+  submissionId: z.string().trim().min(1).max(200),
+  /**
+   * Check the wiring without sending anything.
+   *
+   * The secret and the role id are the two things that go wrong, and both
+   * fail silently: Apps Script is told to mute HTTP errors, so a 401 from a
+   * mismatched secret looks exactly like a working setup until somebody
+   * notices no applicant has ever been emailed. This runs every check and
+   * stops short of the send, so the script can prove itself on demand.
+   */
+  dryRun: z.boolean().optional()
 });
 
 router.post('/careers/application', async (req: Request, res: Response) => {
@@ -201,6 +211,10 @@ router.post('/careers/application', async (req: Request, res: Response) => {
       // Named roles only. This is what stops the endpoint being a way to send
       // mail about anything at all.
       return fail(res, 404, `No published role with id "${parsed.data.roleId}"`);
+    }
+
+    if (parsed.data.dryRun) {
+      return ok(res, { dryRun: true, roleId: role.id, roleTitle: role.title }, 200);
     }
 
     const sent = await emailApplicationReceived({
