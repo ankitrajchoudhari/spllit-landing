@@ -86,7 +86,7 @@ export function Hero() {
               {/* Liquid-glass prompt card */}
               <div
                 className={cn(
-                  'liquid-glass relative mx-auto w-full max-w-[701px] overflow-hidden rounded-[32px] sm:rounded-[44px]',
+                  'liquid-glass liquid-glass--on-map relative mx-auto w-full max-w-[701px] overflow-hidden rounded-[32px] sm:rounded-[44px]',
                   'min-h-[150px] text-left sm:min-h-[188px] lg:min-h-[208px]',
                 )}
                 onClick={() => inputRef.current?.focus()}

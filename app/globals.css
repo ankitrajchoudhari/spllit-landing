@@ -254,6 +254,32 @@
     border-color: rgba(255, 255, 255, 0.35);
   }
 
+  /**
+   * The same glass, but sitting on the live map.
+   *
+   * At 6% white the blur was doing all the work and losing: road lines and
+   * place labels kept enough contrast to read straight through the panel and
+   * tangle with the prompt written on top of it. Blur softens edges, it does
+   * not reduce contrast, so over a map the tint has to carry legibility.
+   *
+   * Mixed from --surface rather than hardcoded white, so it follows the theme
+   * whatever the map does underneath it.
+   */
+  .liquid-glass--on-map {
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    /**
+     * No -webkit- twin here, deliberately.
+     *
+     * Lightning CSS treats -webkit-backdrop-filter as the same property and
+     * keeps whichever is written last, so pairing them drops the unprefixed
+     * one — and current Chrome supports only the unprefixed one
+     * (CSS.supports('-webkit-backdrop-filter', ...) is false). Writing both
+     * is what removes the blur. The build adds prefixes where its targets
+     * need them.
+     */
+    backdrop-filter: blur(28px) saturate(125%);
+  }
+
   /* Small uppercase control used across the marketing nav. */
   .nav-control {
     @apply cursor-pointer border-none bg-transparent font-sans text-[15px] font-medium uppercase;
