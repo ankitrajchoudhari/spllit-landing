@@ -266,18 +266,41 @@
    * whatever the map does underneath it.
    */
   .liquid-glass--on-map {
-    background: color-mix(in srgb, var(--surface) 72%, transparent);
     /**
-     * No -webkit- twin here, deliberately.
+     * Tinted enough to read on, thin enough to still be glass.
      *
-     * Lightning CSS treats -webkit-backdrop-filter as the same property and
-     * keeps whichever is written last, so pairing them drops the unprefixed
-     * one — and current Chrome supports only the unprefixed one
-     * (CSS.supports('-webkit-backdrop-filter', ...) is false). Writing both
-     * is what removes the blur. The build adds prefixes where its targets
-     * need them.
+     * 72% was legible and looked like a white card: with the blur working,
+     * that much tint leaves nothing of the map to see through. 42% lets the
+     * greens and the water bleed through as soft colour while the blur keeps
+     * labels and road lines from reaching the text on top.
+     *
+     * Mixed from --surface rather than hardcoded white, so it follows the
+     * theme rather than assuming the map stays light.
      */
-    backdrop-filter: blur(28px) saturate(125%);
+    background: color-mix(in srgb, var(--surface) 42%, transparent);
+    /**
+     * Saturate, then lift. Blurring averages the map towards grey, so the
+     * saturation puts the colour back — that colour is what reads as glass
+     * rather than as frosting. The brightness keeps the darkest tiles off
+     * the text without needing more tint to hide them.
+     *
+     * No -webkit- twin: Lightning CSS treats it as the same property and
+     * keeps whichever is written last, so pairing them drops the unprefixed
+     * one — which is the only one current Chrome supports. Writing both is
+     * what switched the blur off in the first place.
+     */
+    backdrop-filter: blur(24px) saturate(180%) brightness(1.08);
+    /**
+     * The specular rim. A bright inner edge along the top with a weaker one
+     * below is what makes a panel read as a thick piece of glass catching
+     * light, rather than a flat translucent rectangle. The outer shadows are
+     * repeated because box-shadow replaces rather than adds.
+     */
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.9),
+      inset 0 -1px 2px rgba(255, 255, 255, 0.5),
+      0 0 4px 0 rgba(0, 0, 0, 0.15),
+      0 24px 64px -32px rgba(0, 0, 0, 0.35);
   }
 
   /* Small uppercase control used across the marketing nav. */
