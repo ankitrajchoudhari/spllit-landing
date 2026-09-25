@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 
+import { clientIpOf } from '../utils/clientIp.js';
+
 /**
  * Rate limiting and credential-stuffing defence.
  *
@@ -37,17 +39,13 @@ function sweep(now: number) {
 }
 
 /**
- * Client identity for limiting.
- *
- * `req.ip` behind a proxy is the proxy unless Express is told to trust it, so
- * the forwarded chain is preferred where present. This is a best effort — a
- * header can be spoofed — which is exactly why the account lockout below keys
- * on the account rather than on the caller.
+ * Client identity for limiting — the right-most untrusted forwarded hop, see
+ * utils/clientIp.ts. This read the left-most, which the client writes, so a
+ * spoofed X-Forwarded-For bypassed every limit. The account lockout below
+ * still keys on the account, as a second line.
  */
 function clientKey(req: Request): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0];
-  return (first ?? req.ip ?? 'unknown').trim();
+  return clientIpOf(req) ?? 'unknown';
 }
 
 export interface RateLimitOptions {

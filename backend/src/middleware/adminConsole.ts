@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 
 import prisma from '../utils/prisma.js';
+import { clientIpOf } from '../utils/clientIp.js';
 import { AuthRequest } from '../types/express.js';
 import {
   AdminRole,
@@ -151,12 +152,10 @@ export function requirePermission(permission: Permission) {
   };
 }
 
-/** Client address for the audit log, trusting Cloud Run's forwarded header. */
+/**
+ * Client address for the audit log. The left-most forwarded entry is whatever
+ * the client wrote, so it is not used; see utils/clientIp.ts.
+ */
 export function clientIp(req: AdminRequest): string | null {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.length > 0) {
-    // Left-most entry is the original client; the rest are proxies.
-    return forwarded.split(',')[0]!.trim();
-  }
-  return req.socket?.remoteAddress ?? null;
+  return clientIpOf(req);
 }

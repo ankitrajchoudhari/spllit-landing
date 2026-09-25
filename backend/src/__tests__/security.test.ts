@@ -136,3 +136,26 @@ describe('H4 — nothing private is broadcast to every socket', async () => {
     assert.deepEqual(offenders, []);
   });
 });
+
+describe('H5 — rate limits key on the address the client cannot write', async () => {
+  const { resolveClientIp } = await import('../utils/clientIp.js');
+  const CF = '172.70.1.1'; // inside 172.64.0.0/13
+
+  it('ignores whatever the client put at the left of the chain', () => {
+    // Via Cloudflare: <spoofed>, <client per Cloudflare>, <edge per Google>
+    assert.equal(resolveClientIp(`6.6.6.6, 203.0.113.9, ${CF}`, '169.254.1.1'), '203.0.113.9');
+    assert.equal(resolveClientIp(`1.1.1.1, 2.2.2.2, 203.0.113.9, ${CF}`, undefined), '203.0.113.9');
+  });
+
+  it('takes the address Google saw when Cloudflare is bypassed', () => {
+    assert.equal(resolveClientIp('6.6.6.6, 198.51.100.7', undefined), '198.51.100.7');
+    assert.equal(resolveClientIp(`${CF}, 198.51.100.7`, undefined), '198.51.100.7', 'a forged CF hop is not skipped');
+  });
+
+  it('handles IPv6, mapped IPv4, junk and no header', () => {
+    assert.equal(resolveClientIp('2001:db8::1, 2606:4700::1', undefined), '2001:db8::1');
+    assert.equal(resolveClientIp('::ffff:203.0.113.9', undefined), '203.0.113.9');
+    assert.equal(resolveClientIp('not-an-ip, 203.0.113.9', undefined), '203.0.113.9');
+    assert.equal(resolveClientIp(undefined, '::ffff:127.0.0.1'), '127.0.0.1');
+  });
+});
