@@ -4,6 +4,7 @@ import prisma from '../utils/prisma.js';
 import { verifyAccessToken } from '../utils/helpers.js';
 import { verifyFirebaseIdToken, isFirebaseAdminConfigured } from '../utils/firebaseAdmin.js';
 import { resolveFirebaseUser } from './firebaseIdentity.js';
+import { isSuspended } from './suspension.js';
 
 /**
  * The live/ephemeral layer — what the original spec put in Firebase RTDB.
@@ -184,9 +185,11 @@ export function setupLiveHandlers(io: Server) {
 
     // Same dual-scheme resolution as the HTTP middleware: backend JWT first,
     // Firebase ID token second.
+    // A suspended account connects as anonymous: no private rooms, no
+    // publishing, nothing addressed to it.
     try {
       const decoded = verifyAccessToken(token);
-      socket.userId = decoded.userId;
+      if (!(await isSuspended(decoded.userId))) socket.userId = decoded.userId;
       return next();
     } catch {
       // fall through
@@ -197,7 +200,7 @@ export function setupLiveHandlers(io: Server) {
     try {
       const decoded = await verifyFirebaseIdToken(token);
       const user = await resolveFirebaseUser(decoded);
-      if (user) socket.userId = user.id;
+      if (user && !user.suspendedAt) socket.userId = user.id;
     } catch {
       // Unauthenticated sockets can still connect; they just cannot join
       // private rooms or publish a position.

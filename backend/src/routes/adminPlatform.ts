@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 
 import prisma from '../utils/prisma.js';
+import { invalidateSuspensions, suspensionPatch } from '../services/suspension.js';
+import { getIO } from '../services/live.js';
 import { identify } from '../middleware/identity.js';
 import { requireAdmin, requireMasterAdmin } from '../middleware/requireAdmin.js';
 import { AuthRequest } from '../types/express.js';
@@ -163,10 +165,12 @@ router.patch('/users/:id', async (req: AuthRequest, res: Response) => {
     const user = await prisma.user.update({
       where: { id: req.params.id },
       data: {
-        ...(typeof req.body.isActive === 'boolean' ? { isActive: req.body.isActive } : {}),
+        ...(typeof req.body.isActive === 'boolean' ? suspensionPatch(req.body.isActive) : {}),
       },
       select: USER_ROW,
     });
+    invalidateSuspensions();
+    if (req.body.isActive === false) getIO()?.in(`user:${req.params.id}`).disconnectSockets(true);
 
     return ok(res, user);
   } catch (error) {

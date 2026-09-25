@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 
 import prisma from '../utils/prisma.js';
+import { invalidateSuspensions, suspensionPatch } from '../services/suspension.js';
+import { getIO } from '../services/live.js';
 import { identify } from '../middleware/identity.js';
 import {
   AdminRequest,
@@ -627,10 +629,14 @@ router.patch(
         () =>
           prisma.user.update({
             where: { id },
-            data: { isActive },
+            data: suspensionPatch(isActive),
             select: USER_ROW,
           }),
       );
+      invalidateSuspensions();
+      // Sockets authenticate once, at connect; one already open would keep
+      // working until it dropped on its own.
+      if (!isActive) getIO()?.in(`user:${id}`).disconnectSockets(true);
 
       return ok(res, updated);
     } catch (error) {

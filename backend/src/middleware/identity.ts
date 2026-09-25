@@ -5,6 +5,11 @@ import { verifyFirebaseIdToken, isFirebaseAdminConfigured } from '../utils/fireb
 import { AuthRequest } from '../types/express.js';
 import { markActive } from '../services/activeUsers.js';
 import { resolveFirebaseUser } from '../services/firebaseIdentity.js';
+import { isSuspended, SUSPENDED_MESSAGE } from '../services/suspension.js';
+
+function refuseSuspended(res: Response): void {
+  res.status(403).json({ success: false, message: SUSPENDED_MESSAGE, code: 'account-suspended' });
+}
 
 /**
  * Dual-scheme authentication.
@@ -32,15 +37,22 @@ export async function identify(
 
   const token = header.substring(7);
 
+  let jwtUser: ReturnType<typeof verifyAccessToken> | null = null;
   try {
-    req.user = verifyAccessToken(token);
+    jwtUser = verifyAccessToken(token);
+  } catch {
+    // Not a backend JWT — fall through to Firebase.
+  }
+
+  if (jwtUser) {
+    // A cached set lookup, not a query — see services/suspension.ts.
+    if (await isSuspended(jwtUser.userId)) return refuseSuspended(res);
+    req.user = jwtUser;
     // Fire-and-forget, deduplicated in memory to one write per user per
     // day. See services/activeUsers.ts — this is the hottest path in the app.
     markActive(req.user.userId);
     next();
     return;
-  } catch {
-    // Not a backend JWT — fall through to Firebase.
   }
 
   if (!isFirebaseAdminConfigured()) {
@@ -111,6 +123,8 @@ export async function identify(
       }
     }
 
+    if (user.suspendedAt) return refuseSuspended(res);
+
     req.user = { userId: user.id, email: user.email };
     // Fire-and-forget, deduplicated in memory to one write per user per
     // day. See services/activeUsers.ts — this is the hottest path in the app.
@@ -139,15 +153,23 @@ export async function identifyOptional(
 
   const token = header.substring(7);
 
+  let jwtUser: ReturnType<typeof verifyAccessToken> | null = null;
   try {
-    req.user = verifyAccessToken(token);
-    // Fire-and-forget, deduplicated in memory to one write per user per
-    // day. See services/activeUsers.ts — this is the hottest path in the app.
-    markActive(req.user.userId);
-    next();
-    return;
+    jwtUser = verifyAccessToken(token);
   } catch {
     // fall through
+  }
+
+  if (jwtUser) {
+    // A suspended account browses as anonymous rather than as itself.
+    if (!(await isSuspended(jwtUser.userId))) {
+      req.user = jwtUser;
+      // Fire-and-forget, deduplicated in memory to one write per user per
+      // day. See services/activeUsers.ts — this is the hottest path in the app.
+      markActive(req.user.userId);
+    }
+    next();
+    return;
   }
 
   if (!isFirebaseAdminConfigured()) {
@@ -158,7 +180,7 @@ export async function identifyOptional(
   try {
     const decoded = await verifyFirebaseIdToken(token);
     const user = await resolveFirebaseUser(decoded);
-    if (user) {
+    if (user && !user.suspendedAt) {
       req.user = { userId: user.id, email: user.email };
       markActive(user.id);
     }

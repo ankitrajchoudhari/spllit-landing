@@ -94,3 +94,14 @@ describe('C4 — email is only an identity once it is verified', async () => {
     assert.equal(mustDropPassword({ ...squat, password: null }), false, 'no password to drop');
   });
 });
+
+describe('H2 — suspension has one meaning', async () => {
+  const { suspensionPatch } = await import('../services/suspension.js');
+
+  it('suspending stamps suspendedAt; restoring clears it', () => {
+    const suspend = suspensionPatch(false);
+    assert.equal(suspend.isActive, false);
+    assert.ok(suspend.suspendedAt instanceof Date);
+    assert.deepEqual(suspensionPatch(true), { isActive: true, suspendedAt: null });
+  });
+});

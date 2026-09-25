@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/helpers.js';
 import { AuthRequest } from '../types/express.js';
+import { isSuspended, SUSPENDED_MESSAGE } from '../services/suspension.js';
 
 /**
  * Middleware to verify JWT token and attach user to request
@@ -21,7 +22,12 @@ export async function authenticate(
     const token = authHeader.substring(7);
     
     const decoded = verifyAccessToken(token);
-    
+
+    if (await isSuspended(decoded.userId)) {
+      res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'account-suspended' });
+      return;
+    }
+
     req.user = decoded;
     
     next();
@@ -44,7 +50,7 @@ export async function optionalAuth(
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const decoded = verifyAccessToken(token);
-      req.user = decoded;
+      if (!(await isSuspended(decoded.userId))) req.user = decoded;
     }
     
     next();

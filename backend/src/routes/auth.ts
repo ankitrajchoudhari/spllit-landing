@@ -13,6 +13,7 @@ import { io } from '../server.js';
 import { isFirebaseAdminConfigured, verifyFirebaseIdToken } from '../utils/firebaseAdmin.js';
 import { deprecated } from '../middleware/deprecation.js';
 import { resolveFirebaseUser } from '../services/firebaseIdentity.js';
+import { SUSPENDED_MESSAGE } from '../services/suspension.js';
 
 const router = Router();
 
@@ -94,6 +95,12 @@ const syncFirebaseUser = async (idToken: string, res: Response) => {
       timestamp: user.createdAt
     });
   } else {
+    // Suspension used to stop nothing here: a suspended user signed straight
+    // back in and left with a fresh 7-day refresh token.
+    if (user.suspendedAt) {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'account-suspended' });
+    }
+
     if (user.role === 'subadmin' || user.role === 'admin') {
       if (user.adminStatus === 'inactive') {
         return res.status(403).json({ error: 'Your account has been deactivated. Please contact the administrator.' });
@@ -250,6 +257,10 @@ router.post('/login', async (req: Request, res: Response) => {
 
     clearFailures(data.email);
 
+    if (user.suspendedAt) {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'account-suspended' });
+    }
+
     // Check if user is active (for subadmins and admins)
     if (user.role === 'subadmin' || user.role === 'admin') {
       if (user.adminStatus === 'inactive') {
@@ -346,6 +357,10 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
+    }
+
+    if (user.suspendedAt) {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE, code: 'account-suspended' });
     }
 
     // Sessions ended by an admin, or by a verified owner reclaiming a

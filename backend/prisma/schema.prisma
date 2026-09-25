@@ -112,6 +112,11 @@ model User {
   /// Both are used together. This kills the token in hand; Firebase's call
   /// stops the client quietly refreshing a new one.
   sessionsRevokedAt DateTime?
+  /// Set only by an admin suspending the account; cleared on restore. The one
+  /// field that means "suspended". `isActive` cannot: the legacy socket wrote
+  /// it on every connect and disconnect for months, so most accounts carry
+  /// `false` with no suspension behind it (scripts/audit-user-active.mjs).
+  suspendedAt       DateTime?
   createdBy         String?   // ID of master admin who created this subadmin
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
