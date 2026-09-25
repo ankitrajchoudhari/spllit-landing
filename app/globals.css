@@ -267,29 +267,34 @@
    */
   .liquid-glass--on-map {
     /**
-     * Tinted enough to read on, thin enough to still be glass.
+     * Thin enough to still be glass.
      *
-     * 72% was legible and looked like a white card: with the blur working,
-     * that much tint leaves nothing of the map to see through. 42% lets the
-     * greens and the water bleed through as soft colour while the blur keeps
-     * labels and road lines from reaching the text on top.
+     * Four tints were compared over the live map. 72% and 42% both read as a
+     * white card: the colour coming through from underneath is what makes a
+     * panel look like glass, and tint is the thing that kills it. 16% keeps
+     * the greens and the water there as colour.
+     *
+     * The blur is heavier than the tint is light, deliberately. Blur removes
+     * detail without reducing contrast, so it is what stops labels and road
+     * lines resolving into the text, and the map is pannable — a darker
+     * stretch has to stay safe to read on.
      *
      * Mixed from --surface rather than hardcoded white, so it follows the
      * theme rather than assuming the map stays light.
      */
-    background: color-mix(in srgb, var(--surface) 42%, transparent);
+    background: color-mix(in srgb, var(--surface) 16%, transparent);
     /**
-     * Saturate, then lift. Blurring averages the map towards grey, so the
-     * saturation puts the colour back — that colour is what reads as glass
-     * rather than as frosting. The brightness keeps the darkest tiles off
-     * the text without needing more tint to hide them.
+     * Saturate hard. Blurring averages the map towards grey, so the
+     * saturation puts the colour back, and that colour is the whole effect.
+     * A brightness lift was tried at 1.08 and 1.14 and dropped: it washes the
+     * map out, which is the white card again by another route.
      *
      * No -webkit- twin: Lightning CSS treats it as the same property and
      * keeps whichever is written last, so pairing them drops the unprefixed
      * one — which is the only one current Chrome supports. Writing both is
      * what switched the blur off in the first place.
      */
-    backdrop-filter: blur(24px) saturate(180%) brightness(1.08);
+    backdrop-filter: blur(18px) saturate(205%);
     /**
      * The specular rim. A bright inner edge along the top with a weaker one
      * below is what makes a panel read as a thick piece of glass catching
