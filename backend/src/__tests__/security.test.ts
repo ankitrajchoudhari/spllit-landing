@@ -36,3 +36,24 @@ describe('C1 — leaked master-admin password', () => {
     assert.equal(isCompromisedPassword('hunter2'), false);
   });
 });
+
+describe('C2 — socket room joins', async () => {
+  const { parseRoom, positionRoom } = await import('../services/live.js');
+
+  it('accepts only the four known room kinds', () => {
+    assert.deepEqual(parseRoom('thread:65f0a1b2c3d4e5f601234567'), {
+      kind: 'thread',
+      id: '65f0a1b2c3d4e5f601234567',
+    });
+    assert.equal(parseRoom('admin:all'), null);
+    assert.equal(parseRoom('position:abc'), null, 'the position feed is never joined by name');
+    assert.equal(parseRoom('user:'), null);
+    assert.equal(parseRoom('user:a:b'), null);
+    assert.equal(parseRoom(42), null);
+    assert.equal(parseRoom('thread:' + 'a'.repeat(200)), null);
+  });
+
+  it('keeps the position feed apart from the private user room', () => {
+    assert.notEqual(positionRoom('u1'), 'user:u1');
+  });
+});

@@ -86,6 +86,92 @@ async function authorisedRooms(userId: string): Promise<Set<string>> {
   return allowed;
 }
 
+export type RoomKind = 'user' | 'thread' | 'squad' | 'ride';
+
+/** Splits `kind:id`, or null for anything that is not a room clients may ask for. */
+export function parseRoom(room: unknown): { kind: RoomKind; id: string } | null {
+  if (typeof room !== 'string' || room.length > 120) return null;
+  const match = /^(user|thread|squad|ride):([A-Za-z0-9_-]{1,100})$/.exec(room);
+  return match ? { kind: match[1] as RoomKind, id: match[2] } : null;
+}
+
+/**
+ * The room another user's position frames go to.
+ *
+ * `user:<id>` is that user's private channel — notifications, squad and ride
+ * changes — and only their own sockets may be in it. Watching someone on the
+ * map is a different, narrower right, so it gets its own room. Clients still
+ * ask for `user:<id>`; the server decides which of the two they get.
+ */
+export const positionRoom = (userId: string) => `position:${userId}`;
+
+/**
+ * May `viewerId` see `targetId`'s live position?
+ *
+ * The same rule GET /api/users/nearby applies before it lists someone — same
+ * campus, both active, neither has blocked the other — plus anyone they are
+ * actually travelling with. The socket used to skip this entirely, so any
+ * signed-in client could follow anyone whose id it knew.
+ */
+async function canWatchPosition(viewerId: string, targetId: string): Promise<boolean> {
+  if (viewerId === targetId) return true;
+
+  const [viewer, target, block] = await Promise.all([
+    prisma.user.findUnique({ where: { id: viewerId }, select: { college: true, isActive: true } }),
+    prisma.user.findUnique({
+      where: { id: targetId },
+      select: { college: true, isActive: true, onboarded: true },
+    }),
+    prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: viewerId, blockedId: targetId },
+          { blockerId: targetId, blockedId: viewerId },
+        ],
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!viewer?.isActive || !target?.isActive || !target.onboarded || block) return false;
+  if (viewer.college && viewer.college === target.college) return true;
+
+  // Different campus: only people on the same live squad or ride.
+  const [mine, theirs] = await Promise.all([authorisedRooms(viewerId), authorisedRooms(targetId)]);
+  for (const room of mine) {
+    if (!room.startsWith('user:') && theirs.has(room)) return true;
+  }
+  return false;
+}
+
+/**
+ * The Socket.IO room a join request resolves to, or null when it is refused.
+ *
+ * Every kind is checked against real data. `user:` and `thread:` used to be let
+ * through for anyone signed in, which put any client in anyone's private
+ * notifications and any conversation's live messages.
+ */
+async function resolveJoin(userId: string, room: string): Promise<string | null> {
+  const parsed = parseRoom(room);
+  if (!parsed) return null;
+
+  switch (parsed.kind) {
+    case 'user':
+      if (parsed.id === userId) return room;
+      return (await canWatchPosition(userId, parsed.id)) ? positionRoom(parsed.id) : null;
+
+    case 'thread': {
+      // Participants only — the same read gate the HTTP thread routes use.
+      const { canAccessThread } = await import('./threads.js');
+      return (await canAccessThread(parsed.id, userId)) ? room : null;
+    }
+
+    case 'squad':
+    case 'ride':
+      return (await authorisedRooms(userId)).has(room) ? room : null;
+  }
+}
+
 export function setupLiveHandlers(io: Server) {
   ioRef = io;
 
@@ -138,33 +224,43 @@ export function setupLiveHandlers(io: Server) {
       });
     }
 
+    /** What each requested room name was actually resolved to, for room:leave. */
+    const joinedAs = new Map<string, string>();
+
     socket.on('room:join', async (room: string) => {
-      if (typeof room !== 'string' || room.length > 120) return;
       if (!socket.userId) return;
 
-      // Only rooms the user actually belongs to. Without this a client could
-      // subscribe to any squad's live positions by guessing an id.
-      const allowed = await authorisedRooms(socket.userId);
-      const isPublicUserRoom = room.startsWith('user:');
-      const isThreadRoom = room.startsWith('thread:');
+      let target: string | null;
+      try {
+        target = await resolveJoin(socket.userId, room);
+      } catch (error) {
+        console.error('[live/room:join]', error);
+        return;
+      }
+      if (!target) return;
 
-      if (!allowed.has(room) && !isPublicUserRoom && !isThreadRoom) return;
-
-      socket.join(room);
-      socketRooms.get(socket.id)?.add(room);
+      socket.join(target);
+      joinedAs.set(room, target);
+      socketRooms.get(socket.id)?.add(target);
 
       // Replay the last known position so a newly opened map is populated
       // immediately instead of waiting for the next movement tick.
-      if (isPublicUserRoom) {
-        const userId = room.slice('user:'.length);
+      if (target.startsWith('position:')) {
+        const userId = target.slice('position:'.length);
         const last = positions.get(userId);
         if (last) socket.emit('position:update', { userId, ...last });
       }
     });
 
     socket.on('room:leave', (room: string) => {
-      socket.leave(room);
-      socketRooms.get(socket.id)?.delete(room);
+      const target = joinedAs.get(room);
+      if (!target) return;
+      // Never leave your own private room: notifications would stop arriving
+      // for the rest of the connection.
+      if (target === `user:${socket.userId}`) return;
+      joinedAs.delete(room);
+      socket.leave(target);
+      socketRooms.get(socket.id)?.delete(target);
     });
 
     socket.on(
@@ -188,7 +284,10 @@ export function setupLiveHandlers(io: Server) {
 
         // Fan out only to rooms this user is actually in — never a global
         // broadcast of everyone's location.
-        socket.to(`user:${socket.userId}`).emit('position:update', message);
+        // Own other tabs, plus whoever passed canWatchPosition.
+        socket
+          .to([`user:${socket.userId}`, positionRoom(socket.userId)])
+          .emit('position:update', message);
         for (const room of socketRooms.get(socket.id) ?? []) {
           if (room.startsWith('squad:') || room.startsWith('ride:')) {
             socket.to(room).emit('position:update', message);
@@ -273,8 +372,11 @@ export function setupLiveHandlers(io: Server) {
     );
 
     socket.on('chat:typing', (payload: { threadId: string; typing: boolean }) => {
-      if (!socket.userId || !payload?.threadId) return;
-      socket.to(`thread:${payload.threadId}`).emit('chat:typing', {
+      if (!socket.userId || typeof payload?.threadId !== 'string') return;
+      // Only from inside the conversation; joining it is what checked access.
+      const room = `thread:${payload.threadId}`;
+      if (!socket.rooms.has(room)) return;
+      socket.to(room).emit('chat:typing', {
         threadId: payload.threadId,
         userId: socket.userId,
         typing: Boolean(payload.typing),
