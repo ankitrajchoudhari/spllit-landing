@@ -11,9 +11,25 @@
  * anything and do not help anyone.
  */
 
+/**
+ * A guide, or something that happened.
+ *
+ * Both live in one list because they share a URL space, a layout and a feed.
+ * They are labelled differently because they are different promises: a guide
+ * is meant to still be true next term, an announcement is dated the moment it
+ * is published.
+ */
+export type PostKind = 'Blog' | 'News';
+
 export interface BlogPost {
   slug: string;
   title: string;
+  /** Defaults to Blog when absent, which is what the original posts are. */
+  kind?: PostKind;
+  /** Cover art from public/blog. Without one the card falls back to type. */
+  image?: string;
+  /** Describes the picture. Never repeats the title. */
+  imageAlt?: string;
   /** Meta description. Under 160 characters. */
   description: string;
   publishedAt: string;
@@ -31,6 +47,8 @@ export interface BlogPost {
 export const BLOG_POSTS: BlogPost[] = [
   {
     slug: 'how-to-split-cab-fare-with-classmates',
+    image: '/blog/desk.png',
+    imageAlt: 'A collage of hands typing, holding a clipboard and a folder',
     title: 'How to split a cab fare with classmates without the group-chat argument',
     description:
       'A practical way to share cab costs between students — how to divide by distance, handle a late drop-off, and settle up without chasing anyone.',
@@ -81,6 +99,8 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: 'safe-campus-carpooling-checklist',
+    image: '/blog/binoculars.png',
+    imageAlt: 'Hands holding binoculars against a yellow circle',
     title: 'A safety checklist for carpooling with students you have not met',
     description:
       'What to check before getting into a stranger\'s car on campus: verification, meeting points, sharing your trip, and when to walk away.',
@@ -129,6 +149,8 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: 'what-is-a-travel-squad',
+    image: '/blog/plug.png',
+    imageAlt: 'A hand holding an unplugged power plug',
     title: 'What is a travel group ride, and when is it better than a carpool?',
     description:
       'Group Rides coordinate a group heading to the same place — exam centre, airport, concert — with one meeting point and everyone\'s ETA on one map.',
@@ -169,6 +191,104 @@ export const BLOG_POSTS: BlogPost[] = [
   },
 ];
 
+/**
+ * Announcements.
+ *
+ * ⚠️ Written here rather than by a founder. Every claim is already public on
+ * spllit.app — the cities, the backers, the careers page — but the voice is not
+ * yours. Read them before pointing anyone at /blog and rewrite whatever does
+ * not sound like Spllit. Deleting an entry is enough to remove it.
+ *
+ * They sit in the same array as the guides so one list drives the index, the
+ * sitemap and the "keep reading" rail.
+ */
+export const NEWS_POSTS: BlogPost[] = [
+  {
+    slug: 'careers-page-is-open',
+    kind: 'News',
+    image: '/blog/press.png',
+    imageAlt: 'Press conference microphones against a red circle',
+    title: 'We are hiring, and an application now answers back',
+    description:
+      'Spllit has a careers page. Roles open and close from the admin console, applying happens on Spllit, and submitting sends a confirmation from career@spllit.app.',
+    publishedAt: '2026-09-22',
+    readingMinutes: 2,
+    tags: ['hiring', 'product'],
+    excerpt:
+      'There is a careers page at spllit.app/careers, and applying to a role now sends you a confirmation instead of leaving you wondering whether the form went anywhere.',
+    sections: [
+      {
+        heading: 'What is open is what is actually open',
+        paragraphs: [
+          'Roles are opened and closed from our admin console, so the board is never a list somebody forgot to take down. A closed role stays listed and marked closed rather than disappearing, because a listing that vanishes reads to an applicant as though their application went with it.',
+        ],
+      },
+      {
+        heading: 'Applying happens on Spllit',
+        paragraphs: [
+          'Pressing Apply opens the form on spllit.app under the title of the role, rather than throwing you into an unbranded tab with no way back. Submitting it sends a confirmation from career@spllit.app within a minute or so.',
+          'That sounds minor. It is the difference between an application and a form you are not sure arrived.',
+        ],
+      },
+      {
+        heading: 'If nothing is open',
+        paragraphs: [
+          'Then nothing is open. We hire in bursts and it is usually decided quickly. There is an address on the page for telling us what you would want to work on.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'two-cities-in-testing',
+    kind: 'News',
+    image: '/blog/blog-letters.png',
+    imageAlt: 'The word blog built from cut-out paper letters',
+    title: 'Spllit is in testing in Chennai and Jaipur',
+    description:
+      'Why Spllit is live on campuses in two cities rather than ten, and what has to be true before a third one is worth adding.',
+    publishedAt: '2026-09-18',
+    readingMinutes: 3,
+    tags: ['cities', 'testing'],
+    excerpt:
+      'Two cities, and no rush to the third. A ride-splitting product is only as good as its density, and one campus where matching works teaches more than ten where it almost does.',
+    sections: [
+      {
+        heading: 'Density is the whole problem',
+        paragraphs: [
+          'Two people heading to the same airport at the same time is not a coincidence you can manufacture with a bigger map. It needs enough people in one place, going to enough of the same places, at enough of the same times.',
+        ],
+      },
+      {
+        heading: 'What we are watching',
+        bullets: [
+          'How long somebody will wait for a match before giving up',
+          'Whether a group that forms actually travels together',
+          'What people do when a match is close but not quite right',
+        ],
+      },
+      {
+        heading: 'When the third city makes sense',
+        paragraphs: [
+          'When those answers stop surprising us, adding a city becomes an execution problem rather than a research one. Until then it would mostly add noise.',
+        ],
+      },
+    ],
+  },
+];
+
+/** Guides and announcements together, newest first. */
+export function allPosts(): BlogPost[] {
+  return [...BLOG_POSTS, ...NEWS_POSTS].sort((a, b) =>
+    b.publishedAt.localeCompare(a.publishedAt),
+  );
+}
+
+/** Absent means Blog — the original posts predate the field. */
+export function postKind(post: BlogPost): PostKind {
+  return post.kind ?? 'Blog';
+}
+
+/** Searches guides and announcements: they share one URL space. */
 export function findPost(slug: string): BlogPost | undefined {
-  return BLOG_POSTS.find((post) => post.slug === slug);
+  return allPosts().find((post) => post.slug === slug);
 }

@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 import { PUBLIC_ROUTES, SITE } from '@/content/site';
-import { BLOG_POSTS } from '@/content/blog';
+import { allPosts } from '@/content/blog';
 
 /**
  * Generated, not hand-written.
@@ -24,7 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: route.changeFrequency,
       priority: route.priority,
     })),
-    ...BLOG_POSTS.map((post) => ({
+    ...allPosts().map((post) => ({
       url: `${SITE.url}/blog/${post.slug}`,
       lastModified: new Date(post.updatedAt ?? post.publishedAt),
       changeFrequency: 'monthly' as const,

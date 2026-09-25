@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils';
 import { SignInDrawer } from '@/components/ui/family-signin-drawer';
 
 /**
- * The first three are anchors on this page; Careers is a real route. Both kinds
+ * The first three are anchors on this page; Blog and Careers are real routes.
+ * Both kinds
  * render as the same control, and an anchor works from /careers too because it
  * is written absolute rather than as a bare hash.
  */
@@ -17,6 +18,7 @@ const LINKS = [
   { href: '/#rides', label: 'Rides' },
   { href: '/#squads', label: 'Group Rides' },
   { href: '/#events', label: 'Events' },
+  { href: '/blog', label: 'Blog & News' },
   { href: '/careers', label: 'Careers' },
 ];
 

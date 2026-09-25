@@ -38,6 +38,7 @@ const COLUMNS = [
     title: 'Company',
     links: [
       { href: '/about', label: 'About' },
+      { href: '/blog', label: 'Blog & News' },
       { href: '/careers', label: 'Careers' },
       { href: '/contact', label: 'Contact' },
     ],

@@ -16,7 +16,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
 
 const PORT = process.env.CDP_PORT || '9333';
-const DIRS = ['public/editorial', 'public/product', 'public/soon', 'public/backers', 'public/careers'];
+const DIRS = ['public/editorial', 'public/product', 'public/soon', 'public/backers', 'public/careers', 'public/blog'];
 const EXT = /\.(png|jpe?g|webp)$/i;
 
 function walk(dir) {
