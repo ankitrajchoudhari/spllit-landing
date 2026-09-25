@@ -89,7 +89,63 @@ const USER_ROW = {
   totalRides: true,
   createdAt: true,
   lastSeen: true,
+  suspendedAt: true,
 } as const;
+
+/** Stand-in address given to phone-only sign-ups; see /users/me/bootstrap. */
+const PLACEHOLDER_EMAIL = '@firebase.local';
+
+/**
+ * Where a person is in sign-up, as the console should describe it.
+ *
+ *  - `complete`: finished onboarding.
+ *  - `incomplete`: signed up on this app and stopped before finishing.
+ *  - `legacy`: signed up on the previous app, which never recorded the field.
+ *    Showing these as "onboarding" claimed 176 established accounts were
+ *    mid-sign-up; they finished the sign-up that existed at the time.
+ */
+type ProfileState = 'complete' | 'incomplete' | 'legacy';
+
+/**
+ * A user row as the console presents it.
+ *
+ * `isActive` is answered from `suspendedAt`, which only the suspend routes
+ * write. The column itself was also written by the legacy socket on every
+ * connect and disconnect, so reading it showed people as suspended who never
+ * were. Every console screen already treats `isActive` as "not suspended", so
+ * correcting it here fixes all of them at once.
+ *
+ * Phone-only sign-ups carry a placeholder email, and their name was built from
+ * it — so the list showed a Firebase uid as a person. Those read as the phone
+ * number instead.
+ */
+function presentUser<
+  T extends {
+    name: string;
+    email: string;
+    phone: string | null;
+    onboarded: boolean | null;
+    suspendedAt: Date | null;
+  },
+>(u: T) {
+  const placeholder = u.email.endsWith(PLACEHOLDER_EMAIL);
+  const localPart = u.email.slice(0, u.email.indexOf('@'));
+  const nameIsId = placeholder && (!u.name || u.name === localPart);
+
+  const profile: ProfileState =
+    u.onboarded === true ? 'complete' : u.onboarded === false ? 'incomplete' : 'legacy';
+
+  return {
+    ...u,
+    isActive: !u.suspendedAt,
+    profile,
+    displayName: nameIsId ? (u.phone ?? 'Phone sign-up') : u.name,
+    contact: placeholder ? (u.phone ?? 'No email (phone sign-in)') : u.email,
+  };
+}
+
+/** Matches rows where an optional DateTime is absent, set or unset. */
+const NOT_SUSPENDED = { OR: [{ suspendedAt: null }, { suspendedAt: { isSet: false } }] };
 
 function escapeRegex(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -209,7 +265,7 @@ router.get(
          * is bounded by DAU rather than by the size of the User collection.
          */
         prisma.activeUserDay.count({ where: { day: new Date().toISOString().slice(0, 10) } }),
-        prisma.user.count({ where: { isActive: false } }),
+        prisma.user.count({ where: { suspendedAt: { not: null } } }),
         prisma.user.count({ where: { onboarded: true } }),
         prisma.ride.count(),
         /**
@@ -406,12 +462,22 @@ router.get(
         ];
       }
 
-      if (status === 'active') where.isActive = true;
-      if (status === 'suspended') where.isActive = false;
+      // AND, not assignment: the search above already owns `where.OR`, and
+      // overwriting it made "suspended" + a search term ignore the term.
+      const and: Record<string, unknown>[] = [];
+      if (status === 'active') and.push(NOT_SUSPENDED);
+      if (status === 'suspended') and.push({ suspendedAt: { not: null } });
       if (status === 'onboarded') where.onboarded = true;
       if (status === 'admins') {
-        where.OR = [{ role: { in: ['admin', 'subadmin'] } }, { isAdmin: true }];
+        and.push({
+          OR: [
+            { adminRole: { not: null } },
+            { role: { in: ['admin', 'subadmin'] } },
+            { isAdmin: true },
+          ],
+        });
       }
+      if (and.length) where.AND = and;
 
       const [rows, total] = await Promise.all([
         prisma.user.findMany({
@@ -424,8 +490,54 @@ router.get(
         prisma.user.count({ where }),
       ]);
 
+      /**
+       * Real trip counts for this page only.
+       *
+       * `User.totalRides` is never incremented anywhere, so the column read 0
+       * for every person including the 26 who have hosted rides. Counted from
+       * the rows themselves instead: rides hosted, rides joined (an accepted or
+       * completed match), and group rides joined.
+       */
+      const ids = rows.map((u) => u.id);
+      const [hosted, joined, squads, activity] = await Promise.all([
+        prisma.ride.groupBy({ by: ['userId'], where: { userId: { in: ids } }, _count: true }),
+        prisma.match.groupBy({
+          by: ['user2Id'],
+          where: { user2Id: { in: ids }, status: { in: ['accepted', 'completed'] } },
+          _count: true,
+        }),
+        prisma.squadMember.groupBy({ by: ['userId'], where: { userId: { in: ids } }, _count: true }),
+        // `lastSeen` is written at sign-in only; a day of activity is later
+        // than that for anyone who stays signed in.
+        prisma.activeUserDay.groupBy({
+          by: ['userId'],
+          where: { userId: { in: ids } },
+          _max: { day: true },
+        }),
+      ]);
+      const count = (list: { _count: number }[], key: (row: never) => string) =>
+        new Map(list.map((row) => [key(row as never), row._count]));
+      const hostedBy = count(hosted, (r: { userId: string }) => r.userId);
+      const joinedBy = count(joined, (r: { user2Id: string }) => r.user2Id);
+      const squadsBy = count(squads, (r: { userId: string }) => r.userId);
+      const activeDay = new Map(activity.map((row) => [row.userId, row._max.day]));
+
       return ok(res, {
-        rows: rows.map((u) => ({ ...u, consoleRole: resolveAdminRole(u) })),
+        rows: rows.map((u) => {
+          const trips = {
+            hosted: hostedBy.get(u.id) ?? 0,
+            joined: joinedBy.get(u.id) ?? 0,
+            squads: squadsBy.get(u.id) ?? 0,
+          };
+          return {
+            ...presentUser(u),
+            consoleRole: resolveAdminRole(u),
+            trips,
+            totalRides: trips.hosted + trips.joined + trips.squads,
+            // A UTC day, not a moment: activity is recorded once per day.
+            lastActiveDay: activeDay.get(u.id) ?? null,
+          };
+        }),
         page,
         limit,
         total,
@@ -550,7 +662,7 @@ router.get(
       ]);
 
       return ok(res, {
-        user: { ...user, consoleRole: resolveAdminRole(user) },
+        user: { ...presentUser(user), consoleRole: resolveAdminRole(user) },
         counts: {
           rides,
           squads: squadMemberships,
@@ -646,7 +758,7 @@ router.patch(
       // working until it dropped on its own.
       if (!isActive) getIO()?.in(`user:${id}`).disconnectSockets(true);
 
-      return ok(res, updated);
+      return ok(res, presentUser(updated));
     } catch (error) {
       console.error('[admin-console/users/status]', error);
       return fail(res, 500, 'Failed to update account status');
@@ -1066,7 +1178,7 @@ router.get(
           .map((u) => {
             const consoleRole = resolveAdminRole(u);
             return {
-              ...u,
+              ...presentUser(u),
               consoleRole,
               /**
                * The resolved set, sent alongside the overrides rather than

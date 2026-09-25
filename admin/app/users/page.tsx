@@ -19,11 +19,39 @@ interface AdminUserRow {
   email: string;
   college: string;
   isActive: boolean;
-  onboarded: boolean;
+  onboarded: boolean | null;
+  /** Server-derived: see presentUser in routes/adminConsole.ts. */
+  profile: 'complete' | 'incomplete' | 'legacy';
+  displayName: string;
+  contact: string;
   totalRides: number;
+  trips: { hosted: number; joined: number; squads: number };
   createdAt: string;
   lastSeen: string;
+  /** UTC day of the most recent recorded activity, e.g. "2026-09-25". */
+  lastActiveDay: string | null;
   consoleRole: AdminRole | null;
+}
+
+/**
+ * The later of the sign-in time and the last day with recorded activity.
+ *
+ * `lastSeen` is only written at sign-in, so on its own it reported someone who
+ * uses the app daily but never signs out as "last seen" weeks ago. Activity is
+ * recorded per UTC day, so it is shown as a day rather than an hour.
+ */
+function lastSeenLabel(user: AdminUserRow): { label: string; title: string } {
+  const seen = new Date(user.lastSeen);
+  const seenDay = seen.toISOString().slice(0, 10);
+  if (!user.lastActiveDay || user.lastActiveDay <= seenDay) {
+    return { label: formatRelative(user.lastSeen), title: formatAbsolute(user.lastSeen) };
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const days = Math.round(
+    (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${user.lastActiveDay}T00:00:00Z`)) / 86_400_000,
+  );
+  const label = days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days}d ago`;
+  return { label, title: `Active on ${user.lastActiveDay} (UTC)` };
 }
 
 interface UsersResponse {
@@ -136,7 +164,7 @@ export default function UsersPage() {
             <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-line-strong">
-                  {['User', 'College', 'Status', 'Rides', 'Joined', 'Last seen'].map((heading) => (
+                  {['User', 'College', 'Status', 'Trips', 'Joined', 'Last seen'].map((heading) => (
                     <th
                       key={heading}
                       className="px-4 py-3 text-left font-mono text-[10px] font-semibold uppercase tracking-wider text-ink-subtle"
@@ -154,8 +182,8 @@ export default function UsersPage() {
                         href={`/users/${user.id}`}
                         className="flex flex-col transition-colors duration-snap hover:text-brand"
                       >
-                        <span className="font-semibold text-ink">{user.name}</span>
-                        <span className="font-mono text-xs text-ink-subtle">{user.email}</span>
+                        <span className="font-semibold text-ink">{user.displayName}</span>
+                        <span className="font-mono text-xs text-ink-subtle">{user.contact}</span>
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-ink-muted">{user.college || '—'}</td>
@@ -167,15 +195,29 @@ export default function UsersPage() {
                         {user.consoleRole ? (
                           <Badge tone="info">{ROLE_LABELS[user.consoleRole]}</Badge>
                         ) : null}
-                        {!user.onboarded ? <Badge tone="warn">Onboarding</Badge> : null}
+                        {user.profile === 'incomplete' ? (
+                          <span title="Signed up but never finished setting up their profile">
+                            <Badge tone="warn">Profile incomplete</Badge>
+                          </span>
+                        ) : null}
+                        {user.profile === 'legacy' ? (
+                          <span title="Joined on the previous app. They have no username yet and will be asked for one next time they sign in.">
+                            <Badge tone="neutral">Old app</Badge>
+                          </span>
+                        ) : null}
                       </div>
                     </td>
-                    <td className="tabular px-4 py-3 text-ink-muted">{user.totalRides}</td>
+                    <td
+                      className="tabular px-4 py-3 text-ink-muted"
+                      title={`Hosted ${user.trips.hosted} · joined ${user.trips.joined} rides · ${user.trips.squads} group rides`}
+                    >
+                      {user.totalRides}
+                    </td>
                     <td className="px-4 py-3 text-ink-muted" title={formatAbsolute(user.createdAt)}>
                       {formatRelative(user.createdAt)}
                     </td>
-                    <td className="px-4 py-3 text-ink-muted" title={formatAbsolute(user.lastSeen)}>
-                      {formatRelative(user.lastSeen)}
+                    <td className="px-4 py-3 text-ink-muted" title={lastSeenLabel(user).title}>
+                      {lastSeenLabel(user).label}
                     </td>
                   </tr>
                 ))}

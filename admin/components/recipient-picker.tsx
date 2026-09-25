@@ -24,8 +24,11 @@ interface Row {
   name: string;
   email: string;
   college: string;
-  onboarded: boolean;
+  onboarded: boolean | null;
   isActive: boolean;
+  profile: 'complete' | 'incomplete' | 'legacy';
+  displayName: string;
+  contact: string;
 }
 
 interface UsersResponse {
@@ -73,7 +76,7 @@ export function RecipientPicker({
       return;
     }
     if (full) return;
-    onChange([...selected, { id: row.id, name: row.name, email: row.email }]);
+    onChange([...selected, { id: row.id, name: row.displayName, email: row.contact }]);
   };
 
   return (
@@ -138,18 +141,16 @@ export function RecipientPicker({
                       className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-surface-sunken disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-ink">{row.name}</span>
-                        <span className="block truncate text-xs text-ink-subtle">{row.email}</span>
+                        <span className="block truncate text-sm text-ink">{row.displayName}</span>
+                        <span className="block truncate text-xs text-ink-subtle">{row.contact}</span>
                       </span>
                       {/* Surfaced because a named list deliberately includes
                           people who have not finished signing up — see the
                           `users` case in adminConsoleSettings — and that is
                           worth seeing before you pick them. */}
-                      {!row.onboarded ? <Badge tone="warn">onboarding</Badge> : null}
-                      {/* Not a refusal. `inactive` does not mean the account is
-                          unusable — those people sign in and use the app — but
-                          it is worth seeing before you pick them. */}
-                      {!row.isActive ? <Badge tone="warn">inactive</Badge> : null}
+                      {row.profile === 'incomplete' ? <Badge tone="warn">incomplete</Badge> : null}
+                      {/* isActive is "not suspended" here — see presentUser. */}
+                      {!row.isActive ? <Badge tone="bad">suspended</Badge> : null}
                       {picked ? <Check className="h-4 w-4 shrink-0 text-brand" /> : null}
                     </button>
                   </li>

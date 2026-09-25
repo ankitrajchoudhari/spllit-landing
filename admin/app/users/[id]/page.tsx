@@ -28,7 +28,10 @@ interface UserDetail {
     phone: string | null;
     college: string;
     isActive: boolean;
-    onboarded: boolean;
+    onboarded: boolean | null;
+    profile: 'complete' | 'incomplete' | 'legacy';
+    displayName: string;
+    contact: string;
     emailVerified: boolean;
     phoneVerified: boolean;
     instituteVerified: boolean;
@@ -130,8 +133,8 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   return (
     <>
       <PageHeader
-        title={user.name}
-        description={user.username ? `@${user.username} · ${user.email}` : user.email}
+        title={user.displayName}
+        description={user.username ? `@${user.username} · ${user.contact}` : user.contact}
         actions={
           canSuspend ? (
             <Button
@@ -151,7 +154,8 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
           {user.isActive ? 'Active' : 'Suspended'}
         </Badge>
         {user.consoleRole ? <Badge tone="info">{ROLE_LABELS[user.consoleRole]}</Badge> : null}
-        {!user.onboarded ? <Badge tone="warn">Onboarding incomplete</Badge> : null}
+        {user.profile === 'incomplete' ? <Badge tone="warn">Profile incomplete</Badge> : null}
+        {user.profile === 'legacy' ? <Badge tone="neutral">Joined on the old app</Badge> : null}
         {user.emailVerified ? <Badge tone="neutral">Email verified</Badge> : null}
         {user.phoneVerified ? <Badge tone="neutral">Phone verified</Badge> : null}
         {user.instituteVerified ? <Badge tone="good">Institute verified</Badge> : null}
@@ -300,7 +304,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
       {confirming ? (
         <ConfirmDialog
-          title={confirming === 'suspend' ? `Suspend ${user.name}?` : `Restore ${user.name}?`}
+          title={confirming === 'suspend' ? `Suspend ${user.displayName}?` : `Restore ${user.displayName}?`}
           description={
             confirming === 'suspend'
               ? 'They will lose access to Spllit immediately. Their rides, group rides and history are kept.'
