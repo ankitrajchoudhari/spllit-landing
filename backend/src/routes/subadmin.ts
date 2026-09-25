@@ -264,10 +264,9 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
         });
     } catch (error) {
         console.error('Create subadmin error:', error);
-        res.status(500).json({ 
-            error: 'Failed to create subadmin',
-            details: error.message || 'Unknown error'
-        });
+        // The cause stays in the server log. Raw Prisma/Mongo messages name
+        // collections, fields and constraints, which callers have no use for.
+        res.status(500).json({ error: 'Failed to create subadmin' });
     }
 });
 
@@ -313,10 +312,7 @@ router.get('/list', authenticateAdmin, requireAdminOrSubadmin, async (req: Admin
     } catch (error) {
         console.error('=== List subadmins error ===');
         console.error('Error:', error);
-        res.status(500).json({ 
-            error: 'Failed to list subadmins',
-            details: error.message || 'Unknown error'
-        });
+        res.status(500).json({ error: 'Failed to list subadmins' });
     }
 });
 
