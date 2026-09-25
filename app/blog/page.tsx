@@ -5,7 +5,7 @@ import { LandingNav } from '@/components/landing/landing-nav';
 import { ParallaxFooter } from '@/components/landing/parallax-footer';
 import { FeaturedCard, PostCard } from '@/components/blog/post-cards';
 import { blurProps } from '@/lib/image-blur';
-import { allPosts } from '@/content/blog';
+import { blogService } from '@/lib/services/blog';
 import { SITE } from '@/content/site';
 
 export const metadata: Metadata = {
@@ -37,8 +37,15 @@ export const metadata: Metadata = {
  * fits on a screen, and the chips already say which is a guide and which is an
  * announcement.
  */
-export default function BlogIndexPage() {
-  const posts = allPosts();
+/**
+ * Thirty seconds, and dropped outright when the console saves — the same
+ * arrangement the careers page uses, and for the same reason: publishing a post
+ * and not seeing it is indistinguishable from publishing having failed.
+ */
+export const revalidate = 30;
+
+export default async function BlogIndexPage() {
+  const posts = await blogService.posts();
   const [lead, ...rest] = posts;
 
   return (

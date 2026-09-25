@@ -17,7 +17,7 @@ import crypto from 'node:crypto';
  */
 
 /** Paths whose content comes from the console, and nothing else. */
-const PATHS = ['/careers'] as const;
+const PATHS = ['/careers', '/blog'] as const;
 
 function secretMatches(provided: string, expected: string): boolean {
   const a = Buffer.from(provided);
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
   // Every apply page at once: they are one route with a parameter, and a role
   // that was just removed has to stop resolving along with the board.
   revalidatePath('/careers/[id]/apply', 'page');
+  revalidatePath('/blog/[slug]', 'page');
 
   /**
    * Answer at once. Rebuilding is the caller’s job, and has to be.

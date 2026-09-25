@@ -6,6 +6,7 @@ import { useState } from 'react';
 import {
   BarChart3,
   Briefcase,
+  Newspaper,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -59,6 +60,7 @@ const NAV: NavItem[] = [
   { href: '/messages', label: 'Messages', icon: Send, permission: 'content.view' },
   { href: '/insights', label: 'Insights', icon: BarChart3, permission: 'analytics.view' },
   { href: '/careers', label: 'Careers', icon: Briefcase, permission: 'settings.view' },
+  { href: '/blog', label: 'Blog & News', icon: Newspaper, permission: 'settings.view' },
   { href: '/settings', label: 'Settings', icon: SlidersHorizontal, permission: 'settings.view' },
 ];
 

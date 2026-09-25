@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import prisma from '../utils/prisma.js';
 import { ok, fail, boundingBox, parseCoords } from '../utils/respond.js';
 import { publicView, readCareersContent } from '../services/careers.js';
+import { readBlogContent, publicView as blogPublicView } from '../services/blogContent.js';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { emailApplicationReceived } from '../services/email.js';
@@ -133,6 +134,24 @@ router.get('/careers', async (_req: Request, res: Response) => {
   } catch (error) {
     console.error('[public/careers]', error);
     return fail(res, 500, 'Failed to load careers content');
+  }
+});
+
+/**
+ * GET /blog — posts written in the admin console.
+ *
+ * 404 when nothing has been published, which is a normal first-run answer
+ * rather than a failure: the landing site falls back to the posts compiled
+ * into it and the page renders either way.
+ */
+router.get('/blog', async (_req: Request, res: Response) => {
+  try {
+    const content = await readBlogContent();
+    if (!content) return fail(res, 404, 'No blog posts have been published yet');
+    return ok(res, blogPublicView(content));
+  } catch (error) {
+    console.error('[public/blog]', error);
+    return fail(res, 500, 'Failed to load blog posts');
   }
 });
 

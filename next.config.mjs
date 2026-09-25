@@ -24,6 +24,8 @@ const nextConfig = {
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
       { protocol: 'https', hostname: 'api.mapbox.com' },
       { protocol: 'https', hostname: 'res.cloudinary.com' },
+      // Blog images uploaded from the admin console.
+      { protocol: 'https', hostname: 'storage.googleapis.com' },
     ],
   },
   // mapbox-gl ships untranspiled ESM that Next's server compiler chokes on; it is

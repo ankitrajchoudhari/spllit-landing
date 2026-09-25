@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
-import { allPosts, findPost } from '@/content/blog';
+import { allPosts } from '@/content/blog';
+import { blogService } from '@/lib/services/blog';
 import { SITE } from '@/content/site';
 import { ArticleStructuredData } from '@/components/shared/structured-data';
 import { LandingNav } from '@/components/landing/landing-nav';
@@ -22,6 +23,16 @@ import { blurProps } from '@/lib/image-blur';
  * Pre-rendered at build time. These are the pages meant to rank, so they have
  * to be static HTML a crawler can read without executing anything.
  */
+export const revalidate = 30;
+
+/**
+ * Only the compiled posts are prerendered.
+ *
+ * A console post published after the last deploy has no build to be part of,
+ * so dynamicParams stays on: an unknown slug renders on demand and is cached
+ * from then on. Prerendering what we can keeps the pages that are meant to
+ * rank as static HTML.
+ */
 export function generateStaticParams() {
   return allPosts().map((post) => ({ slug: post.slug }));
 }
@@ -32,7 +43,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = findPost(slug);
+  const post = await blogService.post(slug);
   if (!post) return {};
 
   return {
@@ -63,10 +74,10 @@ export default async function BlogPostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = findPost(slug);
+  const post = await blogService.post(slug);
   if (!post) notFound();
 
-  const more = allPosts()
+  const more = (await blogService.posts())
     .filter((other) => other.slug !== post.slug)
     .slice(0, 3);
 
@@ -129,11 +140,13 @@ export default async function BlogPostPage({
 
           <div className="mx-auto max-w-[68ch] px-5 pb-14 pt-10 sm:px-6 lg:px-8">
             <div className="space-y-11">
-              {post.sections.map((section) => (
-                <section key={section.heading}>
-                  <h2 className="font-sans text-[22px] font-medium leading-[1.25] tracking-[-0.025em] text-ink sm:text-[26px]">
-                    {section.heading}
-                  </h2>
+              {post.sections.map((section, index) => (
+                <section key={section.heading || index}>
+                  {section.heading ? (
+                    <h2 className="font-sans text-[22px] font-medium leading-[1.25] tracking-[-0.025em] text-ink sm:text-[26px]">
+                      {section.heading}
+                    </h2>
+                  ) : null}
 
                   {section.paragraphs?.map((paragraph) => (
                     <p key={paragraph} className="mt-5 text-[17px] leading-[1.7] text-ink-muted">

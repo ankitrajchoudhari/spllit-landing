@@ -64,6 +64,61 @@ interface Envelope<T> {
   code?: string;
 }
 
+/**
+ * Send a file.
+ *
+ * Separate from api() because that one JSON-encodes every body and sets a
+ * JSON content type. A multipart body has to carry its own boundary, which
+ * only the browser can generate — setting Content-Type by hand here produces
+ * a request the server cannot parse, and the failure looks like a rejected
+ * file rather than a malformed request.
+ */
+export async function apiUpload<T>(path: string, file: File): Promise<T> {
+  if (!config.api.baseUrl) {
+    throw new ApiError(
+      'The console is not configured with an API address.',
+      0,
+      'not_configured',
+    );
+  }
+
+  const root = config.api.baseUrl;
+  const base = root.endsWith('/') ? root.slice(0, -1) : root;
+  const url = `${base}/admin-console${path.startsWith('/') ? path : `/${path}`}`;
+
+  const token = tokenGetter ? await tokenGetter() : null;
+  const form = new FormData();
+  form.append('file', file);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: form,
+    });
+  } catch {
+    throw new ApiError('Could not reach the Spllit API. Check your connection.', 0, 'network');
+  }
+
+  let payload: Envelope<T> | null = null;
+  try {
+    payload = (await response.json()) as Envelope<T>;
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok || !payload?.success) {
+    throw new ApiError(
+      payload?.message ?? `Upload failed (${response.status})`,
+      response.status,
+      payload?.code,
+    );
+  }
+
+  return payload.data as T;
+}
+
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, query, headers, ...rest } = options;
 
