@@ -5,6 +5,7 @@ import { hashPassword, comparePassword, generateAccessToken } from '../utils/hel
 import jwt from 'jsonwebtoken';
 import { io } from '../server.js';
 import { deprecated } from '../middleware/deprecation.js';
+import { isCompromisedPassword } from '../utils/passwordPolicy.js';
 
 const router = Router();
 
@@ -90,7 +91,7 @@ const adminLoginSchema = z.object({
 // Create admin schema
 const createAdminSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(6).refine((p) => !isCompromisedPassword(p), 'This password is known to be public'),
   name: z.string().min(2)
 });
 
@@ -112,6 +113,14 @@ router.post('/login', async (req: Request, res: Response) => {
 
     // Normalize email to lowercase
     const normalizedEmail = data.email.toLowerCase().trim();
+
+    // A leaked password is refused before any lookup, whichever table the
+    // account lives in and whether or not its hash still matches.
+    if (isCompromisedPassword(data.password)) {
+      return res.status(403).json({
+        error: 'PASSWORD_COMPROMISED: This password is known to be public. Ask the master admin to rotate it.'
+      });
+    }
 
     // First check users table for subadmins (they take priority for @spllit.app emails)
     // Exact match path for clean data.
@@ -181,22 +190,12 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Then check admin table (for master admin only)
-    let admin = await prisma.admin.findUnique({
+    // No account is ever created here. The master row used to be created on
+    // first login with a password committed to this public repo; bootstrap and
+    // rotation now go through scripts/set-master-admin.mjs.
+    const admin = await prisma.admin.findUnique({
       where: { email: normalizedEmail }
     });
-
-    // If master admin doesn't exist, create it on first login
-    if (!admin && normalizedEmail === 'ankit@spllit.app') {
-      const hashedPassword = await hashPassword('Kurkure123@');
-      admin = await prisma.admin.create({
-        data: {
-          email: 'ankit@spllit.app',
-          password: hashedPassword,
-          name: 'Ankit (Master Admin)',
-          role: 'master'
-        }
-      });
-    }
 
     // If found in admin table
     if (admin) {
