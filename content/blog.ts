@@ -204,6 +204,49 @@ export const BLOG_POSTS: BlogPost[] = [
  */
 export const NEWS_POSTS: BlogPost[] = [
   {
+    slug: 'incubated-at-vels-nvidia-inception-sarvam',
+    kind: 'News',
+    image: '/backers/vels-innovation-council.png',
+    imageAlt: 'The VELS Innovation Council crest',
+    title: 'Incubated at VELS, then into NVIDIA Inception and Sarvam',
+    description:
+      'Spllit was incubated at the VELS Innovation Council through E-Cell in March 2026, and has since been selected for the NVIDIA Inception programme and the Sarvam AI startup programme. It is MSME registered.',
+    publishedAt: '2026-03-20',
+    readingMinutes: 2,
+    tags: ['incubation', 'programmes', 'company'],
+    excerpt:
+      'Where Spllit is incubated, which programmes it has been selected for since, and what each of them is actually for.',
+    sections: [
+      {
+        heading: 'Incubated at VELS, March 2026',
+        paragraphs: [
+          'Spllit was taken into the VELS Innovation Council through the campus E-Cell in March 2026. That is where the company started and where a lot of the early testing still happens — the first students to use Spllit were on that campus, and the first things that broke broke there.',
+          'An incubator is not funding and it is not validation. What it buys is room: a place to build, people to ask, and students within walking distance who will tell you when the product is annoying.',
+        ],
+      },
+      {
+        heading: 'NVIDIA Inception and Sarvam, after that',
+        paragraphs: [
+          'Since the incubation, Spllit has been selected for the NVIDIA Inception programme and the Sarvam AI startup programme. Both came after the product was already running on campus, which is the order we would have chosen.',
+        ],
+        bullets: [
+          'VELS Innovation Council — the incubator, and the campus the product was first tested on',
+          'E-Cell — the entrepreneurship cell that took Spllit into the council',
+          'NVIDIA Inception — a programme for early companies building on GPU compute',
+          'Sarvam AI startup programme — partners on the language and model side',
+          'MSME — the government scheme Spllit is registered under',
+        ],
+      },
+      {
+        heading: 'What this does and does not mean',
+        paragraphs: [
+          'None of this makes a product good, and a logo on a landing page is not evidence that anything works. What it means is that Spllit has compute to build on, people to ask, and a campus to be wrong in front of.',
+          'Whether the thing being built is any good is still decided by whether two students heading to the same airport actually end up in the same cab.',
+        ],
+      },
+    ],
+  },
+  {
     slug: 'careers-page-is-open',
     kind: 'News',
     image: '/blog/press.png',

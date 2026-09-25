@@ -121,17 +121,28 @@ export default async function BlogPostPage({
           </header>
 
           {post.image ? (
-            /* Wider than the text column — the one element that gains from the
-               extra room, and the thing that gives the page a top edge. */
-            <div className="mx-auto mt-10 max-w-4xl px-5 sm:px-6 lg:px-8">
-              <div className="relative aspect-[16/10] overflow-hidden rounded-3xl border border-line bg-surface">
+            /**
+             * No frame.
+             *
+             * The art is cut-out photography with no background of its own, so
+             * a card around it drew a white rectangle the picture then sat
+             * inside — two edges where the artwork has none. Dropped straight
+             * onto the page it reads as one thing rather than a picture in a
+             * box, which is the point of a cutout.
+             *
+             * The ratio box stays because object-contain needs somewhere to
+             * contain itself, and these images are not all the same shape. It
+             * is invisible: no border, no background, no padding.
+             */
+            <div className="mx-auto mt-6 max-w-3xl px-5 sm:mt-8 sm:px-6 lg:px-8">
+              <div className="relative aspect-[4/3] sm:aspect-[16/10]">
                 <Image
                   src={post.image}
                   alt={post.imageAlt ?? ''}
                   fill
-                  sizes="(min-width: 1024px) 896px, 94vw"
+                  sizes="(min-width: 768px) 720px, 90vw"
                   {...blurProps(post.image)}
-                  className="object-contain p-8 sm:p-14"
+                  className="object-contain"
                   priority
                 />
               </div>
