@@ -7,6 +7,18 @@ import { blurProps } from '@/lib/image-blur';
 import { postKind, type BlogPost } from '@/content/blog';
 
 /**
+ * next/image refuses to optimise SVG, and rasterising one would throw away
+ * the reason it is an SVG. The logos are the only vectors here, so they are
+ * passed through untouched rather than every image losing optimisation.
+ */
+function imageProps(src: string) {
+  return src.toLowerCase().endsWith('.svg')
+    ? { unoptimized: true as const }
+    : blurProps(src);
+}
+
+
+/**
  * Cards for the blog index and the "keep reading" rail.
  *
  * The art is cut-out photography on white — black-and-white figures against
@@ -68,7 +80,7 @@ export function FeaturedCard({ post }: { post: BlogPost }) {
               alt={post.imageAlt ?? ''}
               fill
               sizes="(min-width: 768px) 52vw, 100vw"
-              {...blurProps(post.image)}
+              {...imageProps(post.image)}
               className="object-contain p-8 transition-transform duration-500 group-hover:scale-[1.03] md:p-12"
               priority
             />
@@ -111,7 +123,7 @@ export function PostCard({ post }: { post: BlogPost }) {
               alt={post.imageAlt ?? ''}
               fill
               sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
-              {...blurProps(post.image)}
+              {...imageProps(post.image)}
               className="object-contain p-7 transition-transform duration-500 group-hover:scale-[1.04]"
             />
           ) : null}

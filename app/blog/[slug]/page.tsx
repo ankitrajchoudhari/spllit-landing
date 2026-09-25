@@ -14,6 +14,18 @@ import { KindChip, PostCard, PostMeta } from '@/components/blog/post-cards';
 import { blurProps } from '@/lib/image-blur';
 
 /**
+ * next/image refuses to optimise SVG, and rasterising one would throw away
+ * the reason it is an SVG. The logos are the only vectors here, so they are
+ * passed through untouched rather than every image losing optimisation.
+ */
+function imageProps(src: string) {
+  return src.toLowerCase().endsWith('.svg')
+    ? { unoptimized: true as const }
+    : blurProps(src);
+}
+
+
+/**
  * A single post.
  *
  * Measure over width: the column is capped near 68 characters, because that is
@@ -141,7 +153,7 @@ export default async function BlogPostPage({
                   alt={post.imageAlt ?? ''}
                   fill
                   sizes="(min-width: 768px) 720px, 90vw"
-                  {...blurProps(post.image)}
+                  {...imageProps(post.image)}
                   className="object-contain"
                   priority
                 />

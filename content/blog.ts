@@ -149,8 +149,8 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: 'what-is-a-travel-squad',
-    image: '/blog/plug.png',
-    imageAlt: 'A hand holding an unplugged power plug',
+    image: '/blog/carpool.jpg',
+    imageAlt: 'An illustration of two people sharing a car, seen through the windscreen',
     title: 'What is a travel group ride, and when is it better than a carpool?',
     description:
       'Group Rides coordinate a group heading to the same place — exam centre, airport, concert — with one meeting point and everyone\'s ETA on one map.',
@@ -204,18 +204,90 @@ export const BLOG_POSTS: BlogPost[] = [
  */
 export const NEWS_POSTS: BlogPost[] = [
   {
+    slug: 'selected-for-nvidia-inception',
+    kind: 'News',
+    image: '/backers/nvidia-inception.png',
+    imageAlt: 'The NVIDIA Inception programme badge',
+    title: 'Spllit has been selected for NVIDIA Inception',
+    description:
+      'Spllit is part of the NVIDIA Inception programme — a programme for early companies building on GPU compute. What it gives us, and what it does not.',
+    publishedAt: '2026-06-12',
+    readingMinutes: 2,
+    tags: ['nvidia inception', 'programmes', 'company'],
+    excerpt:
+      'A programme for early companies building on GPU compute. Useful to be straight about what that means for a ride-splitting app, because it is not a badge that makes matching work.',
+    sections: [
+      {
+        heading: 'What Inception actually is',
+        paragraphs: [
+          'NVIDIA Inception is a programme for early-stage companies doing work that needs GPU compute. It is not an investment and it is not an endorsement of the product — it is access: to compute, to technical people, and to the tooling that makes model work affordable at our size.',
+        ],
+      },
+      {
+        heading: 'Why a ride-splitting app needs any of that',
+        paragraphs: [
+          'The matching problem underneath Spllit is not a database query. Deciding that two people heading roughly the same way at roughly the same time should share a cab — and that a third should not, because the detour would cost them more than the split saves — is the part that gets harder as more people use it.',
+          'Compute is what makes that tractable to work on rather than something to approximate and hope about.',
+        ],
+      },
+      {
+        heading: 'What it does not mean',
+        paragraphs: [
+          'It does not mean Spllit is an AI company, and it does not make the product good. A student in Chennai does not care what our matching runs on. They care whether somebody was actually going their way.',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'selected-for-sarvam-startup-programme',
+    kind: 'News',
+    image: '/backers/sarvam-logomark-dark.svg',
+    imageAlt: 'The Sarvam wordmark',
+    title: 'Spllit has joined the Sarvam AI startup programme',
+    description:
+      'Spllit is part of the Sarvam AI startup programme, working with them on the language side — which for a product used across Indian campuses is not a detail.',
+    publishedAt: '2026-07-08',
+    readingMinutes: 2,
+    tags: ['sarvam', 'programmes', 'company'],
+    excerpt:
+      'Working with Sarvam on the language side. For a product used across Indian campuses, understanding how people actually write is not a nice-to-have.',
+    sections: [
+      {
+        heading: 'Why language, specifically',
+        paragraphs: [
+          'People do not post a ride in clean English. They write ‘anyone going airport fri eve, can split’, and they write it in Hinglish, in Tamil, in Tanglish, and in whatever shorthand their hostel group uses.',
+          'A product that only understands one of those is a product that works for some of a campus. Sarvam builds models for Indian languages, which is exactly the problem we have.',
+        ],
+      },
+      {
+        heading: 'What we are working on',
+        bullets: [
+          'Reading a free-text ride post and working out where, when and how many',
+          'Handling the mix of languages a single sentence is often written in',
+          'Not making somebody fill in six fields to say something they typed in eight words',
+        ],
+      },
+      {
+        heading: 'The honest version',
+        paragraphs: [
+          'This is early. The thing that matters is whether somebody can type how they normally type and still get matched, and we are not finished. Being in the programme is the start of that work rather than proof of it.',
+        ],
+      },
+    ],
+  },
+  {
     slug: 'incubated-at-vels-nvidia-inception-sarvam',
     kind: 'News',
     image: '/backers/vels-innovation-council.png',
     imageAlt: 'The VELS Innovation Council crest',
-    title: 'Incubated at VELS, then into NVIDIA Inception and Sarvam',
+    title: 'Spllit is incubated at the VELS Innovation Council',
     description:
-      'Spllit was incubated at the VELS Innovation Council through E-Cell in March 2026, and has since been selected for the NVIDIA Inception programme and the Sarvam AI startup programme. It is MSME registered.',
+      'Spllit was incubated at the VELS Innovation Council through the campus E-Cell in March 2026 — the campus the product was first tested on, and where the first things to break broke.',
     publishedAt: '2026-03-20',
     readingMinutes: 2,
     tags: ['incubation', 'programmes', 'company'],
     excerpt:
-      'Where Spllit is incubated, which programmes it has been selected for since, and what each of them is actually for.',
+      'Where Spllit started: an incubator, a campus full of students to be wrong in front of, and the first version of a product nobody had used yet.',
     sections: [
       {
         heading: 'Incubated at VELS, March 2026',
@@ -284,8 +356,8 @@ export const NEWS_POSTS: BlogPost[] = [
   {
     slug: 'two-cities-in-testing',
     kind: 'News',
-    image: '/blog/blog-letters.png',
-    imageAlt: 'The word blog built from cut-out paper letters',
+    image: '/blog/testing.png',
+    imageAlt: 'The word Testing written in chalk on a blackboard',
     title: 'Spllit is in testing in Chennai and Jaipur',
     description:
       'Why Spllit is live on campuses in two cities rather than ten, and what has to be true before a third one is worth adding.',
