@@ -33,3 +33,18 @@ function denylist(): Set<string> {
 export function isCompromisedPassword(password: string): boolean {
   return denylist().has(digest(password));
 }
+
+/**
+ * Why a password may not be set, or null when it may.
+ *
+ * One rule for every place an admin sets a password, so create and reset can
+ * not drift apart — create previously accepted any non-empty string.
+ */
+export function passwordProblem(password: unknown): string | null {
+  if (typeof password !== 'string' || !password) return 'Password is required';
+  if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) {
+    return 'Password must be at least 8 characters and include both letters and numbers';
+  }
+  if (isCompromisedPassword(password)) return 'This password is known to be public. Choose another.';
+  return null;
+}

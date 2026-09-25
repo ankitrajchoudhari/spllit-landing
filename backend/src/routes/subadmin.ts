@@ -6,6 +6,7 @@ import { io } from '../server.js';
 import { AdminRequest } from '../types/express.js';
 import { hashPhone } from '../utils/helpers.js';
 import { deprecated } from '../middleware/deprecation.js';
+import { passwordProblem } from '../utils/passwordPolicy.js';
 
 const router = express.Router();
 
@@ -136,6 +137,11 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
             return res.status(400).json({ error: 'Name, email, and password are required' });
         }
 
+        const weakPassword = passwordProblem(password);
+        if (weakPassword) {
+            return res.status(400).json({ error: weakPassword });
+        }
+
         // Validate email domain
         if (!isValidEmailDomain(normalizedEmail)) {
             return res.status(400).json({ 
@@ -148,90 +154,75 @@ router.post('/create', authenticateAdmin, requireAdminOrSubadmin, async (req: Ad
             where: { email: normalizedEmail }
         });
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
         if (existingUser) {
-            // If previously deleted subadmin record exists, reactivate it.
-            if (
-                (existingUser.role === 'subadmin' || existingUser.isAdmin) &&
-                (existingUser.adminStatus === 'deleted' || existingUser.adminStatus === 'inactive' || !existingUser.isActive)
-            ) {
-                const reactivatedAdmin = await prisma.user.update({
-                    where: { id: existingUser.id },
-                    data: {
-                        name: normalizedName,
-                        password: hashedPassword,
-                        college: college || existingUser.college,
-                        gender: gender || existingUser.gender,
-                        phone: phone || existingUser.phone,
-                        role: 'subadmin',
-                        isAdmin: true,
-                        adminStatus: 'active',
-                        isActive: true,
-                        createdBy: req.admin?.id || null,
-                        updatedAt: new Date()
-                    },
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        college: true,
-                        role: true,
-                        adminStatus: true,
-                        createdAt: true
-                    }
-                });
+            const wasAdmin = existingUser.role === 'subadmin' || existingUser.isAdmin;
 
-                return res.status(200).json({
-                    message: 'Subadmin reactivated successfully',
-                    subadmin: reactivatedAdmin
+            /**
+             * Never take over an account that is not already an admin.
+             *
+             * This used to overwrite the password of whatever user owned the
+             * email and promote them — so any subadmin could sign in as any
+             * user, and the promotion carried an admin role into the new
+             * console. Granting a role to an existing person is done with
+             * scripts/make-admin.mjs or the console's role controls, neither
+             * of which touches their password.
+             */
+            if (!wasAdmin) {
+                return res.status(409).json({
+                    error: 'A user with this email already exists. Grant them a role from the admin console instead.'
                 });
             }
 
-            // If already an active subadmin, block duplicate creation.
-            if (existingUser.role === 'subadmin' || existingUser.isAdmin) {
+            const isDormant =
+                existingUser.adminStatus === 'deleted' ||
+                existingUser.adminStatus === 'inactive' ||
+                !existingUser.isActive;
+
+            if (!isDormant) {
                 return res.status(400).json({
                     error: 'Admin with this email already exists'
                 });
             }
 
-            // If a regular user exists with same email, promote them to subadmin.
-            if (existingUser.role !== 'subadmin' && !existingUser.isAdmin) {
-                const promotedAdmin = await prisma.user.update({
-                    where: { id: existingUser.id },
-                    data: {
-                        name: normalizedName,
-                        password: hashedPassword,
-                        college: college || existingUser.college,
-                        gender: gender || existingUser.gender,
-                        phone: phone || existingUser.phone,
-                        role: 'subadmin',
-                        isAdmin: true,
-                        adminStatus: 'active',
-                        isActive: true,
-                        emailVerified: true,
-                        phoneVerified: true,
-                        createdBy: req.admin?.id || null,
-                        updatedAt: new Date()
-                    },
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        college: true,
-                        role: true,
-                        adminStatus: true,
-                        createdAt: true
-                    }
-                });
-
-                return res.status(200).json({
-                    message: 'Existing user promoted to subadmin successfully',
-                    subadmin: promotedAdmin
-                });
+            // Bringing back a deactivated admin undoes a master decision, so
+            // only a master may do it — the same rule as PUT /:id/activate.
+            if (req.admin?.role !== 'master') {
+                return res.status(403).json({ error: 'Master admin access required to reactivate an admin' });
             }
+
+            const reactivatedAdmin = await prisma.user.update({
+                where: { id: existingUser.id },
+                data: {
+                    name: normalizedName,
+                    password: await bcrypt.hash(password, 10),
+                    college: college || existingUser.college,
+                    gender: gender || existingUser.gender,
+                    phone: phone || existingUser.phone,
+                    role: 'subadmin',
+                    isAdmin: true,
+                    adminStatus: 'active',
+                    isActive: true,
+                    createdBy: req.admin?.id || null,
+                    updatedAt: new Date()
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    college: true,
+                    role: true,
+                    adminStatus: true,
+                    createdAt: true
+                }
+            });
+
+            return res.status(200).json({
+                message: 'Subadmin reactivated successfully',
+                subadmin: reactivatedAdmin
+            });
         }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
         const phoneHash = hashPhone(normalizedPhone || `subadmin:${normalizedEmail}`);
@@ -507,6 +498,11 @@ router.put('/:id/update', authenticateAdmin, requireMaster, async (req: AdminReq
             return res.status(404).json({ error: 'Subadmin not found' });
         }
 
+        const weakPassword = password ? passwordProblem(password) : null;
+        if (weakPassword) {
+            return res.status(400).json({ error: weakPassword });
+        }
+
         // Prepare update data
         const updateData: any = {
             updatedAt: new Date()
@@ -552,15 +548,9 @@ router.put('/:id/reset-password', authenticateAdmin, requireMaster, async (req: 
         const { id } = req.params;
         const { password } = req.body;
 
-        if (!password || typeof password !== 'string') {
-            return res.status(400).json({ error: 'New password is required' });
-        }
-
-        const strongPasswordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-        if (!strongPasswordRegex.test(password)) {
-            return res.status(400).json({
-                error: 'Password must be at least 8 characters and include both letters and numbers'
-            });
+        const weakPassword = passwordProblem(password);
+        if (weakPassword) {
+            return res.status(400).json({ error: weakPassword });
         }
 
         const subadmin = await prisma.user.findUnique({

@@ -57,3 +57,18 @@ describe('C2 — socket room joins', async () => {
     assert.notEqual(positionRoom('u1'), 'user:u1');
   });
 });
+
+describe('C3 — one password rule for admin create and reset', async () => {
+  const { passwordProblem } = await import('../utils/passwordPolicy.js');
+
+  it('rejects weak, missing and leaked passwords', () => {
+    assert.ok(passwordProblem(undefined));
+    assert.ok(passwordProblem('short1'));
+    assert.ok(passwordProblem('lettersonly'));
+    assert.ok(passwordProblem('Kurkure123@'));
+  });
+
+  it('accepts a password with letters and digits, 8+ long', () => {
+    assert.equal(passwordProblem('correct horse 42'), null);
+  });
+});
