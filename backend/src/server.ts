@@ -53,8 +53,8 @@ dotenv.config();
  * CORS allowlist.
  *
  * Driven by FRONTEND_URL so a domain change is a config change, not a code
- * change. Vercel preview deployments get a fresh subdomain per commit, so
- * *.vercel.app is matched by suffix rather than enumerated.
+ * change. Vercel preview deployments get a fresh subdomain per commit, so they
+ * are matched by pattern rather than enumerated — see isAllowedOrigin.
  */
 const allowedOrigins = [
   'http://localhost:3000',
@@ -68,12 +68,21 @@ const allowedOrigins = [
   ...(process.env.ADMIN_URL ? [process.env.ADMIN_URL.replace(/\/$/, '')] : []),
 ];
 
+/**
+ * Vercel preview hosts end in `-<team-slug>.vercel.app`; the team slug is the
+ * part nobody else can deploy under. This matched any `*.vercel.app`, which
+ * anyone can create in a minute. Off unless CORS_VERCEL_TEAM_SLUG is set.
+ */
+const vercelTeam = (process.env.CORS_VERCEL_TEAM_SLUG ?? '').trim().toLowerCase();
+const vercelPreview = /^[a-z0-9-]+$/.test(vercelTeam)
+  ? new RegExp(`^https://[a-z0-9-]+-${vercelTeam}\\.vercel\\.app$`)
+  : null;
+
 function isAllowedOrigin(origin?: string): boolean {
   // No Origin header: same-origin, curl, or a native app.
   if (!origin) return true;
   if (allowedOrigins.includes(origin)) return true;
-  // Vercel preview deployments.
-  return origin.endsWith('.vercel.app');
+  return vercelPreview?.test(origin) ?? false;
 }
 
 const app: Express = express();
@@ -133,17 +142,10 @@ app.use(cors(corsOptions));
 // Explicit OPTIONS handler before routes
 app.options('*', cors(corsOptions));
 
-// Custom middleware for auth routes
-app.use('/api/auth', (req: any, res: any, next: any) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// /api/auth had its own middleware here reflecting any Origin with
+// credentials allowed. cors() above already rejects disallowed origins first,
+// so it only ever repeated cors()'s answer — and would have become an open
+// door the day that ordering changed. Removed; cors() is the one policy.
 
 /**
  * Delivery webhooks from Resend.
