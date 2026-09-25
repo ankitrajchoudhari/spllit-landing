@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import prisma from '../utils/prisma.js';
 import { verifyAccessToken } from '../utils/helpers.js';
+import { isSuspended } from './suspension.js';
 
 const CHAT_WINDOW_MINUTES = 30;
 
@@ -44,7 +45,7 @@ export function setupSocketHandlers(io: Server) {
    * connect and simply do nothing, which is what it did for anonymous clients
    * already.
    */
-  io.use((socket: AuthSocket, next) => {
+  io.use(async (socket: AuthSocket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next();
 
@@ -54,7 +55,8 @@ export function setupSocketHandlers(io: Server) {
         adminId?: string;
         email?: string;
       };
-      socket.userId = decoded.userId;
+      // A suspended account connects as anonymous, as in services/live.ts.
+      socket.userId = decoded.userId && !(await isSuspended(decoded.userId)) ? decoded.userId : undefined;
       socket.adminId = decoded.adminId;
       socket.email = decoded.email;
     } catch {
@@ -312,14 +314,21 @@ export function setupSocketHandlers(io: Server) {
   console.log('✅ Socket.IO handlers configured');
 }
 
-// Helper function to update user's online status
-async function updateUserOnlineStatus(userId: string, isOnline: boolean) {
+/**
+ * Records when the user was last connected.
+ *
+ * Only `lastSeen`. This also wrote `isActive: isOnline`, but `isActive` is the
+ * account-status flag the admin surfaces read: every disconnect locked admins
+ * out of requireAdmin and made ordinary users look suspended, and every
+ * connect un-suspended anyone an admin had suspended. Online state lives in
+ * `activeUsers` (this file) and presence events, never in the user row.
+ */
+async function updateUserOnlineStatus(userId: string, _isOnline: boolean) {
   try {
     await prisma.user.update({
       where: { id: userId },
       data: {
-        lastSeen: new Date(),
-        isActive: isOnline
+        lastSeen: new Date()
       }
     });
   } catch (error) {
