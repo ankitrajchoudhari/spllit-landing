@@ -4,6 +4,7 @@ import prisma from '../utils/prisma.js';
 import { fail } from '../utils/respond.js';
 import { instituteDomainList } from '../data/institutes.js';
 import { AuthRequest } from '../types/express.js';
+import { getBoolean } from '../services/platformSettings.js';
 
 /**
  * Campus verification gate.
@@ -63,4 +64,46 @@ export async function requireVerifiedInstitute(
       : `${user.college} has no verifiable email domain yet.`,
     'institute-unverified',
   );
+}
+
+/**
+ * The same campus gate for the deprecated /api/rides and /api/matches writes.
+ *
+ * Those routers predate verification and never checked it, so anyone could
+ * offer or join a ride through them regardless of the rule above. Answers in
+ * the legacy `{ error }` shape their clients read.
+ *
+ * Controlled by the `security.legacy_require_institute` platform setting
+ * (default on) so it can be relaxed from the console, without a deploy, if an
+ * older client turns out to have no way to verify.
+ */
+export async function requireVerifiedInstituteLegacy(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!(await getBoolean('security.legacy_require_institute', true))) {
+      next();
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { instituteVerified: true },
+    });
+
+    if (!user?.instituteVerified) {
+      res.status(403).json({
+        error: 'Verify your campus email in the Spllit app to offer or join rides.',
+        code: 'institute-unverified',
+      });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    console.error('[institute/legacy]', error);
+    res.status(503).json({ error: 'Service temporarily unavailable' });
+  }
 }

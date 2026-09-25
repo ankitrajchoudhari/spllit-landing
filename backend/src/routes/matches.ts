@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../utils/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { requireVerifiedInstituteLegacy } from '../middleware/institute.js';
 import { AuthRequest } from '../types/express.js';
 import { io } from '../server.js';
 import { deprecated } from '../middleware/deprecation.js';
@@ -44,7 +45,7 @@ const isChatActive = (acceptedAt?: Date | null) => {
  * POST /api/matches
  * Create a match between current user and a ride
  */
-router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, requireVerifiedInstituteLegacy, async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });

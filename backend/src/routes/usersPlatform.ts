@@ -479,7 +479,17 @@ router.post('/me/onboarding', identify, async (req: AuthRequest, res: Response) 
         ? req.body.instituteId
         : null;
 
-    const signInEmail = req.user!.email;
+    /**
+     * The stored row, not the token: a legacy JWT carries whatever email the
+     * account was registered with, and POST /api/auth/register accepts any
+     * address without proving it. `emailVerified` is only true once Google or
+     * a verified Firebase sign-in has vouched for the mailbox.
+     */
+    const account = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { email: true, emailVerified: true },
+    });
+    const signInEmail = account?.email ?? req.user!.email;
 
     /**
      * Their choice first, then what the address itself proves.
@@ -498,9 +508,12 @@ router.post('/me/onboarding', identify, async (req: AuthRequest, res: Response) 
 
     // If the sign-in address belongs to that institute, verify immediately —
     // most campus Google accounts do, and asking again would be pointless
-    // friction. The address is one Google vouched for, not a typed field.
+    // friction. Only when the address is one Google vouched for: an unverified
+    // one is a typed field, and this used to verify it all the same.
     const autoVerified =
-      instituteId !== null && emailMatchesInstitute(signInEmail, instituteId);
+      account?.emailVerified === true &&
+      instituteId !== null &&
+      emailMatchesInstitute(signInEmail, instituteId);
 
     const user = await prisma.user.update({
       where: { id: req.user!.userId },

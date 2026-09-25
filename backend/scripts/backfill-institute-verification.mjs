@@ -67,7 +67,10 @@ async function main() {
    */
   const result = await prisma.$runCommandRaw({
     find: 'User',
-    filter: { instituteVerified: { $ne: true } },
+    // Only addresses someone proved they own. An unverified email is a string
+    // typed at /api/auth/register, and verifying a campus from it let anyone
+    // become "IIT Madras verified" by typing a campus address.
+    filter: { instituteVerified: { $ne: true }, emailVerified: true },
     projection: { _id: 1, email: 1, instituteId: 1, college: 1 },
     limit: 5000,
   });
