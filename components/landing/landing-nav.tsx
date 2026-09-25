@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -9,15 +10,20 @@ import { cn } from '@/lib/utils';
 import { SignInDrawer } from '@/components/ui/family-signin-drawer';
 
 /**
- * The first three are anchors on this page; Blog and Careers are real routes.
- * Both kinds
- * render as the same control, and an anchor works from /careers too because it
- * is written absolute rather than as a bare hash.
+ * Three sections of the home page, then two real routes.
+ *
+ * The section links keep a real href, so they work with JavaScript off and
+ * can be copied, opened in a new tab and shared. With JavaScript the click is
+ * intercepted and the page scrolled instead, leaving the address bar on
+ * spllit.app rather than spllit.app/#rides — a hash in the bar reads as a
+ * one-page template, and that bar is what somebody copies to share the site.
  */
-const LINKS = [
-  { href: '/#rides', label: 'Rides' },
-  { href: '/#squads', label: 'Group Rides' },
-  { href: '/#events', label: 'Events' },
+const SECTION_SCROLL = 'spllit.nav.section';
+
+const LINKS: { href: string; label: string; section?: string }[] = [
+  { href: '/#rides', label: 'Rides', section: 'rides' },
+  { href: '/#squads', label: 'Group Rides', section: 'squads' },
+  { href: '/#events', label: 'Events', section: 'events' },
   { href: '/blog', label: 'Blog & News' },
   { href: '/careers', label: 'Careers' },
 ];
@@ -31,6 +37,72 @@ const LINKS = [
  */
 export function LandingNav() {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const scrollToSection = useCallback((section: string) => {
+    const target = document.getElementById(section);
+    if (!target) return;
+    // Honour the system setting rather than animating over it. Somebody who
+    // asked for less motion asked for a reason.
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  }, []);
+
+  /**
+   * Finish a jump that began on another page, and tidy away a hash somebody
+   * arrived with.
+   *
+   * Links to /#rides already exist in the wild and keep working; the hash is
+   * then swapped out with replaceState, which changes the bar without adding a
+   * history entry to press back through.
+   */
+  useEffect(() => {
+    if (pathname !== '/') return;
+
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem(SECTION_SCROLL);
+      if (pending) sessionStorage.removeItem(SECTION_SCROLL);
+    } catch {
+      // Private browsing can refuse sessionStorage. The jump is lost; the page
+      // still opens, which is the part that matters.
+      pending = null;
+    }
+
+    const hash = window.location.hash.replace('#', '');
+    const section = pending ?? (hash || null);
+    if (!section) return;
+
+    if (hash) window.history.replaceState(null, '', window.location.pathname);
+    // A frame later, so the section has been laid out and can be measured.
+    requestAnimationFrame(() => scrollToSection(section));
+  }, [pathname, scrollToSection]);
+
+  const onSectionClick = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, section: string | undefined) => {
+      // A real route, or a click the browser should own — a new tab, a saved
+      // link, a middle click. Intercepting any of those would break it.
+      if (!section) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+
+      event.preventDefault();
+      setOpen(false);
+
+      if (pathname === '/') {
+        scrollToSection(section);
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(SECTION_SCROLL, section);
+      } catch {
+        // Without storage the home page simply opens at the top.
+      }
+      router.push('/');
+    },
+    [pathname, router, scrollToSection],
+  );
 
   return (
     <nav className="relative flex items-center justify-between px-6 pb-4 pt-5 lg:px-20 lg:pt-6">
@@ -44,7 +116,12 @@ export function LandingNav() {
           wordmark or the action group become. */}
       <div className="absolute left-1/2 hidden -translate-x-1/2 gap-6 md:flex lg:gap-8">
         {LINKS.map((link) => (
-          <a key={link.href} href={link.href} className="nav-control -my-2.5 py-2.5 text-ink">
+          <a
+            key={link.href}
+            href={link.href}
+            onClick={(event) => onSectionClick(event, link.section)}
+            className="nav-control -my-2.5 py-2.5 text-ink"
+          >
             {link.label}
           </a>
         ))}
@@ -96,7 +173,10 @@ export function LandingNav() {
               <a
                 key={link.href}
                 href={link.href}
-                onClick={() => setOpen(false)}
+                onClick={(event) => {
+                  setOpen(false);
+                  onSectionClick(event, link.section);
+                }}
                 className="block rounded-lg px-3 py-3 font-sans text-[15px] font-medium uppercase tracking-[0.04em] text-ink-muted hover:bg-surface-sunken hover:text-ink"
               >
                 {link.label}
