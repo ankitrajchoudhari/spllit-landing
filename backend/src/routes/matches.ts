@@ -11,6 +11,20 @@ const router = Router();
 /** Deprecated router — usage is recorded so deletion can be justified by
  *  runtime evidence. See docs/DEPRECATION-POLICY.md. */
 router.use(deprecated('matches'));
+
+/**
+ * What either party of a match may see of the other — the shape GET /my has
+ * always returned. Accept and reject used `user1: true, user2: true`, which
+ * put both full rows (bcrypt hash, phone, phoneHash, email, firebaseUid) into
+ * the response and into a socket broadcast.
+ */
+const MATCH_PARTY_SELECT = {
+  id: true,
+  name: true,
+  college: true,
+  rating: true,
+  lastSeen: true
+} as const;
 const RIDE_ACTIVE_WINDOW_MS = 8 * 60 * 60 * 1000;
 
 const createMatchSchema = z.object({
@@ -40,8 +54,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Get the ride
     const ride = await prisma.ride.findUnique({
-      where: { id: data.rideId },
-      include: { creator: true }
+      where: { id: data.rideId }
     });
 
     if (!ride) {
@@ -176,8 +189,8 @@ router.post('/:id/accept', authenticate, async (req: AuthRequest, res: Response)
     const match = await prisma.match.findUnique({
       where: { id: req.params.id },
       include: {
-        user1: true,
-        user2: true,
+        user1: { select: MATCH_PARTY_SELECT },
+        user2: { select: MATCH_PARTY_SELECT },
         ride: true
       }
     });
@@ -203,8 +216,8 @@ router.post('/:id/accept', authenticate, async (req: AuthRequest, res: Response)
         acceptedAt: new Date()
       },
       include: {
-        user1: true,
-        user2: true,
+        user1: { select: MATCH_PARTY_SELECT },
+        user2: { select: MATCH_PARTY_SELECT },
         ride: true
       }
     });
@@ -276,8 +289,8 @@ router.post('/:id/reject', authenticate, async (req: AuthRequest, res: Response)
     const match = await prisma.match.findUnique({
       where: { id: req.params.id },
       include: {
-        user1: true,
-        user2: true,
+        user1: { select: MATCH_PARTY_SELECT },
+        user2: { select: MATCH_PARTY_SELECT },
         ride: true
       }
     });
