@@ -49,7 +49,7 @@ export function Testimonials({ className }: { className?: string }) {
           pixels of scrolling for three sentences. */}
       <ul
         className={cn(
-          'no-scrollbar mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-1 sm:mt-8',
+          'no-scrollbar mt-6 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-1 sm:mt-8',
           'md:mx-auto md:max-w-6xl md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-6 md:pb-0 md:snap-none lg:px-8',
         )}
       >

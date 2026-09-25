@@ -96,7 +96,7 @@ function SquadVisual() {
         // column are 157px wide each and nothing on either screen can be read,
         // which makes them decoration. One at a time, at 62% of the viewport,
         // they are legible and the swipe is something to do.
-        'no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-1',
+        'no-scrollbar -mx-5 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-1',
         'sm:mx-0 sm:items-end sm:justify-center sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 sm:snap-none',
       )}
     >
@@ -248,7 +248,7 @@ export function Features() {
           className={cn(
             // Stacked, three teasers for things that have not shipped cost a
             // thousand pixels of scrolling. On a rail they cost one swipe.
-            'no-scrollbar -mx-5 mt-7 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1',
+            'no-scrollbar -mx-5 mt-7 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1',
             'sm:mx-0 sm:mt-8 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 sm:snap-none',
           )}
         >

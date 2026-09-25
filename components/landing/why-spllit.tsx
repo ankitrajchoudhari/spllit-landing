@@ -92,8 +92,8 @@ export function WhySpllit() {
             next one shows and the swipe advertises itself. */}
         <div
           className={cn(
-            'no-scrollbar -mx-5 mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-1',
-            'sm:-mx-6 sm:mt-12 sm:gap-6 sm:px-6',
+            'no-scrollbar -mx-5 mt-10 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-1',
+            'sm:-mx-6 sm:mt-12 sm:gap-6 sm:px-6 sm:scroll-px-6',
             'lg:mx-0 lg:mt-12 lg:grid lg:snap-none lg:gap-x-10 lg:overflow-x-visible lg:px-0 lg:pb-0',
             'lg:grid-cols-[1.25fr_0.85fr_0.9fr]',
           )}
