@@ -71,6 +71,39 @@ export const verifyFirebaseIdToken = async (idToken: string) => {
 };
 
 /**
+ * Creates an email/password Firebase account for a console admin.
+ *
+ * Marked verified at creation: the address is typed by an admin who already
+ * holds `admins.manage`, and identity resolution only links verified emails —
+ * an unverified account could sign in to Firebase and still reach nothing.
+ * Throws with Firebase's own `code` (e.g. `auth/email-already-exists`) so the
+ * caller can tell a taken address from an outage.
+ */
+export const createFirebaseEmailUser = async (input: {
+  email: string;
+  password: string;
+  displayName: string;
+}): Promise<string> => {
+  ensureFirebaseAdmin();
+  if (!isFirebaseAdminConfigured()) {
+    throw new Error('Firebase Admin is not configured');
+  }
+  const record = await getAuth().createUser({
+    email: input.email,
+    password: input.password,
+    displayName: input.displayName,
+    emailVerified: true,
+  });
+  return record.uid;
+};
+
+/** Undoes createFirebaseEmailUser when the local row could not be written. */
+export const deleteFirebaseUser = async (uid: string): Promise<void> => {
+  ensureFirebaseAdmin();
+  await getAuth().deleteUser(uid);
+};
+
+/**
  * Stops this account minting new ID tokens from its refresh token.
  *
  * Half of ending a session. It does nothing about an ID token already in a

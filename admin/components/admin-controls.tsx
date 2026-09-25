@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldOff, ShieldCheck } from 'lucide-react';
+import { ShieldOff, ShieldCheck, UserMinus } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
 import type { AdminRole, Permission } from '@/lib/permissions';
 import { Badge, Button, Card, Input } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
+import { ConfirmDialog } from '@/components/ui/confirm';
 
 /**
  * Tuning one admin: what they may do, and whether they are signed in.
@@ -121,6 +122,26 @@ export function AdminControls({
     },
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : 'Could not change that.'),
+  });
+
+  const [removing, setRemoving] = useState(false);
+
+  /**
+   * Takes the console away entirely. Their Spllit account stays — they can
+   * still use the app as a member — and they can be made an admin again later.
+   */
+  const remove = useMutation({
+    mutationFn: (why: string) =>
+      api(`/users/${admin.id}/role`, {
+        method: 'PATCH',
+        body: { adminRole: null, reason: why },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admins'] });
+      toast.success(`${admin.name} no longer has admin access.`);
+      setRemoving(false);
+      onDone();
+    },
   });
 
   const revoked = Boolean(admin.sessionsRevokedAt);
@@ -245,10 +266,35 @@ export function AdminControls({
           </Button>
         )}
 
+        <Button
+          variant="danger"
+          disabled={isSelf || remove.isPending}
+          onClick={() => setRemoving(true)}
+        >
+          <UserMinus className="h-4 w-4" aria-hidden />
+          Remove admin access
+        </Button>
+
         <Button variant="ghost" className="ml-auto" onClick={onDone}>
           Close
         </Button>
       </div>
+
+      {removing ? (
+        <ConfirmDialog
+          title={`Remove ${admin.name} as an admin?`}
+          description="They lose access to this console on their next request. Their Spllit account is kept, and you can make them an admin again later."
+          confirmLabel="Remove access"
+          destructive
+          pending={remove.isPending}
+          error={remove.error instanceof ApiError ? remove.error.message : null}
+          onCancel={() => {
+            setRemoving(false);
+            remove.reset();
+          }}
+          onConfirm={(why) => remove.mutate(why)}
+        />
+      ) : null}
 
       {/* Precise on purpose. An operator expecting the person's open tab to
           spring back to life would otherwise report "restore" as broken. */}

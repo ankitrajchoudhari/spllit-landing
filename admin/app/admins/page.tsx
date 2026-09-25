@@ -10,6 +10,7 @@ import { ROLE_LABELS } from '@/lib/permissions';
 import { formatRelative } from '@/lib/utils';
 import { Badge, Button, Card, PageHeader } from '@/components/ui/primitives';
 import { AdminControls } from '@/components/admin-controls';
+import { AddAdmin } from '@/components/add-admin';
 import { ErrorState, PermissionState, SkeletonRows } from '@/components/ui/states';
 
 interface AdminRow {
@@ -43,6 +44,7 @@ interface RoleInfo {
 export default function AdminsPage() {
   const { session, can } = useAuth();
   const [editing, setEditing] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
   const admins = useQuery({
     queryKey: ['admins'],
@@ -64,7 +66,18 @@ export default function AdminsPage() {
       <PageHeader
         title="Admins"
         description="Everyone who can reach this console, and exactly what each role may do."
+        actions={
+          can('admins.manage') && admins.data && !adding ? (
+            <Button variant="primary" onClick={() => setAdding(true)}>
+              Add admin
+            </Button>
+          ) : null
+        }
       />
+
+      {adding && data ? (
+        <AddAdmin actorRole={data.actorRole} onClose={() => setAdding(false)} />
+      ) : null}
 
       {admins.isLoading || !data ? (
         <SkeletonRows rows={5} />

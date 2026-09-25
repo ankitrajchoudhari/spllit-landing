@@ -1,6 +1,9 @@
+import { randomInt } from 'node:crypto';
 import { Router, Response } from 'express';
 
 import prisma from '../utils/prisma.js';
+import { hashPhone } from '../utils/helpers.js';
+import { getJsonArray } from '../services/platformSettings.js';
 import { invalidateSuspensions, suspensionPatch } from '../services/suspension.js';
 import { getIO } from '../services/live.js';
 import { identify } from '../middleware/identity.js';
@@ -15,13 +18,18 @@ import {
   ROLE_LABELS,
   canManageRole,
   effectivePermissions,
+  emailDomainAllowed,
   isAdminRole,
   isPermission,
   permissionsFor,
   resolveAdminRole,
   type Permission,
 } from '../config/adminRoles.js';
-import { revokeFirebaseSessions } from '../utils/firebaseAdmin.js';
+import {
+  createFirebaseEmailUser,
+  deleteFirebaseUser,
+  revokeFirebaseSessions,
+} from '../utils/firebaseAdmin.js';
 import { ok, fail } from '../utils/respond.js';
 import * as audit from '../services/auditLog.js';
 import { readCounters, readSeries } from '../services/adminEvents.js';
@@ -699,6 +707,19 @@ router.patch(
         return fail(res, 403, 'You cannot grant a role equal to or above your own.');
       }
 
+      /**
+       * Removing a role clears the legacy fields too.
+       *
+       * `resolveAdminRole` falls back to `role` and `isAdmin` when `adminRole`
+       * is null, so clearing `adminRole` alone left every legacy subadmin
+       * exactly as privileged as before — "remove" reported success and
+       * changed nothing.
+       */
+      const data =
+        next === null
+          ? { adminRole: null, role: 'user', isAdmin: false }
+          : { adminRole: next };
+
       const updated = await audit.recorded(
         admin,
         {
@@ -706,14 +727,17 @@ router.patch(
           targetType: 'admin',
           targetId: id,
           targetLabel: target.email,
-          ...audit.diff({ adminRole: target.adminRole }, { adminRole: next }),
+          ...audit.diff(
+            { adminRole: target.adminRole, role: target.role, isAdmin: target.isAdmin },
+            { adminRole: target.adminRole, role: target.role, isAdmin: target.isAdmin, ...data },
+          ),
           reason,
         },
         req,
         () =>
           prisma.user.update({
             where: { id },
-            data: { adminRole: next },
+            data,
             select: USER_ROW,
           }),
       );
@@ -1077,6 +1101,145 @@ router.get(
     } catch (error) {
       console.error('[admin-console/admins]', error);
       return fail(res, 500, 'Failed to load admins');
+    }
+  },
+);
+
+/**
+ * A one-time password: 16 characters with an upper, a lower and a digit, from
+ * an alphabet without look-alikes (0/O, 1/l/I), since it is read off a screen
+ * and passed on by hand.
+ */
+function generateAdminPassword(): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const digits = '23456789';
+  const all = upper + lower + digits;
+  const pick = (set: string) => set[randomInt(set.length)]!;
+  const chars = [pick(upper), pick(lower), pick(digits)];
+  while (chars.length < 16) chars.push(pick(all));
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j]!, chars[i]!];
+  }
+  return chars.join('');
+}
+
+/**
+ * POST /api/admin-console/admins
+ * Body: { name, email, adminRole, reason }
+ *
+ * Creates a console admin with a generated password, returned exactly once.
+ * The password is never stored by Spllit — Firebase holds it — and never
+ * written to the audit log.
+ *
+ * Refuses any address that already has a Spllit or Firebase account. Turning an
+ * existing account into an admin by typing its email is how the legacy
+ * subadmin route became an account-takeover; promoting an existing user is a
+ * role change on their row, not this.
+ */
+router.post(
+  '/admins',
+  requirePermission('admins.manage'),
+  async (req: AdminRequest, res: Response) => {
+    const admin = req.admin!;
+    const name = String(req.body?.name ?? '').trim();
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    const next = req.body?.adminRole;
+    const reason = String(req.body?.reason ?? '').trim();
+
+    if (name.length < 2 || name.length > 100) {
+      return fail(res, 400, 'Enter their name.');
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      return fail(res, 400, 'Enter a valid email address.');
+    }
+    if (!isAdminRole(next)) {
+      return fail(res, 400, `Role must be one of: ${ADMIN_ROLES.join(', ')}`);
+    }
+    if (!canManageRole(admin.role, next)) {
+      return fail(res, 403, 'You cannot create an admin at or above your own role.');
+    }
+    if (reason.length < 4) {
+      return fail(res, 400, 'A reason is required, so the audit log explains itself later.');
+    }
+
+    try {
+      // Would be created and then refused at sign-in by requireConsoleAdmin.
+      const domains = await getJsonArray('security.admin_email_domains');
+      if (next !== 'super_admin' && !emailDomainAllowed(email, domains)) {
+        return fail(res, 400, `Console admins must use one of: ${domains.join(', ')}`);
+      }
+
+      const existing = await prisma.user.findFirst({
+        where: { email },
+        select: { id: true },
+      });
+      if (existing) {
+        return fail(
+          res,
+          409,
+          'That email already has a Spllit account. Give them a role from their profile instead.',
+          'email-taken',
+        );
+      }
+
+      const password = generateAdminPassword();
+
+      let uid: string;
+      try {
+        uid = await createFirebaseEmailUser({ email, password, displayName: name });
+      } catch (error) {
+        if ((error as { code?: string }).code === 'auth/email-already-exists') {
+          return fail(res, 409, 'That email already has a sign-in account.', 'email-taken');
+        }
+        throw error;
+      }
+
+      let created;
+      try {
+        created = await audit.recorded(
+          admin,
+          {
+            action: 'admin.create',
+            targetType: 'admin',
+            targetLabel: email,
+            after: { name, email, adminRole: next },
+            reason,
+          },
+          req,
+          () =>
+            prisma.user.create({
+              data: {
+                firebaseUid: uid,
+                email,
+                name,
+                // Required and unique; the uid stands in, as it does at
+                // bootstrap, until a real number is verified.
+                phoneHash: hashPhone(uid),
+                emailVerified: true,
+                college: '',
+                gender: 'unspecified',
+                onboarded: false,
+                adminRole: next,
+                createdBy: admin.userId,
+              },
+              select: USER_ROW,
+            }),
+        );
+      } catch (error) {
+        // No local row means an orphan Firebase login that reaches nothing,
+        // and it would block retrying with the same address. Remove it.
+        await deleteFirebaseUser(uid).catch((cleanup) =>
+          console.error('[admin-console/admins POST] orphan cleanup failed', cleanup),
+        );
+        throw error;
+      }
+
+      return ok(res, { admin: { ...created, consoleRole: next }, password }, 201);
+    } catch (error) {
+      console.error('[admin-console/admins POST]', error);
+      return fail(res, 500, 'Could not create that admin.');
     }
   },
 );
