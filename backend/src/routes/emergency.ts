@@ -5,6 +5,10 @@ import { authenticate } from '../middleware/auth.js';
 import { AuthRequest } from '../types/express.js';
 import { io } from '../server.js';
 import { deprecated } from '../middleware/deprecation.js';
+import { isLegacyAdmin } from '../services/legacyAdmin.js';
+
+/** The token payload `authenticate` attached — a master token has `adminId`. */
+const callerOf = (req: AuthRequest) => req.user as { userId?: string; adminId?: string } | undefined;
 
 const router = Router();
 
@@ -113,6 +117,23 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
       return res.status(400).json({ error: 'Invalid status' });
     }
 
+    /**
+     * Admins may set any status. The person who raised the alert may only
+     * stand it down — a false alarm or "I'm safe" — never acknowledge it on the
+     * responders' behalf. This checked only for a login, so anyone could close
+     * a stranger's live emergency.
+     */
+    const caller = callerOf(req);
+    if (!(await isLegacyAdmin(caller ?? {}))) {
+      const owned = await prisma.emergency.findFirst({
+        where: { id, userId: caller?.userId ?? '' },
+        select: { id: true },
+      });
+      if (!owned || !['resolved', 'false-alarm'].includes(status)) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+    }
+
     const emergency = await prisma.emergency.update({
       where: { id },
       data: { 
@@ -154,6 +175,12 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Names, phones, emails and live locations of people in trouble. This
+    // said "admin only" and checked only for a login.
+    if (!(await isLegacyAdmin(callerOf(req) ?? {}))) {
+      return res.status(403).json({ error: 'Admin access required' });
     }
 
     const emergencies = await prisma.emergency.findMany({
