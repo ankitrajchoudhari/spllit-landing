@@ -4,6 +4,7 @@ import prisma from '../utils/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { AuthRequest } from '../types/express.js';
 import { io } from '../server.js';
+import { LEGACY_ADMIN_ROOM } from '../services/legacyAdmin.js';
 import { deprecated } from '../middleware/deprecation.js';
 import { isLegacyAdmin } from '../services/legacyAdmin.js';
 
@@ -66,7 +67,7 @@ router.post('/sos', authenticate, async (req: AuthRequest, res: Response) => {
     });
 
     // Emit Socket.IO event to admin dashboard
-    io.emit('emergency-sos', {
+    io.to(LEGACY_ADMIN_ROOM).emit('emergency-sos', {
       id: emergency.id,
       userName: user.name,
       userPhone: user.phone,
@@ -151,7 +152,7 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res: Response
     });
 
     // Emit update to admin dashboard
-    io.emit('emergency-status-updated', {
+    io.to(LEGACY_ADMIN_ROOM).emit('emergency-status-updated', {
       id: emergency.id,
       status: emergency.status,
       resolvedAt: emergency.resolvedAt

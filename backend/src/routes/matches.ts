@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth.js';
 import { requireVerifiedInstituteLegacy } from '../middleware/institute.js';
 import { AuthRequest } from '../types/express.js';
 import { io } from '../server.js';
+import { LEGACY_ADMIN_ROOM } from '../services/legacyAdmin.js';
 import { deprecated } from '../middleware/deprecation.js';
 
 const router = Router();
@@ -131,7 +132,7 @@ router.post('/', authenticate, requireVerifiedInstituteLegacy, async (req: AuthR
     // Don't update ride status yet - wait for acceptance
 
     // Emit socket event to ride creator (user1) - REQUEST TO JOIN
-    io.emit(`match_request_${ride.userId}`, { 
+    io.to(`user:${ride.userId}`).emit(`match_request_${ride.userId}`, { 
       match,
       notification: {
         type: 'match',
@@ -143,7 +144,7 @@ router.post('/', authenticate, requireVerifiedInstituteLegacy, async (req: AuthR
     });
 
     // Emit socket event to person who joined (user2) - WAITING
-    io.emit(`match_request_sent_${req.user.userId}`, { 
+    io.to(`user:${req.user.userId}`).emit(`match_request_sent_${req.user.userId}`, { 
       match,
       notification: {
         type: 'info',
@@ -155,7 +156,7 @@ router.post('/', authenticate, requireVerifiedInstituteLegacy, async (req: AuthR
     });
 
     // Emit to admin dashboard
-    io.emit('new-match-request', {
+    io.to(LEGACY_ADMIN_ROOM).emit('new-match-request', {
       requesterName: match.user2.name,
       creatorName: match.user1.name,
       origin: ride.origin,
@@ -230,7 +231,7 @@ router.post('/:id/accept', authenticate, async (req: AuthRequest, res: Response)
     });
 
     // Notify ride creator (confirmat ion)
-    io.emit(`match_accepted_${match.user1Id}`, {
+    io.to(`user:${match.user1Id}`).emit(`match_accepted_${match.user1Id}`, {
       match: updatedMatch,
       notification: {
         type: 'success',
@@ -242,7 +243,7 @@ router.post('/:id/accept', authenticate, async (req: AuthRequest, res: Response)
     });
 
     // Notify requester (acceptance)
-    io.emit(`match_accepted_${match.user2Id}`, {
+    io.to(`user:${match.user2Id}`).emit(`match_accepted_${match.user2Id}`, {
       match: updatedMatch,
       notification: {
         type: 'success',
@@ -260,7 +261,7 @@ router.post('/:id/accept', authenticate, async (req: AuthRequest, res: Response)
     });
 
     // Admin notification
-    io.emit('match-accepted', {
+    io.to(LEGACY_ADMIN_ROOM).emit('match-accepted', {
       matchId: match.id,
       creator: match.user1.name,
       requester: match.user2.name,
@@ -316,7 +317,7 @@ router.post('/:id/reject', authenticate, async (req: AuthRequest, res: Response)
     });
 
     // Notify requester
-    io.emit(`match_rejected_${match.user2Id}`, {
+    io.to(`user:${match.user2Id}`).emit(`match_rejected_${match.user2Id}`, {
       notification: {
         type: 'error',
         title: '❌ Request Declined',
@@ -597,14 +598,14 @@ router.post('/:id/messages', authenticate, async (req: AuthRequest, res: Respons
     const recipientId = match.user1Id === req.user.userId ? match.user2Id : match.user1Id;
 
     // Emit real-time message via Socket.IO
-    io.emit(`new_message_${match.chatRoomId}`, {
+    io.to([`user:${match.user1Id}`, `user:${match.user2Id}`]).emit(`new_message_${match.chatRoomId}`, {
       message,
       matchId: id,
       chatRoomId: match.chatRoomId
     });
 
     // Notify recipient
-    io.emit(`message_notification_${recipientId}`, {
+    io.to(`user:${recipientId}`).emit(`message_notification_${recipientId}`, {
       notification: {
         id: `message-${message.id}`,
         type: 'match',

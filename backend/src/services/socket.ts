@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import prisma from '../utils/prisma.js';
 import { verifyAccessToken } from '../utils/helpers.js';
 import { isSuspended } from './suspension.js';
+import { isLegacyAdmin, LEGACY_ADMIN_ROOM } from './legacyAdmin.js';
 
 const CHAT_WINDOW_MINUTES = 30;
 
@@ -71,6 +72,19 @@ export function setupSocketHandlers(io: Server) {
     const connectedId = socket.userId || socket.adminId || 'unknown';
     const identityType = socket.userId ? 'User' : socket.adminId ? 'Admin' : 'Unknown';
     console.log(`${identityType} connected: ${connectedId}`);
+
+    /**
+     * Admin-dashboard events (sign-ups, SOS alerts, match activity) used to be
+     * io.emit to every socket, anonymous ones included. They now go to this
+     * room, and only a socket whose identity passes isLegacyAdmin gets in.
+     */
+    if (socket.userId || socket.adminId) {
+      isLegacyAdmin({ adminId: socket.adminId, userId: socket.userId })
+        .then((admin) => {
+          if (admin && socket.connected) socket.join(LEGACY_ADMIN_ROOM);
+        })
+        .catch((error) => console.error('[socket/admin-room]', error));
+    }
 
     if (socket.userId) {
       // Store user's socket

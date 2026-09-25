@@ -10,6 +10,7 @@ import {
   lockoutMinutesRemaining,
 } from '../middleware/rateLimit.js';
 import { io } from '../server.js';
+import { LEGACY_ADMIN_ROOM } from '../services/legacyAdmin.js';
 import { isFirebaseAdminConfigured, verifyFirebaseIdToken } from '../utils/firebaseAdmin.js';
 import { deprecated } from '../middleware/deprecation.js';
 import { resolveFirebaseUser } from '../services/firebaseIdentity.js';
@@ -88,7 +89,7 @@ const syncFirebaseUser = async (idToken: string, res: Response) => {
       }
     });
 
-    io.emit('new-user-registered', {
+    io.to(LEGACY_ADMIN_ROOM).emit('new-user-registered', {
       name: user.name,
       college: user.college,
       email: user.email,
@@ -179,7 +180,7 @@ router.post('/register', async (req: Request, res: Response) => {
     });
 
     // Emit Socket.IO event for new user registration
-    io.emit('new-user-registered', {
+    io.to(LEGACY_ADMIN_ROOM).emit('new-user-registered', {
       name: user.name,
       college: user.college,
       email: user.email,

@@ -105,3 +105,34 @@ describe('H2 — suspension has one meaning', async () => {
     assert.deepEqual(suspensionPatch(true), { isActive: true, suspendedAt: null });
   });
 });
+
+describe('H4 — nothing private is broadcast to every socket', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+
+  const src = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const files: string[] = [];
+  for (const dir of ['routes', 'services']) {
+    for (const name of await readdir(join(src, dir))) {
+      if (name.endsWith('.ts')) files.push(join(src, dir, name));
+    }
+  }
+
+  /** Events that name a user or carry admin-only data. */
+  const PRIVATE = [
+    /io\??\.emit\(`[a-z_]+_\$\{/, // per-user / per-room legacy events: match_accepted_${id}
+    /(?:io|getIO\(\))\??\.emit\('(?:new-user-registered|emergency-sos|emergency-status-updated|new-match-request|match-accepted|subadmin-[a-z-]+)'/,
+  ];
+
+  it('routes every per-user and admin event to a room', async () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      const lines = (await readFile(file, 'utf8')).split('\n');
+      lines.forEach((line, i) => {
+        if (PRIVATE.some((re) => re.test(line))) offenders.push(`${file}:${i + 1}: ${line.trim()}`);
+      });
+    }
+    assert.deepEqual(offenders, []);
+  });
+});

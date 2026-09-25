@@ -3,6 +3,7 @@ import prisma from '../utils/prisma.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { io } from '../server.js';
+import { LEGACY_ADMIN_ROOM } from '../services/legacyAdmin.js';
 import { AdminRequest } from '../types/express.js';
 import { hashPhone } from '../utils/helpers.js';
 import { deprecated } from '../middleware/deprecation.js';
@@ -354,7 +355,7 @@ router.put('/:id/deactivate', authenticateAdmin, requireMaster, async (req: Admi
         });
 
         // Emit real-time update
-        io.emit('subadmin-status-changed', {
+        io.to(LEGACY_ADMIN_ROOM).emit('subadmin-status-changed', {
             id: updated.id,
             email: updated.email,
             name: updated.name,
@@ -408,7 +409,7 @@ router.put('/:id/activate', authenticateAdmin, requireMaster, async (req: AdminR
         });
 
         // Emit real-time update
-        io.emit('subadmin-status-changed', {
+        io.to(LEGACY_ADMIN_ROOM).emit('subadmin-status-changed', {
             id: updated.id,
             email: updated.email,
             name: updated.name,
@@ -464,7 +465,7 @@ router.delete('/:id', authenticateAdmin, requireMaster, async (req: AdminRequest
         });
 
         // Emit real-time update
-        io.emit('subadmin-deleted', {
+        io.to(LEGACY_ADMIN_ROOM).emit('subadmin-deleted', {
             id: subadmin.id,
             email: subadmin.email,
             name: subadmin.name,
