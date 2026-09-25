@@ -12,6 +12,7 @@ import {
 import { io } from '../server.js';
 import { isFirebaseAdminConfigured, verifyFirebaseIdToken } from '../utils/firebaseAdmin.js';
 import { deprecated } from '../middleware/deprecation.js';
+import { resolveFirebaseUser } from '../services/firebaseIdentity.js';
 
 const router = Router();
 
@@ -62,7 +63,9 @@ const syncFirebaseUser = async (idToken: string, res: Response) => {
   const name = payload.name || payload.picture?.split('/')?.slice(-1)?.[0] || email.split('@')[0];
   const avatarUrl = payload.picture || null;
 
-  let user = await prisma.user.findUnique({ where: { email } });
+  // Same resolution as identify: uid, then verified email. A bare email lookup
+  // here adopted pre-registered rows with their squatter's password intact.
+  let user = await resolveFirebaseUser(payload);
 
   if (!user) {
     const randomPassword = randomBytes(24).toString('hex');
@@ -79,6 +82,7 @@ const syncFirebaseUser = async (idToken: string, res: Response) => {
         college: 'IIT Madras (BS Degree)',
         gender: 'other',
         emailVerified: true,
+        firebaseUid: payload.uid,
         profilePhoto: avatarUrl
       }
     });
@@ -333,7 +337,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
     }
 
     // Verify refresh token
-    const decoded = verifyRefreshToken(refreshToken);
+    const decoded = verifyRefreshToken(refreshToken) as { userId: string; iat?: number };
 
     // Get user
     const user = await prisma.user.findUnique({
@@ -342,6 +346,13 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Sessions ended by an admin, or by a verified owner reclaiming a
+    // pre-registered email, end here too. Refresh never checked, so a legacy
+    // session outlived every revocation.
+    if (user.sessionsRevokedAt && (decoded.iat ?? 0) * 1000 < user.sessionsRevokedAt.getTime()) {
+      return res.status(401).json({ error: 'Your session was ended. Sign in again.' });
     }
 
     // Generate new tokens

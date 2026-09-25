@@ -3,6 +3,7 @@ import { Server, Socket, Namespace } from 'socket.io';
 import prisma from '../utils/prisma.js';
 import { verifyAccessToken } from '../utils/helpers.js';
 import { verifyFirebaseIdToken, isFirebaseAdminConfigured } from '../utils/firebaseAdmin.js';
+import { resolveFirebaseUser } from './firebaseIdentity.js';
 import { resolveAdminRole, type AdminRole } from '../config/adminRoles.js';
 
 /**
@@ -53,12 +54,9 @@ async function resolveAdmin(
   if (!userId && isFirebaseAdminConfigured()) {
     try {
       const decoded = await verifyFirebaseIdToken(token);
-      const user = await prisma.user.findFirst({
-        where: {
-          OR: [{ firebaseUid: decoded.uid }, ...(decoded.email ? [{ email: decoded.email }] : [])],
-        },
-        select: { id: true },
-      });
+      // Verified email only — an unverified sign-up with an admin's address
+      // used to resolve to that admin here.
+      const user = await resolveFirebaseUser(decoded);
       userId = user?.id ?? null;
     } catch {
       return null;

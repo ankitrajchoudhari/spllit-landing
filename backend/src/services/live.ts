@@ -3,6 +3,7 @@ import { Server, Socket } from 'socket.io';
 import prisma from '../utils/prisma.js';
 import { verifyAccessToken } from '../utils/helpers.js';
 import { verifyFirebaseIdToken, isFirebaseAdminConfigured } from '../utils/firebaseAdmin.js';
+import { resolveFirebaseUser } from './firebaseIdentity.js';
 
 /**
  * The live/ephemeral layer — what the original spec put in Firebase RTDB.
@@ -195,15 +196,7 @@ export function setupLiveHandlers(io: Server) {
 
     try {
       const decoded = await verifyFirebaseIdToken(token);
-      const user = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { firebaseUid: decoded.uid },
-            ...(decoded.email ? [{ email: decoded.email }] : []),
-          ],
-        },
-        select: { id: true },
-      });
+      const user = await resolveFirebaseUser(decoded);
       if (user) socket.userId = user.id;
     } catch {
       // Unauthenticated sockets can still connect; they just cannot join

@@ -1,10 +1,10 @@
 import { Response, NextFunction } from 'express';
 
-import prisma from '../utils/prisma.js';
 import { verifyAccessToken } from '../utils/helpers.js';
 import { verifyFirebaseIdToken, isFirebaseAdminConfigured } from '../utils/firebaseAdmin.js';
 import { AuthRequest } from '../types/express.js';
 import { markActive } from '../services/activeUsers.js';
+import { resolveFirebaseUser } from '../services/firebaseIdentity.js';
 
 /**
  * Dual-scheme authentication.
@@ -75,24 +75,8 @@ export async function identify(
   }
 
   try {
-    // Resolve the Firebase identity to a local user. Matching on firebaseUid
-    // first, then email, lets accounts created before firebaseUid existed
-    // adopt their uid on the next sign-in instead of forking into a duplicate.
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { firebaseUid: decoded.uid },
-          ...(decoded.email ? [{ email: decoded.email }] : []),
-        ],
-      },
-    });
-
-    if (user && !user.firebaseUid) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { firebaseUid: decoded.uid },
-      });
-    }
+    // uid first, then a *verified* email — see services/firebaseIdentity.ts.
+    const user = await resolveFirebaseUser(decoded);
 
     if (!user) {
       // A verified Firebase identity with no local profile is the onboarding
@@ -173,14 +157,7 @@ export async function identifyOptional(
 
   try {
     const decoded = await verifyFirebaseIdToken(token);
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { firebaseUid: decoded.uid },
-          ...(decoded.email ? [{ email: decoded.email }] : []),
-        ],
-      },
-    });
+    const user = await resolveFirebaseUser(decoded);
     if (user) {
       req.user = { userId: user.id, email: user.email };
       markActive(user.id);

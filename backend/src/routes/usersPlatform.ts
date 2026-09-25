@@ -7,6 +7,7 @@ import { AuthRequest } from '../types/express.js';
 import { ok, fail, boundingBox } from '../utils/respond.js';
 import { calculateDistanceMetres, hashPhone } from '../utils/helpers.js';
 import { getLivePosition } from '../services/live.js';
+import { resolveFirebaseUser } from '../services/firebaseIdentity.js';
 import { verifyFirebaseIdToken, isFirebaseAdminConfigured } from '../utils/firebaseAdmin.js';
 import {
   emailMatchesInstitute,
@@ -174,20 +175,21 @@ router.post('/me/bootstrap', async (req: AuthRequest, res: Response) => {
 
     const email = decoded.email ?? `${decoded.uid}@firebase.local`;
 
-    const findExisting = () =>
-      prisma.user.findFirst({
-        where: { OR: [{ firebaseUid: decoded.uid }, { email }] },
-        select: PROFILE_FIELDS,
-      });
+    /**
+     * uid first, then a *verified* email, adopting the uid on older accounts —
+     * see services/firebaseIdentity.ts. This used to match any email claim, so
+     * an unverified Firebase sign-up with someone else's address landed in
+     * their profile.
+     */
+    const findExisting = async () => {
+      const resolved = await resolveFirebaseUser(decoded);
+      if (!resolved) return null;
+      return prisma.user.findUnique({ where: { id: resolved.id }, select: PROFILE_FIELDS });
+    };
 
     const existing = await findExisting();
 
     if (existing) {
-      // Adopt the uid on accounts that predate the firebaseUid column.
-      await prisma.user.updateMany({
-        where: { id: existing.id, firebaseUid: null },
-        data: { firebaseUid: decoded.uid },
-      });
 
       /**
        * Catch up on a verification that happened after signup.
@@ -311,6 +313,16 @@ router.post('/me/bootstrap', async (req: AuthRequest, res: Response) => {
       if ((error as { code?: string }).code === 'P2002') {
         const raced = await findExisting();
         if (raced) return ok(res, raced);
+        // Not a race: the address belongs to an existing account and this
+        // token has not proven it owns that address.
+        if (decoded.email_verified !== true) {
+          return fail(
+            res,
+            409,
+            'An account already uses this email. Verify your email address, then sign in again.',
+            'email-unverified',
+          );
+        }
       }
       throw error;
     }

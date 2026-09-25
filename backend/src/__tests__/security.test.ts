@@ -72,3 +72,25 @@ describe('C3 — one password rule for admin create and reset', async () => {
     assert.equal(passwordProblem('correct horse 42'), null);
   });
 });
+
+describe('C4 — email is only an identity once it is verified', async () => {
+  const { linkableEmail, mustDropPassword } = await import('../services/firebaseIdentity.js');
+
+  it('never links on an unverified or missing email claim', () => {
+    assert.equal(linkableEmail({ uid: 'u', email: 'victim@x.com' }), null);
+    assert.equal(linkableEmail({ uid: 'u', email: 'victim@x.com', email_verified: false }), null);
+    assert.equal(linkableEmail({ uid: 'u', email_verified: true }), null);
+  });
+
+  it('links on a verified claim, normalised', () => {
+    assert.equal(linkableEmail({ uid: 'u', email: ' Owner@X.com ', email_verified: true }), 'owner@x.com');
+  });
+
+  it('drops only a password nobody proved the mailbox for', () => {
+    const squat = { firebaseUid: null, emailVerified: false, password: 'hash' };
+    assert.equal(mustDropPassword(squat), true);
+    assert.equal(mustDropPassword({ ...squat, emailVerified: true }), false, 'verified legacy account');
+    assert.equal(mustDropPassword({ ...squat, firebaseUid: 'uid' }), false, 'already linked');
+    assert.equal(mustDropPassword({ ...squat, password: null }), false, 'no password to drop');
+  });
+});
