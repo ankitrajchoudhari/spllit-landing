@@ -282,13 +282,28 @@ export function setupSocketHandlers(io: Server) {
       if (!socket.userId) return;
 
       try {
-        const message = await prisma.message.update({
-          where: { id: data.messageId },
-          data: { read: true }
-        });
+        if (typeof data?.messageId !== 'string') return;
 
-        const match = await prisma.match.findUnique({
-          where: { id: message.matchId }
+        /**
+         * Only the recipient, only in their own match. This updated any
+         * message id it was handed, so anyone could flip read receipts in
+         * conversations they were not part of.
+         */
+        const message = await prisma.message.findUnique({
+          where: { id: data.messageId },
+          select: { id: true, senderId: true, match: true }
+        });
+        const match = message?.match;
+        const isRecipient =
+          message &&
+          match &&
+          message.senderId !== socket.userId &&
+          (match.user1Id === socket.userId || match.user2Id === socket.userId);
+        if (!isRecipient) return;
+
+        await prisma.message.update({
+          where: { id: message.id },
+          data: { read: true }
         });
 
         if (match) {
