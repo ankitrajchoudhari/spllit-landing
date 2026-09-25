@@ -49,20 +49,31 @@ router.get('/threads', identify, async (req: AuthRequest, res: Response) => {
       take: 50,
     });
 
+    /**
+     * The newest message per thread, one indexed read each.
+     *
+     * This loaded *every* message of all fifty threads to keep the first of
+     * each, so the most-loaded screen in the app got slower with every message
+     * ever sent and was a cheap way to load the database. Each findFirst walks
+     * @@index([threadId, createdAt]) from the newest end and reads one row.
+     */
     const [lastMessages, readStates] = await Promise.all([
-      prisma.threadMessage.findMany({
-        where: { threadId: { in: threads.map((t) => t.id) }, isDeleted: false },
-        orderBy: { createdAt: 'desc' },
-      }),
+      Promise.all(
+        threads.map((t) =>
+          prisma.threadMessage.findFirst({
+            where: { threadId: t.id, isDeleted: false },
+            orderBy: { createdAt: 'desc' },
+          }),
+        ),
+      ),
       prisma.threadReadState.findMany({
         where: { threadId: { in: threads.map((t) => t.id) }, userId: req.user!.userId },
       }),
     ]);
 
-    // First message seen per thread wins — the list is already newest-first.
-    const latest = new Map<string, (typeof lastMessages)[number]>();
+    const latest = new Map<string, NonNullable<(typeof lastMessages)[number]>>();
     for (const message of lastMessages) {
-      if (!latest.has(message.threadId)) latest.set(message.threadId, message);
+      if (message) latest.set(message.threadId, message);
     }
 
     const readAt = new Map(readStates.map((r) => [r.threadId, r.lastReadAt]));
