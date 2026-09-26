@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 
 import { config } from '@/lib/config';
@@ -86,6 +87,9 @@ const MAX_ITEMS = 60;
  */
 const MAX_TICKS = 500;
 
+/** How long a hidden tab keeps its socket before it is closed. */
+const HIDDEN_GRACE_MS = 2 * 60_000;
+
 export function LiveProvider({ children }: { children: ReactNode }) {
   const { status: authStatus } = useAuth();
   /**
@@ -102,6 +106,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const [ticks, setTicks] = useState<{ metric: string; at: number }[]>([]);
   const [lastEventAt, setLastEventAt] = useState<number | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     // Only once the backend has confirmed this person is an admin. Connecting
@@ -133,6 +138,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
 
     socket.on('disconnect', (reason) => {
       if (cancelled) return;
+      // Our own background pause, below — not a fault.
+      if (reason === 'io client disconnect') return;
       // A deliberate server-side disconnect is not something to retry into.
       setStatus(reason === 'io server disconnect' ? 'offline' : 'reconnecting');
     });
@@ -166,13 +173,47 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       setActivity((current) => [item, ...current].slice(0, MAX_ITEMS));
     });
 
+    /**
+     * Close the socket when the tab has been in the background for a while.
+     *
+     * A billing decision: Cloud Run bills api.spllit.app for as long as any
+     * request is open, and this socket is one long request — a console tab left
+     * open overnight kept the backend billed all night. Coming back reconnects,
+     * the figures refetch on focus, and the activity backlog is refetched so
+     * whatever happened meanwhile fills in (mergeBacklog drops duplicates).
+     */
+    let pauseTimer: ReturnType<typeof setTimeout> | null = null;
+    let paused = false;
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (pauseTimer) return;
+        pauseTimer = setTimeout(() => {
+          pauseTimer = null;
+          if (!document.hidden) return;
+          paused = true;
+          socket.disconnect();
+        }, HIDDEN_GRACE_MS);
+        return;
+      }
+      if (pauseTimer) clearTimeout(pauseTimer);
+      pauseTimer = null;
+      if (!paused) return;
+      paused = false;
+      setStatus('connecting');
+      socket.connect();
+      void queryClient.invalidateQueries({ queryKey: ['activity'] });
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (pauseTimer) clearTimeout(pauseTimer);
       socket.removeAllListeners();
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [authStatus, configured]);
+  }, [authStatus, configured, queryClient]);
 
   const value = useMemo<LiveState>(
     () => ({

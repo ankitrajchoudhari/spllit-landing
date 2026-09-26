@@ -202,6 +202,8 @@ gcloud(['services', 'enable',
 console.log('▸ Secrets');
 const secretFlags = [];
 const absent = [];
+/** Secrets that got a new version this run — pruned once the deploy is up. */
+const rotated = [];
 
 for (const [key, id] of Object.entries(SECRETS)) {
   const exists = gcloud(['secrets', 'describe', id, '--project', PROJECT, '--format=value(name)'],
@@ -243,6 +245,7 @@ for (const [key, id] of Object.entries(SECRETS)) {
       process.exit(1);
     }
     console.log(`  ${key} -> ${id} (new version pushed)`);
+    rotated.push(id);
     continue;
   }
 
@@ -381,7 +384,36 @@ if (!deploy.ok) {
   process.exit(1);
 }
 
-// ---- 5. report ------------------------------------------------------------
+// ---- 5. prune superseded secret versions ----------------------------------
+
+/**
+ * Secret Manager bills every version that is not destroyed (enabled *or*
+ * disabled), and only six are free across the whole project. Each --rotate
+ * used to leave the previous version behind, and by September 2026 the project
+ * held 30 live versions for 18 secrets — Secret Manager was the largest line
+ * on the bill.
+ *
+ * The service reads `:latest` only, and the deploy above has just started a
+ * revision on the new values, so the older versions have no reader. Only
+ * secrets rotated *this run* are touched: a secret pinned by version number
+ * elsewhere (the Firebase functions pin RAZORPAY_KEY_ID/SECRET at v1) is never
+ * rotated from here.
+ */
+for (const id of rotated) {
+  const versions = gcloud(['secrets', 'versions', 'list', id, '--project', PROJECT,
+    '--filter=state!=DESTROYED', '--sort-by=~createTime', '--format=value(name.basename())'],
+    { capture: true });
+  const stale = versions.out.split(/\r?\n/).filter(Boolean).slice(1);
+  for (const version of stale) {
+    const destroyed = gcloud(['secrets', 'versions', 'destroy', version, '--secret', id,
+      '--project', PROJECT, '--quiet'], { capture: true });
+    console.log(destroyed.ok
+      ? `  ${id} v${version} destroyed (superseded)`
+      : `  could not destroy ${id} v${version}: ${destroyed.err}`);
+  }
+}
+
+// ---- 6. report ------------------------------------------------------------
 
 const url = gcloud(['run', 'services', 'describe', SERVICE,
   '--project', PROJECT, '--region', REGION, '--format=value(status.url)'],

@@ -129,6 +129,32 @@ derived on read or swept opportunistically — see `services/squadChatRetention.
 for the pattern, and `/api/maintenance/*` (guarded by `MAINTENANCE_KEY`) for the
 endpoints Cloud Scheduler calls.
 
+### What the bill is made of
+
+Audited 2026-09-26 against the September bill (₹310 net, ₹778 gross). Four
+rules keep it near zero; breaking any one of them is what shows up as a charge.
+
+- **An open socket is billed time.** Cloud Run bills an instance for as long as
+  any request is open, and a websocket is one long request — min-instances 0
+  does not help while a tab holds one. One idle signed-in tab left open cost
+  10–15 billed hours a day on testing days. The free tier is roughly 50
+  instance-hours a month at 1 vCPU. So both clients close their socket after a
+  tab has been hidden for two minutes (`lib/live/socket.ts`,
+  `admin/lib/live.tsx`); keep it that way for any new socket client.
+- **Every secret version that is not destroyed is billed**, disabled ones
+  included, and only six are free per project. Cloud Run reads `:latest`, so
+  older versions have no reader: `gcloud-bootstrap.mjs --rotate` now destroys
+  them once the deploy is up. The exception is `RAZORPAY_KEY_ID` /
+  `RAZORPAY_KEY_SECRET` (upper-case), which the Firebase payment functions pin
+  at version 1 — never destroy those.
+- **Every push stores a ~200 MB image** in `cloud-run-source-deploy`; 0.5 GB
+  is free. The repo has a cleanup policy (`backend/gcloud/artifact-cleanup-policy.json`):
+  the 10 newest images are always kept, anything else older than 7 days is
+  deleted. Rollback further back than that means rebuilding from the commit.
+- **Cloud Scheduler bills per job beyond three.** There are six: five belong
+  to the Firebase functions and one (`spllit-chat-erase`) to this API. Fold new
+  periodic work into `/api/maintenance/sweep` rather than adding a job.
+
 ### Initialise the database, once
 
 ```bash

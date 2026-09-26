@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { joinRoom, onEvent, rooms } from '@/lib/live/socket';
+import { holdInBackground, joinRoom, onEvent, rooms } from '@/lib/live/socket';
 import type { LivePosition, Presence, RideTracking } from '@/types';
 
 /**
@@ -92,6 +92,10 @@ export function usePublishLocation(enabled: boolean, intervalMs = 5000) {
   useEffect(() => {
     if (!enabled || typeof navigator === 'undefined' || !navigator.geolocation) return;
 
+    // A shared position is the one thing that must keep flowing from a
+    // background tab, so it opts out of the idle-tab socket suspension.
+    const release = holdInBackground();
+
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const now = Date.now();
@@ -113,6 +117,9 @@ export function usePublishLocation(enabled: boolean, intervalMs = 5000) {
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
     );
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    return () => {
+      release();
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, [enabled, intervalMs]);
 }

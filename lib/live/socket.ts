@@ -118,7 +118,89 @@ export function getSocket(): SpllitSocket {
     }
   });
 
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', onVisibilityChange);
+  }
+
   return socket;
+}
+
+/**
+ * How long a tab may sit in the background before its socket is closed.
+ *
+ * This is a billing decision. Cloud Run bills an instance for as long as any
+ * request is open, and a websocket is one long request — so one signed-in tab
+ * left open overnight kept api.spllit.app billed for the whole night, even at
+ * min-instances 0 with CPU throttling. The testing days on the bill were 10-15
+ * billed hours each for almost no traffic.
+ *
+ * Nothing is lost by closing it. Coming back reconnects, the `connect` handler
+ * re-joins every room still held, and React Query's refetch-on-focus catches up
+ * whatever arrived meanwhile (the open thread is staleTime 0). Sending never
+ * depended on the socket either: chat falls back to HTTP when it is down.
+ *
+ * Long enough that flicking to another tab and back does not churn the
+ * connection.
+ */
+const HIDDEN_GRACE_MS = 2 * 60_000;
+
+let suspendTimer: ReturnType<typeof setTimeout> | null = null;
+/** Closed by the background timer, as opposed to by sign-out. */
+let suspended = false;
+/**
+ * Things that must keep publishing from a background tab — the location
+ * publisher during a shared trip. While any is held, the tab is never
+ * suspended.
+ */
+let backgroundHolds = 0;
+
+function scheduleSuspend() {
+  if (suspendTimer || backgroundHolds > 0) return;
+  suspendTimer = setTimeout(() => {
+    suspendTimer = null;
+    if (!document.hidden || backgroundHolds > 0 || !socket?.connected) return;
+    suspended = true;
+    // disconnect(), not disconnectSocket(): the room ref-counts belong to
+    // components that are still mounted and must be re-joined on return.
+    socket.disconnect();
+  }, HIDDEN_GRACE_MS);
+}
+
+function cancelSuspend() {
+  if (suspendTimer) clearTimeout(suspendTimer);
+  suspendTimer = null;
+}
+
+function onVisibilityChange() {
+  if (document.hidden) {
+    if (socket?.connected) scheduleSuspend();
+    return;
+  }
+  cancelSuspend();
+  if (suspended) {
+    suspended = false;
+    connectSocket();
+  }
+}
+
+/**
+ * Keeps the socket open while the tab is in the background. Returns the
+ * release function; always call it when the reason goes away.
+ */
+export function holdInBackground(): () => void {
+  backgroundHolds += 1;
+  cancelSuspend();
+  if (suspended) {
+    suspended = false;
+    connectSocket();
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    backgroundHolds -= 1;
+    if (typeof document !== 'undefined' && document.hidden) scheduleSuspend();
+  };
 }
 
 /**
@@ -144,11 +226,17 @@ export function getSocket(): SpllitSocket {
 export function connectSocket() {
   const s = getSocket();
   if (!tokenProvider) return s;
+  suspended = false;
   if (!s.connected) s.connect();
+  // Opened from a background tab (a component mounting there): it gets the
+  // same grace period as one that was open when the tab was hidden.
+  if (typeof document !== 'undefined' && document.hidden) scheduleSuspend();
   return s;
 }
 
 export function disconnectSocket() {
+  cancelSuspend();
+  suspended = false;
   socket?.disconnect();
   roomRefCounts.clear();
 }
