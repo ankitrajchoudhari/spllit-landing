@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -30,6 +31,54 @@ function SocialProof() {
     <p className="mt-6 font-sans text-[12px] uppercase sm:mt-8 sm:text-[13px] tracking-[0.08em] text-ink-subtle">
       {parts.join(' · ')}
     </p>
+  );
+}
+
+/**
+ * A small ticket stub stuck under the prompt card, pointing at Spllit Trip.
+ *
+ * Sized as a sticker, not a banner: the ride prompt stays the one thing to do
+ * on this screen, and this is the side door for someone planning something
+ * bigger than a cab. Same ticket cut as the /trip page (.ticket-shape), so
+ * the two read as one family. Centred under the card; lifts on hover.
+ */
+function TripStub() {
+  return (
+    <motion.div variants={fade} transition={{ duration: 0.5 }} className="mt-5 flex w-full justify-center sm:mt-6">
+      <Link
+        href="/trip"
+        className={cn(
+          'group inline-block transition-transform duration-sheet ease-out',
+          'hover:-translate-y-0.5 motion-reduce:transition-none',
+          '[filter:drop-shadow(0_1px_1px_rgba(30,28,24,0.12))_drop-shadow(0_10px_18px_rgba(30,28,24,0.18))]',
+        )}
+      >
+        <span
+          style={{ '--stub': '112px', '--radius': '12px', '--hole': '7px' } as React.CSSProperties}
+          className="ticket-shape flex items-stretch bg-trip-card text-left"
+        >
+          <span className="flex items-center gap-3 py-2.5 pl-4 pr-4 sm:pl-5 sm:pr-5">
+            <span aria-hidden className="text-[17px] leading-none text-trip">
+              ✈
+            </span>
+            <span>
+              <span className="block text-[13.5px] font-semibold leading-tight text-ink">Planning a trip?</span>
+              <span className="block text-[12px] leading-tight text-ink-muted">Coming soon</span>
+            </span>
+          </span>
+          <span className="relative flex w-[112px] shrink-0 items-center justify-center gap-1.5 bg-trip text-white">
+            <span
+              aria-hidden
+              className="absolute bottom-[11px] left-0 top-[11px] border-l-2 border-dashed border-white/50"
+            />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em]">Spllit Trip</span>
+            <span aria-hidden className="text-[13px] transition-transform duration-snap group-hover:translate-x-0.5">
+              →
+            </span>
+          </span>
+        </span>
+      </Link>
+    </motion.div>
   );
 }
 
@@ -145,6 +194,8 @@ export function Hero() {
                 </div>
               </div>
             </motion.div>
+
+            <TripStub />
 
             <SocialProof />
           </motion.div>
