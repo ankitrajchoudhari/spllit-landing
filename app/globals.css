@@ -65,6 +65,21 @@
     --danger-muted: rgba(229, 72, 77, 0.12);
     --warning-muted: rgba(245, 165, 36, 0.14);
 
+    /**
+     * Spllit Trip. Saffron, lifted from the hand-drawn cycling artwork the
+     * page is built around, so the accent and the illustration are one colour
+     * rather than two oranges arguing. Only the /trip page uses it; the app
+     * stays green.
+     */
+    --trip: #e2711d;
+    --trip-muted: rgba(226, 113, 29, 0.13);
+    /* Paper the page is printed on, the cream of a ticket, and the slate the
+       tickets sit on in the dark bands — the three colours of travel paper. */
+    --trip-paper: #f2ede3;
+    --trip-card: #fbf8f1;
+    --trip-navy: #2a2e38;
+    --trip-rule: rgba(42, 46, 56, 0.18);
+
     /* Glass panels */
     --glass: rgba(255, 255, 255, 0.72);
     --glass-line: rgba(255, 255, 255, 0.6);
@@ -96,6 +111,13 @@
     /* Lifted a little in dark, same as the brand and accent tints. */
     --danger-muted: rgba(229, 72, 77, 0.18);
     --warning-muted: rgba(245, 165, 36, 0.2);
+
+    --trip: #f0893a;
+    --trip-muted: rgba(240, 137, 58, 0.18);
+    --trip-paper: #111318;
+    --trip-card: #1b1e25;
+    --trip-navy: #07080b;
+    --trip-rule: rgba(255, 255, 255, 0.14);
 
     --glass: rgba(18, 18, 18, 0.72);
     --glass-line: rgba(255, 255, 255, 0.08);
@@ -306,6 +328,47 @@
       inset 0 -1px 2px rgba(255, 255, 255, 0.5),
       0 0 4px 0 rgba(0, 0, 0, 0.15),
       0 24px 64px -32px rgba(0, 0, 0, 0.35);
+  }
+
+  /**
+   * Ticket silhouette for Spllit Trip: softly rounded, with a notch top and
+   * bottom where the stub tears off. Only priced things are tickets.
+   *
+   * Each gradient punches one hole and `intersect` keeps only what every layer
+   * keeps. A mask also clips box-shadow, which is why the lift comes from a
+   * drop-shadow filter on the wrapper instead.
+   *
+   * Unprefixed only — see the note on .glass about Lightning CSS and -webkit-
+   * twins.
+   */
+  .ticket-shape {
+    --hole: 10px;
+    --tear: calc(100% - var(--stub, 0px));
+    border-radius: var(--radius, 16px);
+    mask-image:
+      radial-gradient(circle at var(--tear) 0, #0000 var(--hole), #000 calc(var(--hole) + 0.5px)),
+      radial-gradient(circle at var(--tear) 100%, #0000 var(--hole), #000 calc(var(--hole) + 0.5px));
+    mask-composite: intersect;
+  }
+
+  /* Stub along the bottom instead — a receipt. */
+  .ticket-shape-v {
+    --hole: 10px;
+    --tear: calc(100% - var(--stub, 0px));
+    border-radius: var(--radius, 16px);
+    mask-image:
+      radial-gradient(circle at 0 var(--tear), #0000 var(--hole), #000 calc(var(--hole) + 0.5px)),
+      radial-gradient(circle at 100% var(--tear), #0000 var(--hole), #000 calc(var(--hole) + 0.5px));
+    mask-composite: intersect;
+  }
+
+  /**
+   * Paper grain for the Trip page. Fractal noise at a whisper, so large flat
+   * areas read as printed stock rather than a screen fill.
+   */
+  .trip-paper {
+    background-color: var(--trip-paper);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.14 0 0 0 0 0.1 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   /* Small uppercase control used across the marketing nav. */

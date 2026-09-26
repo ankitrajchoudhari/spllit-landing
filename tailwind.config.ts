@@ -57,10 +57,27 @@ const config: Config = {
           DEFAULT: 'var(--warning)',
           muted: 'var(--warning-muted)',
         },
+        // Spllit Trip only — see --trip in app/globals.css.
+        trip: {
+          DEFAULT: 'var(--trip)',
+          muted: 'var(--trip-muted)',
+          paper: 'var(--trip-paper)',
+          card: 'var(--trip-card)',
+          navy: 'var(--trip-navy)',
+          rule: 'var(--trip-rule)',
+        },
       },
       fontFamily: {
         display: ['var(--font-display)', 'system-ui', 'sans-serif'],
         sans: ['var(--font-body)', 'system-ui', 'sans-serif'],
+        // Loaded by the /trip page alone; everywhere else this falls through
+        // to Georgia, which nothing else asks for.
+        serif: ['var(--font-serif)', 'Georgia', 'serif'],
+        // Scrapbook captions on /trip — handwriting under a taped photo.
+        hand: ['var(--font-hand)', 'cursive'],
+        // Ticket print — fares, codes, dates. Also /trip only; elsewhere this
+        // is Tailwind's default monospace stack, unchanged.
+        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       borderRadius: {
         // 20px is the default component radius per the design system.
@@ -111,11 +128,16 @@ const config: Config = {
           '0%': { transform: 'scale(0.8)', opacity: '0.7' },
           '100%': { transform: 'scale(2.2)', opacity: '0' },
         },
+        marquee: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
       },
       animation: {
         shimmer: 'shimmer 1.6s infinite',
         'marker-in': 'marker-in 220ms cubic-bezier(0.16, 1, 0.3, 1)',
         'pulse-ring': 'pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        marquee: 'marquee 60s linear infinite',
       },
     },
   },

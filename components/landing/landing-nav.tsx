@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { SignInDrawer } from '@/components/ui/family-signin-drawer';
 
 /**
- * Three sections of the home page, then two real routes.
+ * Two sections of the home page, then real routes.
  *
  * The section links keep a real href, so they work with JavaScript off and
  * can be copied, opened in a new tab and shared. With JavaScript the click is
@@ -21,8 +21,8 @@ import { SignInDrawer } from '@/components/ui/family-signin-drawer';
 const SECTION_SCROLL = 'spllit.nav.section';
 
 const LINKS: { href: string; label: string; section?: string }[] = [
-  { href: '/#rides', label: 'Rides', section: 'rides' },
   { href: '/#squads', label: 'Group Rides', section: 'squads' },
+  { href: '/trip', label: 'Trip' },
   { href: '/#events', label: 'Events', section: 'events' },
   { href: '/blog', label: 'Blog & News' },
   { href: '/careers', label: 'Careers' },
@@ -114,13 +114,13 @@ export function LandingNav() {
 
       {/* Absolutely centred so the links stay put regardless of how wide the
           wordmark or the action group become. */}
-      <div className="absolute left-1/2 hidden -translate-x-1/2 gap-6 md:flex lg:gap-8">
+      <div className="absolute left-1/2 hidden -translate-x-1/2 gap-6 xl:flex xl:gap-8">
         {LINKS.map((link) => (
           <a
             key={link.href}
             href={link.href}
             onClick={(event) => onSectionClick(event, link.section)}
-            className="nav-control -my-2.5 py-2.5 text-ink"
+            className="nav-control -my-2.5 whitespace-nowrap py-2.5 text-ink"
           >
             {link.label}
           </a>
@@ -133,7 +133,7 @@ export function LandingNav() {
         <SignInDrawer>
           <button
             type="button"
-            className="nav-control hidden font-semibold text-[#292929] md:block dark:text-ink"
+            className="nav-control hidden font-semibold text-[#292929] xl:block dark:text-ink"
           >
             Login
           </button>
@@ -144,7 +144,7 @@ export function LandingNav() {
           className={cn(
             'hidden rounded-full bg-ink px-5 py-3.5 font-sans text-[15px] font-medium uppercase',
             'tracking-[0.04em] text-canvas transition-all duration-snap',
-            'hover:opacity-85 active:scale-95 md:block',
+            'hover:opacity-85 active:scale-95 xl:block',
           )}
         >
           Sign up
@@ -154,7 +154,7 @@ export function LandingNav() {
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
-          className="-mr-1 rounded-md p-2.5 text-ink md:hidden"
+          className="-mr-1 rounded-md p-2.5 text-ink xl:hidden"
         >
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
@@ -167,7 +167,7 @@ export function LandingNav() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
-            className="absolute inset-x-6 top-full z-50 rounded-2xl border border-line bg-surface p-3 shadow-float md:hidden"
+            className="absolute inset-x-6 top-full z-50 rounded-2xl border border-line bg-surface p-3 shadow-float xl:hidden"
           >
             {LINKS.map((link) => (
               <a

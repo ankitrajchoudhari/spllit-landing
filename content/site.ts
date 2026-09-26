@@ -48,6 +48,7 @@ export const PUBLIC_ROUTES: { path: string; priority: number; changeFrequency: '
   { path: '/', priority: 1.0, changeFrequency: 'daily' },
   { path: '/about', priority: 0.9, changeFrequency: 'monthly' },
   { path: '/blog', priority: 0.8, changeFrequency: 'weekly' },
+  { path: '/trip', priority: 0.8, changeFrequency: 'monthly' },
   /**
    * Safety is higher priority than the rest of the legal set on purpose: it is
    * the one people search for and read by choice ("is <platform> safe"), not

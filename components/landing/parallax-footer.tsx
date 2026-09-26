@@ -31,6 +31,7 @@ const COLUMNS = [
     links: [
       { href: '/rides', label: 'Ride Together' },
       { href: '/squads', label: 'Group Rides' },
+      { href: '/trip', label: 'Spllit Trip' },
       { href: '/events', label: 'Events' },
     ],
   },
