@@ -1,20 +1,22 @@
 {
-    "short_name": "Spllit",
-    "name": "Spllit | Smart Shared Mobility",
-    "icons": [
-        {
-            "src": "/logo-icon.png",
-            "sizes": "64x64 32x32 24x24 16x16",
-            "type": "image/png"
-        },
-        {
-            "src": "/logo-full.png",
-            "type": "image/png",
-            "sizes": "512x512"
-        }
-    ],
-    "start_url": ".",
-    "display": "standalone",
-    "theme_color": "#10b981",
-    "background_color": "#000000"
+  "short_name": "Spllit",
+  "name": "Spllit | Campus ride sharing and travel group rides",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#10b981",
+  "background_color": "#202020"
 }

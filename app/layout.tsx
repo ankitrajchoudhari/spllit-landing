@@ -50,9 +50,18 @@ export const metadata: Metadata = {
   creator: SITE.name,
   publisher: SITE.name,
   manifest: '/manifest.json',
+  /**
+   * A square mark, not the wordmark.
+   *
+   * Both logo files are 666x375 landscape lockups. Google requires a square
+   * favicon and drops one that is not, which is why results were showing a
+   * globe — and at 16px a wordmark reading "Spllit — Connect. Spllit. Save."
+   * is illegible anyway. icon-512.png is the S lifted out of that artwork,
+   * centred on its own background colour; the source files are untouched.
+   */
   icons: {
-    icon: '/logo-icon.png',
-    apple: '/logo-icon.png',
+    icon: [{ url: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
+    apple: [{ url: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
   },
   // Self-referencing canonical: stops ?ref= invite links being indexed as
   // separate pages competing with the real one.
@@ -64,8 +73,14 @@ export const metadata: Metadata = {
     url: SITE.url,
     title: `${SITE.name} — Campus Ride Sharing & Travel Group Rides`,
     description: SITE.description,
+    /**
+     * The real dimensions. This claimed 1200x630 and the file is 666x375, so
+     * every scraper was told a size it then did not get — which is how a card
+     * ends up letterboxed or rejected. Below the 1200x630 most platforms want,
+     * but stating it honestly beats a number that is simply false.
+     */
     images: [
-      { url: '/logo-full.png', width: 1200, height: 630, alt: `${SITE.name} — ${SITE.tagline}` },
+      { url: '/logo-full.png', width: 666, height: 375, alt: `${SITE.name} — ${SITE.tagline}` },
     ],
   },
   twitter: {
