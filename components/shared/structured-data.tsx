@@ -26,7 +26,20 @@ export function StructuredData() {
         '@type': 'Organization',
         '@id': `${SITE.url}/#organization`,
         name: SITE.name,
-        alternateName: ['Spllit App', 'Spllit India'],
+        /**
+         * The brand is a deliberate misspelling, so a bare search for it is
+         * autocorrected to "split" — the reason the domain ranks and the word
+         * does not. These are the forms people type and the forms other sites
+         * write when they mention us; each is a chance for an engine to
+         * resolve the string to this entity rather than to the English word.
+         *
+         * No SearchAction sits alongside this. /search accepts a q parameter
+         * but robots.txt disallows it, being a page behind a login — and a
+         * sitelinks search box pointing somewhere a crawler cannot go is
+         * dropped for the whole domain once Google notices.
+         */
+        alternateName: ['Spllit App', 'Spllit India', 'spllit.app', 'Spllit campus rides'],
+        description: SITE.description,
         url: SITE.url,
         logo: {
           '@type': 'ImageObject',

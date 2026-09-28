@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { motion, useScroll, useSpring, useTransform } from 'motion/react';
 import { Facebook, Instagram, Linkedin, Twitter, type LucideIcon } from 'lucide-react';
 
+import { SOCIALS } from '@/content/site';
+
 import { Testimonials } from '@/components/landing/testimonials';
 import { blurProps } from '@/lib/image-blur';
 
@@ -55,16 +57,24 @@ const COLUMNS = [
 ];
 
 /**
- * Handles are placeholders — no Spllit social accounts exist in the codebase
- * yet. Point these at the real profiles before launch; a dead social link in
- * the footer is worse than none at all.
+ * One list, shared with the JSON-LD.
+ *
+ * This used to hold its own four handles, and every one of them was a guess at
+ * the /spllit slug. facebook.com/spllit belongs to somebody else entirely, and
+ * instagram.com/spllit does not exist — the real account is spllit_official,
+ * which content/site.ts already knew because sameAs is built from it.
+ *
+ * So the footer and the structured data disagreed about who we are, which is
+ * precisely the signal sameAs exists to make unambiguous. Adding an account to
+ * SOCIALS now updates both.
  */
-const SOCIALS: { label: string; href: string; Icon: LucideIcon }[] = [
-  { label: 'Facebook', href: 'https://facebook.com/spllit', Icon: Facebook },
-  { label: 'Twitter', href: 'https://twitter.com/spllit', Icon: Twitter },
-  { label: 'Instagram', href: 'https://instagram.com/spllit', Icon: Instagram },
-  { label: 'LinkedIn', href: 'https://linkedin.com/company/spllit', Icon: Linkedin },
-];
+const ICONS: Record<string, LucideIcon> = {
+  Instagram,
+  LinkedIn: Linkedin,
+  Facebook,
+  Twitter,
+  X: Twitter,
+};
 
 export function ParallaxFooter() {
   const roadRef = useRef<HTMLDivElement>(null);
@@ -225,7 +235,10 @@ export function ParallaxFooter() {
               © {new Date().getFullYear()} Spllit. All rights reserved.
             </p>
             <div className="flex gap-3">
-              {SOCIALS.map(({ label, href, Icon }) => (
+              {SOCIALS.map(({ label, href }) => {
+                const Icon = ICONS[label];
+                if (!Icon) return null;
+                return (
                 <a
                   key={label}
                   href={href}
@@ -236,7 +249,8 @@ export function ParallaxFooter() {
                 >
                   <Icon className="h-[18px] w-[18px]" />
                 </a>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

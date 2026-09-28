@@ -50,6 +50,12 @@ export const PUBLIC_ROUTES: { path: string; priority: number; changeFrequency: '
   { path: '/blog', priority: 0.8, changeFrequency: 'weekly' },
   { path: '/trip', priority: 0.8, changeFrequency: 'monthly' },
   /**
+   * Indexable and previously missing from the sitemap. "<brand> careers" is a
+   * query people type by name, so the page is worth crawling on its own terms
+   * as well as being one more thing confirming the brand is a real company.
+   */
+  { path: '/careers', priority: 0.7, changeFrequency: 'weekly' },
+  /**
    * Safety is higher priority than the rest of the legal set on purpose: it is
    * the one people search for and read by choice ("is <platform> safe"), not
    * because a form made them tick a box.
