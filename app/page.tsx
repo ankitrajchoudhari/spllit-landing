@@ -9,6 +9,7 @@ import { Features } from '@/components/landing/features';
 import { Backers } from '@/components/landing/backers';
 import { ParallaxFooter } from '@/components/landing/parallax-footer';
 import { WhereWeAre } from '@/components/landing/where-we-are';
+import { Trajectory } from '@/components/landing/trajectory';
 import { blurProps } from '@/lib/image-blur';
 
 /**
@@ -52,6 +53,12 @@ export default function LandingPage() {
         {/* Where the product actually is. Replaces a generic "in your pocket"
             phone shot: this one says something only Spllit can say. */}
         <WhereWeAre />
+
+        {/* Straight after the two cities, because that section invites the
+            question this one answers: whether a campus in testing is the whole
+            plan. Before the backers, so the ambition is read as the company's
+            rather than inferred from whose logos are underneath it. */}
+        <Trajectory />
 
         <Backers />
 
