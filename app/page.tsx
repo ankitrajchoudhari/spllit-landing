@@ -10,6 +10,7 @@ import { Backers } from '@/components/landing/backers';
 import { ParallaxFooter } from '@/components/landing/parallax-footer';
 import { WhereWeAre } from '@/components/landing/where-we-are';
 import { Trajectory } from '@/components/landing/trajectory';
+import { Faq, FaqStructuredData } from '@/components/landing/faq';
 import { blurProps } from '@/lib/image-blur';
 
 /**
@@ -61,6 +62,14 @@ export default function LandingPage() {
         <Trajectory />
 
         <Backers />
+
+        {/* Last thing before the call to action: by here a visitor has seen
+            what it is and where it goes, and what is left is the specific
+            thing they came to check. Answer engines read it too — the answers
+            are written to be lifted whole, and the same list emits the
+            FAQPage markup so the two cannot drift apart. */}
+        <Faq />
+        <FaqStructuredData />
 
         {/* Closing call to action.
 
