@@ -91,7 +91,16 @@ const nextConfig = {
       { source: '/features', destination: '/about', permanent: true },
       { source: '/how-it-works', destination: '/about', permanent: true },
       { source: '/pricing', destination: '/about', permanent: true },
-      { source: '/faq', destination: '/about', permanent: true },
+      /**
+       * /faq points at the questions, not at About.
+       *
+       * It went to /about because there was nowhere better; there is now a
+       * real FAQ on the home page. The hash is deliberate — the nav strips
+       * hashes from the bar, so arriving with one scrolls to the section and
+       * then tidies the URL, and somebody following an old /faq link lands on
+       * the answers rather than a page that does not have them.
+       */
+      { source: '/faq', destination: '/#faq', permanent: true },
       { source: '/iit-madras', destination: '/about', permanent: true },
 
       /**
