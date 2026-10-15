@@ -426,6 +426,33 @@
   }
 }
 
+/*
+ * FAQ disclosures open and close by height rather than snapping. Needs
+ * ::details-content and interpolate-size (Chromium 131+); anywhere else the
+ * rule is ignored and they open instantly, which is the right fallback.
+ */
+.faq-item {
+  interpolate-size: allow-keywords;
+}
+
+.faq-item::details-content {
+  block-size: 0;
+  overflow: hidden;
+  transition:
+    block-size 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    content-visibility 280ms allow-discrete;
+}
+
+.faq-item[open]::details-content {
+  block-size: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-item::details-content {
+    transition: none;
+  }
+}
+
 /* Mapbox overrides — the default control chrome does not match the design system. */
 .mapboxgl-ctrl-logo,
 .mapboxgl-ctrl-attrib-button {

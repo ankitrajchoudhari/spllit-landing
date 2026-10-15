@@ -63,14 +63,6 @@ export default function LandingPage() {
 
         <Backers />
 
-        {/* Last thing before the call to action: by here a visitor has seen
-            what it is and where it goes, and what is left is the specific
-            thing they came to check. Answer engines read it too — the answers
-            are written to be lifted whole, and the same list emits the
-            FAQPage markup so the two cannot drift apart. */}
-        <Faq />
-        <FaqStructuredData />
-
         {/* Closing call to action.
 
             The map texture is a callback to the live map the page opened on —
@@ -135,6 +127,14 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* Last, after the call to action: by here a visitor has seen what it
+            is and been asked to join, and what is left is the specific thing
+            they came to check. Each answer is a disclosure, but the text is in
+            the HTML either way — answer engines read it whole, and the same
+            list emits the FAQPage markup so the two cannot drift apart. */}
+        <Faq />
+        <FaqStructuredData />
       </main>
 
       <ParallaxFooter />

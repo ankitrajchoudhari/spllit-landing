@@ -21,24 +21,17 @@ const ICONS: Record<ProfileLink['label'], LucideIcon> = {
   Website: Globe,
 };
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] ?? '';
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
-  return (first + last).toUpperCase();
-}
-
 /**
  * Stacked, slightly tilted bands of green — the same device as the people
- * illustration that heads this section — standing in for a photo. Initials sit
- * on it set large, so a card without a face still reads as a portrait of
- * someone rather than an empty avatar slot.
+ * illustration that heads this section — standing in for a photo. No
+ * initials on it: set large they read as a placeholder avatar, and the name
+ * is right underneath anyway.
  */
 const GREENS = ['#8cc63f', '#3aaa4f', '#169447', '#0b7a3b', '#0b5e30'];
 /** Alumni get the same bands in greys: the same team, a past tense. */
 const GREYS = ['#c9c9c6', '#a9a9a5', '#8a8a86', '#6b6b67', '#4d4d4a'];
 
-function Bands({ name, alumni }: { name: string; alumni?: boolean }) {
+function Bands({ alumni }: { alumni?: boolean }) {
   const shades = alumni ? GREYS : GREENS;
   return (
     <div
@@ -58,9 +51,6 @@ function Bands({ name, alumni }: { name: string; alumni?: boolean }) {
           }}
         />
       ))}
-      <span className="absolute left-6 top-5 font-display text-[clamp(3.25rem,7vw,4.5rem)] font-semibold leading-none tracking-[-0.05em] text-white sm:left-7">
-        {initials(name)}
-      </span>
     </div>
   );
 }
@@ -117,7 +107,7 @@ export function TeamCard({
             )}
           />
         ) : (
-          <Bands name={member.name} alumni={alumni} />
+          <Bands alumni={alumni} />
         )}
 
         {/* Dissolve into the card. Downwards on every stacked card; sideways

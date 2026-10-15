@@ -38,65 +38,86 @@ const TESTIMONIALS = [
   },
 ];
 
+/** Copies in the track. Two halves of two sets each: the loop shifts by half
+ * the track, and one set of three cards is narrower than a wide screen, so a
+ * half needs two sets or the end of the row shows before it wraps. */
+const COPIES = 4;
+
+/**
+ * One continuous row, drifting left. Hovering or focusing a card stops it so a
+ * quote can be read to the end. Under reduced motion the row stands still and
+ * scrolls by hand instead.
+ */
 export function Testimonials({ className }: { className?: string }) {
+  const track = Array.from({ length: COPIES }, () => TESTIMONIALS).flat();
+
   return (
     <div className={cn('w-full', className)}>
       <p className="px-5 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-subtle lg:px-8">
         From campus
       </p>
 
-      {/* A rail on a phone, a grid from md. Three stacked cards were six hundred
-          pixels of scrolling for three sentences. */}
-      <ul
-        className={cn(
-          'no-scrollbar mt-6 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-1 sm:mt-8',
-          'md:mx-auto md:max-w-6xl md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-6 md:pb-0 md:snap-none lg:px-8',
-        )}
+      <div
+        className="group no-scrollbar relative mt-6 overflow-hidden sm:mt-8 motion-reduce:overflow-x-auto"
+        style={{
+          // Cards dissolve at both edges rather than being cut by the viewport.
+          maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
+          WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
+        }}
       >
-        {TESTIMONIALS.map((entry) => (
-          <li
-            key={entry.name}
-            className={cn(
-              'relative flex w-[84%] shrink-0 snap-start flex-col overflow-hidden rounded-2xl',
-              'border border-line bg-surface p-5 shadow-soft sm:w-[62%] sm:p-6 md:w-auto md:shrink',
-            )}
-          >
-            {/* Watermark, set in the dead space to the right of the name so it
-                is texture behind the card rather than a second thing to read.
-                It sat at the top corner first and the card clipped it into a
-                grey wedge that read as a rendering fault. */}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute bottom-1 right-4 select-none font-display text-[76px] leading-[0.62] text-line-strong"
-            >
-              &rdquo;
-            </span>
-
-            <p className="relative flex-1 text-[14.5px] leading-relaxed text-ink sm:text-[15px]">
-              {entry.quote}
-            </p>
-
-            <div className="relative mt-6 flex items-center gap-3 border-t border-line pt-4">
-              <Image
-                src={entry.avatar}
-                alt=""
-                width={96}
-                height={96}
-                unoptimized
-                className="h-11 w-11 shrink-0 rounded-full ring-1 ring-line"
-              />
-              <span className="min-w-0">
-                <span className="block truncate text-[14px] font-semibold text-ink">
-                  {entry.name}
+        {/* Spacing is each card's own right margin, not a gap on the track:
+            the loop shifts by exactly half the track, and with a gap the two
+            halves differ by one gap, so the row would jump on every repeat. */}
+        <ul
+          className="flex w-max animate-marquee py-2 group-focus-within:[animation-play-state:paused] group-hover:[animation-play-state:paused] motion-reduce:animate-none"
+          style={{ animationDuration: '55s' }}
+        >
+          {track.map((entry, index) => {
+            // Only the first set is read out; the rest exist to fill the loop.
+            const copy = index >= TESTIMONIALS.length;
+            return (
+              <li
+                key={`${entry.name}-${index}`}
+                aria-hidden={copy || undefined}
+                className="relative mr-4 flex w-[290px] shrink-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface p-5 shadow-soft sm:mr-5 sm:w-[360px] sm:p-6"
+              >
+                {/* Watermark, set in the dead space to the right of the name so
+                    it is texture behind the card rather than a second thing to
+                    read. */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute bottom-1 right-4 select-none font-display text-[76px] leading-[0.62] text-line-strong"
+                >
+                  &rdquo;
                 </span>
-                <span className="block truncate text-[12.5px] text-ink-muted">
-                  {entry.detail}
-                </span>
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
+
+                <p className="relative flex-1 text-[14.5px] leading-relaxed text-ink sm:text-[15px]">
+                  {entry.quote}
+                </p>
+
+                <div className="relative mt-6 flex items-center gap-3 border-t border-line pt-4">
+                  <Image
+                    src={entry.avatar}
+                    alt=""
+                    width={96}
+                    height={96}
+                    unoptimized
+                    className="h-11 w-11 shrink-0 rounded-full ring-1 ring-line"
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold text-ink">
+                      {entry.name}
+                    </span>
+                    <span className="block truncate text-[12.5px] text-ink-muted">
+                      {entry.detail}
+                    </span>
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }
