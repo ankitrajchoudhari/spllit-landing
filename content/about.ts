@@ -32,6 +32,7 @@ export const TEAM: TeamMember[] = [
   {
     name: 'Ankit Raj Choudhari',
     role: 'Founder',
+    photo: '/team/ankit-raj-choudhari.jpg',
     bio: 'Started Spllit after watching classmates leave campus for the same places in separate autos. Builds the product and runs the company.',
     links: [],
   },
@@ -57,19 +58,28 @@ export const ALUMNI: TeamMember[] = [
 ];
 
 /**
- * The registered company. Each field renders only when it holds a value.
+ * The registered enterprise, as printed on its Udyam certificate.
+ *
+ * Only what identifies the business goes here. The certificate also carries a
+ * home address, a personal phone number and email, and the owner's social
+ * category — none of which belongs on a public page.
  */
 export const COMPANY = {
-  /** As printed on the Udyam certificate. A registered enterprise, not a
-   * private limited company — do not describe it as one. */
-  legalName: 'Spllit (Udyam-registered micro enterprise)',
-  /** Shown because "MSME registered" is claimed; checkable on udyamregistration.gov.in. */
+  /** Name of enterprise. A registered enterprise, not a private limited company. */
+  name: 'Spllit',
+  classification: 'Micro enterprise',
+  sector: 'Services · Web platforms',
   udyam: 'UDYAM-TN-02-0452037',
-  /** City only. The certificate's street address is a home address. */
-  registeredCity: 'Chennai, Tamil Nadu',
-  founded: 'November 2025',
+  /** Date of incorporation / commencement on the certificate (20 Nov 2025). */
+  operatingSince: 'Nov 2025',
+  /** Date of Udyam registration (14 Feb 2026). */
+  udyamSince: 'Feb 2026',
+  city: 'Chennai, Tamil Nadu',
   incubator: 'VELS Innovation Council',
   grievanceOfficer: 'Ankit Raj Choudhari',
+  /** The government register. Its Verify page needs a session and bounces a
+   * cold link to the home page, so the home page is what is linked. */
+  register: 'https://udyamregistration.gov.in/',
 } as const;
 
 export type MilestoneStatus = 'done' | 'now' | 'next';

@@ -16,7 +16,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
 
 const PORT = process.env.CDP_PORT || '9333';
-const DIRS = ['public/editorial', 'public/product', 'public/soon', 'public/backers', 'public/careers', 'public/blog'];
+const DIRS = ['public/editorial', 'public/product', 'public/soon', 'public/backers', 'public/careers', 'public/blog', 'public/about', 'public/team'];
 const EXT = /\.(png|jpe?g|webp)$/i;
 
 function walk(dir) {
@@ -110,7 +110,7 @@ writeFileSync(
  * 16px-wide WebP previews of the static artwork, inlined so an illustration has
  * something to show before its real file arrives. Re-run the script after
  * adding or replacing anything under public/editorial, /product, /soon,
- * /backers or /careers.
+ * /backers, /careers, /blog, /about or /team.
  */
 export const IMAGE_BLUR: Record<string, string> = {
 ${body}
