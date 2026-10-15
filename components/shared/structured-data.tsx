@@ -1,3 +1,4 @@
+import { TEAM } from '@/content/about';
 import { SITE, SOCIALS } from '@/content/site';
 
 /**
@@ -47,6 +48,14 @@ export function StructuredData() {
         },
         email: SITE.email,
         foundingDate: SITE.founded,
+        // The people on /about, with the same profile links shown there, so a
+        // reviewer and a crawler are checking one list.
+        founder: TEAM.filter((member) => member.role.includes('Founder')).map((member) => ({
+          '@type': 'Person',
+          name: member.name,
+          jobTitle: member.role,
+          ...(member.links.length > 0 && { sameAs: member.links.map((link) => link.href) }),
+        })),
         areaServed: { '@type': 'Country', name: 'India' },
         // The entity-linking signal. Each profile confirms the same brand.
         sameAs: SOCIALS.map((social) => social.href),

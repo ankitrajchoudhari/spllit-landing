@@ -23,6 +23,7 @@ const SECTION_SCROLL = 'spllit.nav.section';
 const LINKS: { href: string; label: string; section?: string }[] = [
   { href: '/#squads', label: 'Group Rides', section: 'squads' },
   { href: '/trip', label: 'Trip' },
+  { href: '/about', label: 'About' },
   { href: '/#events', label: 'Events', section: 'events' },
   { href: '/blog', label: 'Blog & News' },
   { href: '/careers', label: 'Careers' },
