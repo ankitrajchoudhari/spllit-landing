@@ -78,6 +78,8 @@ export function TeamCard({
     <article
       className={cn(
         'group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-line bg-surface shadow-soft',
+        // Faded, not hidden: someone who has left is still part of the record.
+        alumni && 'opacity-75 transition-opacity duration-sheet hover:opacity-100',
         featured && 'sm:grid sm:grid-cols-[1.05fr_1fr]',
       )}
     >

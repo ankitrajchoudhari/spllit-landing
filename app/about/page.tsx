@@ -10,7 +10,8 @@ import { Limits } from '@/components/about/limits';
 import { RouteTimeline } from '@/components/about/route-timeline';
 import { TeamCard } from '@/components/about/team-card';
 import { PhoneFrame } from '@/components/ui/phone-frame';
-import { ALUMNI, COMPANY, CONTACTS, LIMITS, MILESTONES, TEAM } from '@/content/about';
+import { COMPANY, CONTACTS, LIMITS, MILESTONES } from '@/content/about';
+import { teamService } from '@/lib/services/team';
 import { SITE, SOCIALS } from '@/content/site';
 import { blurProps } from '@/lib/image-blur';
 import { cn } from '@/lib/utils';
@@ -269,8 +270,30 @@ function ReachUs() {
   );
 }
 
-export default function AboutPage() {
-  const [founder, ...crew] = TEAM;
+/**
+ * Edited in the admin console. Saving there asks this page to rebuild at once;
+ * the interval is only the floor if that call never arrives.
+ */
+export const revalidate = 300;
+
+/** A labelled rule opening a row of cards: Interns, Alumni. */
+function RowHead({ title, note }: { title: string; note?: string }) {
+  return (
+    <>
+      <div className="flex items-center gap-4">
+        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-subtle">{title}</p>
+        <span aria-hidden className="h-px flex-1 bg-line" />
+      </div>
+      {note && (
+        <p className="mt-3 max-w-[52ch] text-[15px] leading-relaxed text-ink-muted">{note}</p>
+      )}
+    </>
+  );
+}
+
+export default async function AboutPage() {
+  const { founders, core, interns, alumni } = await teamService.sections();
+  const everyone = [...founders, ...core, ...interns];
 
   return (
     <div className="min-h-dvh bg-canvas">
@@ -415,7 +438,7 @@ export default function AboutPage() {
                 <p className="mt-5 max-w-[46ch] text-[16px] leading-relaxed text-ink-muted">
                   A small team, all facing the same direction.
                   {/* Only claimed once it is true of every card below. */}
-                  {TEAM.every((member) => member.links.length > 0) &&
+                  {everyone.every((member) => member.links.length > 0) &&
                     ' Every profile below links out, so each of us can be checked rather than taken on trust.'}
                 </p>
               </div>
@@ -437,30 +460,46 @@ export default function AboutPage() {
               </div>
             </div>
 
-            <div className="mt-10 grid gap-5 sm:mt-14 sm:grid-cols-2">
-              {founder && (
-                <div className="sm:col-span-2">
-                  <TeamCard member={founder} featured />
-                </div>
-              )}
-              {crew.map((member) => (
-                <TeamCard key={member.name} member={member} />
-              ))}
-            </div>
+            {founders.length > 0 && (
+              <div className="mt-10 grid gap-5 sm:mt-14">
+                {founders.map((member) => (
+                  <TeamCard key={member.name} member={member} featured />
+                ))}
+              </div>
+            )}
 
-            {ALUMNI.length > 0 && (
+            {core.length > 0 && (
+              <div
+                className={cn(
+                  'grid gap-5 sm:grid-cols-2 lg:grid-cols-3',
+                  founders.length > 0 ? 'mt-5' : 'mt-10 sm:mt-14',
+                )}
+              >
+                {core.map((member) => (
+                  <TeamCard key={member.name} member={member} />
+                ))}
+              </div>
+            )}
+
+            {interns.length > 0 && (
               <div className="mt-14 sm:mt-16">
-                <div className="flex items-center gap-4">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-subtle">
-                    Alumni
-                  </p>
-                  <span aria-hidden className="h-px flex-1 bg-line" />
-                </div>
-                <p className="mt-3 max-w-[52ch] text-[15px] leading-relaxed text-ink-muted">
-                  People who helped build Spllit and have since moved on.
-                </p>
+                <RowHead title="Interns" />
                 <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {ALUMNI.map((person) => (
+                  {interns.map((member) => (
+                    <TeamCard key={member.name} member={member} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {alumni.length > 0 && (
+              <div className="mt-14 sm:mt-16">
+                <RowHead
+                  title="Alumni"
+                  note="People who helped build Spllit and have since moved on."
+                />
+                <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {alumni.map((person) => (
                     <TeamCard key={person.name} member={person} alumni />
                   ))}
                 </div>

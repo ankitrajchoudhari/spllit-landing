@@ -17,7 +17,7 @@ import crypto from 'node:crypto';
  */
 
 /** Paths whose content comes from the console, and nothing else. */
-const PATHS = ['/careers', '/blog'] as const;
+const PATHS = ['/careers', '/blog', '/about'] as const;
 
 function secretMatches(provided: string, expected: string): boolean {
   const a = Buffer.from(provided);

@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import prisma from '../utils/prisma.js';
 import { ok, fail, boundingBox, parseCoords } from '../utils/respond.js';
 import { publicView, readCareersContent } from '../services/careers.js';
+import { readTeamContent, teamPublicView } from '../services/teamContent.js';
 import { readBlogContent, publicView as blogPublicView } from '../services/blogContent.js';
 import crypto from 'node:crypto';
 import { z } from 'zod';
@@ -134,6 +135,23 @@ router.get('/careers', async (_req: Request, res: Response) => {
   } catch (error) {
     console.error('[public/careers]', error);
     return fail(res, 500, 'Failed to load careers content');
+  }
+});
+
+/**
+ * GET /team — the people on /about, hidden entries stripped.
+ *
+ * 404 until someone saves the team in the console; the site then shows its
+ * built-in list, so that is a normal answer and not a failure.
+ */
+router.get('/team', async (_req: Request, res: Response) => {
+  try {
+    const content = await readTeamContent();
+    if (!content) return fail(res, 404, 'The team has not been published yet');
+    return ok(res, teamPublicView(content));
+  } catch (error) {
+    console.error('[public/team]', error);
+    return fail(res, 500, 'Failed to load the team');
   }
 });
 
