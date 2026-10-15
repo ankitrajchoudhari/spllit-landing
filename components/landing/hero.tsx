@@ -119,6 +119,13 @@ export function Hero() {
               transition={{ duration: 0.5 }}
               className="mb-3.5 max-w-[820px] font-sans text-[clamp(32px,6vw,68px)] font-medium leading-[1.05] tracking-[-0.04em] text-ink"
             >
+              {/* The brand, inside the heading and visible. A page's h1 is the
+                  strongest thing it says about itself, and this one never said
+                  "Spllit" — on a name Google already autocorrects to "split",
+                  that left the home page with nothing to rank on for it. */}
+              <span className="mb-4 block font-sans text-[13px] font-semibold uppercase tracking-[0.28em] text-ink-subtle sm:text-[14px]">
+                Spllit · campus ride sharing
+              </span>
               Where are you headed?
             </motion.h1>
 

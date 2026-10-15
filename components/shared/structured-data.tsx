@@ -69,8 +69,11 @@ export function StructuredData() {
       {
         '@type': 'WebSite',
         '@id': `${SITE.url}/#website`,
-        url: SITE.url,
+        // Google's site-name rules: the homepage URL with its trailing slash,
+        // the preferred name, and the forms it might otherwise be shown as.
+        url: `${SITE.url}/`,
         name: SITE.name,
+        alternateName: ['Spllit App', 'spllit.app'],
         description: SITE.description,
         publisher: { '@id': `${SITE.url}/#organization` },
         inLanguage: 'en-IN',
