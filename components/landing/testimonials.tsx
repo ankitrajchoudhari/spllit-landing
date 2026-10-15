@@ -45,8 +45,14 @@ const COPIES = 4;
 
 /**
  * One continuous row, drifting left. Hovering or focusing a card stops it so a
- * quote can be read to the end. Under reduced motion the row stands still and
- * scrolls by hand instead.
+ * quote can be read to the end.
+ *
+ * It keeps moving under reduced motion, at half speed, by decision: Windows
+ * reports reduced motion whenever "Animation effects" is off, which is common
+ * on office and laptop installs, and a row that silently stood still there was
+ * read as broken. A slow linear drift with pause-on-hover is the gentlest form
+ * of motion there is; no parallax, no scaling, nothing flashing. The
+ * override lives in globals.css as .marquee-keep.
  */
 export function Testimonials({ className }: { className?: string }) {
   const track = Array.from({ length: COPIES }, () => TESTIMONIALS).flat();
@@ -58,7 +64,7 @@ export function Testimonials({ className }: { className?: string }) {
       </p>
 
       <div
-        className="group no-scrollbar relative mt-6 overflow-hidden sm:mt-8 motion-reduce:overflow-x-auto"
+        className="group no-scrollbar relative mt-6 overflow-hidden sm:mt-8"
         style={{
           // Cards dissolve at both edges rather than being cut by the viewport.
           maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
@@ -69,8 +75,7 @@ export function Testimonials({ className }: { className?: string }) {
             the loop shifts by exactly half the track, and with a gap the two
             halves differ by one gap, so the row would jump on every repeat. */}
         <ul
-          className="flex w-max animate-marquee py-2 group-focus-within:[animation-play-state:paused] group-hover:[animation-play-state:paused] motion-reduce:animate-none"
-          style={{ animationDuration: '55s' }}
+          className="flex w-max animate-marquee py-2 group-focus-within:[animation-play-state:paused] group-hover:[animation-play-state:paused] marquee-keep [animation-duration:55s]"
         >
           {track.map((entry, index) => {
             // Only the first set is read out; the rest exist to fill the loop.

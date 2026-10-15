@@ -483,3 +483,16 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * The one exception: the testimonials row keeps drifting, at half speed.
+ * Windows reports reduced motion whenever "Animation effects" is off, and a
+ * row that silently froze there read as broken. A class outranks the universal
+ * selector above, so this wins without touching anything else.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-keep {
+    animation-duration: 120s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

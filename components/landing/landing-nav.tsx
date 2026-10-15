@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -20,13 +20,18 @@ import { SignInDrawer } from '@/components/ui/family-signin-drawer';
  */
 const SECTION_SCROLL = 'spllit.nav.section';
 
-const LINKS: { href: string; label: string; section?: string }[] = [
-  { href: '/#squads', label: 'Group Rides', section: 'squads' },
-  { href: '/trip', label: 'Trip' },
-  { href: '/about', label: 'About' },
-  { href: '/#events', label: 'Events', section: 'events' },
-  { href: '/blog', label: 'Blog & News' },
-  { href: '/careers', label: 'Careers' },
+/**
+ * Product first, then the company — in the order someone deciding whether to
+ * use it would want them. `group` splits the desktop bar with a rule so the
+ * two kinds of link read as two kinds.
+ */
+const LINKS: { href: string; label: string; section?: string; group: 'product' | 'company' }[] = [
+  { href: '/#squads', label: 'Group Rides', section: 'squads', group: 'product' },
+  { href: '/#events', label: 'Events', section: 'events', group: 'product' },
+  { href: '/trip', label: 'Trip', group: 'product' },
+  { href: '/about', label: 'About', group: 'company' },
+  { href: '/blog', label: 'Blog & News', group: 'company' },
+  { href: '/careers', label: 'Careers', group: 'company' },
 ];
 
 /**
@@ -106,45 +111,62 @@ export function LandingNav() {
   );
 
   return (
-    <nav className="relative flex items-center justify-between px-6 pb-4 pt-5 lg:px-20 lg:pt-6">
-      <Link href="/" className="-my-1 select-none py-1">
+    <nav className="relative flex items-center justify-between px-6 pb-4 pt-5 lg:px-20 lg:pt-6 xl:grid xl:grid-cols-[1fr_auto_1fr] xl:gap-8">
+      <Link href="/" className="-my-1 select-none justify-self-start py-1">
         <span className="font-display text-[32px] font-semibold leading-none tracking-[-0.03em] text-ink lg:text-[40px]">
           spllit
         </span>
       </Link>
 
-      {/* Absolutely centred so the links stay put regardless of how wide the
-          wordmark or the action group become. */}
-      <div className="absolute left-1/2 hidden -translate-x-1/2 gap-6 xl:flex xl:gap-8">
-        {LINKS.map((link) => (
-          <a
-            key={link.href}
-            href={link.href}
-            onClick={(event) => onSectionClick(event, link.section)}
-            className="nav-control -my-2.5 whitespace-nowrap py-2.5 text-ink"
-          >
-            {link.label}
-          </a>
-        ))}
+      {/* The middle column of a 1fr/auto/1fr grid: centred on the page, with
+          equal room either side however wide the wordmark or the actions run.
+          Absolute centring did the first but not the second, so the links sat
+          a hand's width from Login and twice that from the wordmark. */}
+      <div
+        className="hidden items-center rounded-full border border-line p-1.5 shadow-soft backdrop-blur-md xl:flex"
+        style={{ background: 'color-mix(in srgb, var(--surface) 72%, transparent)' }}
+      >
+        {LINKS.map((link, index) => {
+          const active = !link.section && pathname.startsWith(link.href);
+          const groupStart = index > 0 && LINKS[index - 1]?.group !== link.group;
+          return (
+            <Fragment key={link.href}>
+              {groupStart && <span aria-hidden className="mx-1.5 h-5 w-px bg-line-strong" />}
+              <a
+                href={link.href}
+                aria-current={active ? 'page' : undefined}
+                onClick={(event) => onSectionClick(event, link.section)}
+                className={cn(
+                  'whitespace-nowrap rounded-full px-4 py-2 font-sans text-[14.5px] font-medium transition-colors duration-snap',
+                  active
+                    ? 'bg-ink text-canvas'
+                    : 'text-ink-muted hover:bg-surface-sunken hover:text-ink',
+                )}
+              >
+                {link.label}
+              </a>
+            </Fragment>
+          );
+        })}
       </div>
 
-      <div className="flex items-center gap-6 lg:gap-8">
+      <div className="flex items-center gap-2 justify-self-end">
         {/* Opens in place. Sign-in used to navigate away, which threw away
             whatever the visitor had typed into the hero prompt. */}
         <SignInDrawer>
           <button
             type="button"
-            className="nav-control hidden font-semibold text-[#292929] xl:block dark:text-ink"
+            className="hidden rounded-full px-5 py-3 font-sans text-[14.5px] font-semibold text-ink transition-colors duration-snap hover:bg-surface-sunken xl:block"
           >
-            Login
+            Log in
           </button>
         </SignInDrawer>
 
         <Link
           href="/auth"
           className={cn(
-            'hidden rounded-full bg-ink px-5 py-3.5 font-sans text-[15px] font-medium uppercase',
-            'tracking-[0.04em] text-canvas transition-all duration-snap',
+            'hidden rounded-full bg-ink px-6 py-3 font-sans text-[14.5px] font-semibold',
+            'text-canvas transition-all duration-snap',
             'hover:opacity-85 active:scale-95 xl:block',
           )}
         >
