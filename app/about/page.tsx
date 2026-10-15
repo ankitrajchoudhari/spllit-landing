@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, ArrowUpRight, BadgeCheck, Mail } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Mail } from 'lucide-react';
 
 import { LandingNav } from '@/components/landing/landing-nav';
 import { ParallaxFooter } from '@/components/landing/parallax-footer';
+import { BRAND_LOGOS } from '@/components/about/brand-icons';
+import { Limits } from '@/components/about/limits';
 import { RouteTimeline } from '@/components/about/route-timeline';
 import { TeamCard } from '@/components/about/team-card';
 import { PhoneFrame } from '@/components/ui/phone-frame';
-import { ALUMNI, COMPANY, MILESTONES, TEAM } from '@/content/about';
+import { ALUMNI, COMPANY, CONTACTS, LIMITS, MILESTONES, TEAM } from '@/content/about';
 import { SITE, SOCIALS } from '@/content/site';
 import { blurProps } from '@/lib/image-blur';
 import { cn } from '@/lib/utils';
@@ -51,24 +53,221 @@ function Eyebrow({ children, className }: { children: React.ReactNode; className
   );
 }
 
-const NOT = [
-  {
-    title: 'Not a transport provider',
-    body: 'We do not employ drivers, own vehicles or operate journeys.',
-  },
-  {
-    title: 'Not a background check',
-    body: 'We verify that an account holds a working institute email. We do not vet drivers, inspect vehicles, or check licences or insurance.',
-  },
-  {
-    title: 'Not in the money',
-    body: 'We do not process payments or take a commission. Money moves directly between the people travelling.',
-  },
-  {
-    title: 'Not open to everyone',
-    body: 'Without a verified campus address you cannot create or join anything. A smaller pool, on purpose.',
-  },
-];
+/** Brushed-silver ink for type on the black pass. */
+const SILVER: React.CSSProperties = {
+  backgroundImage: 'linear-gradient(180deg, #ffffff 0%, #d9d9d9 45%, #8f8f8f 100%)',
+  WebkitBackgroundClip: 'text',
+  backgroundClip: 'text',
+  color: 'transparent',
+};
+
+/**
+ * The Udyam registration, set as a black pass with silver type.
+ *
+ * Monochrome on purpose: it is the one object on the page that is a document
+ * rather than a story, and a document should look issued, not illustrated.
+ * Fine concentric rules behind it stand in for the guilloché on printed
+ * certificates; the seal's ring text is set on a path the same way the Spllit
+ * Trip ticket sets its own. The notches are cut in the section's colour, which
+ * is the page canvas.
+ */
+function RegistrationPass() {
+  const ring = 'SPLLIT · MSME · UDYAM REGISTERED · ';
+  const microprint = `SPLLIT · ${COMPANY.udyam} · ${COMPANY.classification.toUpperCase()} · CHENNAI · `;
+
+  return (
+    <div className="relative overflow-hidden rounded-[28px] bg-[#0b0b0c] text-white shadow-float ring-1 ring-black/5 dark:ring-white/10">
+      <svg
+        aria-hidden
+        viewBox="0 0 400 400"
+        className="pointer-events-none absolute -right-28 -top-28 h-[440px] w-[440px] opacity-[0.09]"
+      >
+        {Array.from({ length: 22 }, (_, i) => (
+          <circle
+            key={i}
+            cx="200"
+            cy="200"
+            r={18 + i * 8.5}
+            fill="none"
+            stroke="#fff"
+            strokeWidth="0.7"
+          />
+        ))}
+      </svg>
+
+      <div className="relative flex items-start justify-between gap-6 p-6 sm:p-9">
+        <div className="min-w-0">
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-white/45">
+            Registered enterprise
+          </p>
+          <p
+            className="mt-3 font-display text-[48px] font-semibold leading-[0.95] tracking-[-0.045em] sm:text-[64px]"
+            style={SILVER}
+          >
+            {COMPANY.name}
+          </p>
+          <p className="mt-4 text-[14px] text-white/55">
+            {COMPANY.classification} <span className="text-white/25">/</span> {COMPANY.sector}
+          </p>
+        </div>
+
+        {/* The seal. */}
+        <svg
+          viewBox="0 0 100 100"
+          aria-hidden
+          className="h-[84px] w-[84px] shrink-0 sm:h-[104px] sm:w-[104px]"
+        >
+          <defs>
+            <path id="udyam-seal-ring" d="M50 50 m-37 0 a37 37 0 1 1 74 0 a37 37 0 1 1 -74 0" />
+          </defs>
+          <circle
+            cx="50"
+            cy="50"
+            r="48"
+            fill="none"
+            stroke="rgba(255,255,255,0.28)"
+            strokeWidth="1"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r="27"
+            fill="none"
+            stroke="rgba(255,255,255,0.28)"
+            strokeWidth="1"
+          />
+          <text
+            fill="rgba(255,255,255,0.7)"
+            fontSize="7.4"
+            letterSpacing="1.9"
+            fontFamily="var(--font-mono), monospace"
+          >
+            <textPath href="#udyam-seal-ring" textLength="228" lengthAdjust="spacing">
+              {ring + ring}
+            </textPath>
+          </text>
+          <path
+            d="M40 50.5l6.5 6.5L61 42.5"
+            fill="none"
+            stroke="#fff"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+
+      {/* Tear line, notched out of both edges. */}
+      <div aria-hidden className="relative h-px">
+        <span className="absolute inset-x-8 top-0 border-t border-dashed border-white/20" />
+        <span className="absolute -left-3.5 -top-3.5 h-7 w-7 rounded-full bg-canvas" />
+        <span className="absolute -right-3.5 -top-3.5 h-7 w-7 rounded-full bg-canvas" />
+      </div>
+
+      <div className="relative p-6 sm:p-9">
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-white/45">
+          Udyam registration number
+        </p>
+        <p
+          className="mt-3 break-all font-mono text-[clamp(1.35rem,4.2vw,2.4rem)] font-medium leading-tight tracking-[0.06em]"
+          style={SILVER}
+        >
+          {COMPANY.udyam}
+        </p>
+        <a
+          href={COMPANY.register}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex items-center gap-1.5 text-[13.5px] text-white/60 underline decoration-white/25 underline-offset-4 transition-colors duration-snap hover:text-white hover:decoration-white"
+        >
+          Check it on udyamregistration.gov.in
+          <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
+        </a>
+
+        <dl className="mt-9 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-white/10 pt-7 sm:grid-cols-4">
+          {[
+            { term: 'Operating since', detail: COMPANY.operatingSince },
+            { term: 'Udyam since', detail: COMPANY.udyamSince },
+            { term: 'Based in', detail: COMPANY.city },
+            { term: 'Incubated by', detail: COMPANY.incubator },
+          ].map(({ term, detail }) => (
+            <div key={term}>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
+                {term}
+              </dt>
+              <dd className="mt-2 text-[15px] font-medium leading-snug text-white/90">{detail}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      {/* Microprint along the foot, as on anything printed to be checked. */}
+      <div
+        aria-hidden
+        className="relative overflow-hidden whitespace-nowrap border-t border-white/10 py-2.5 font-mono text-[9px] tracking-[0.32em] text-white/25"
+      >
+        {microprint.repeat(4)}
+      </div>
+    </div>
+  );
+}
+
+/** Who to write to, the grievance officer, and the official profiles. */
+function ReachUs() {
+  return (
+    <div className="flex flex-col rounded-[28px] border border-line bg-surface p-6 shadow-soft sm:p-8">
+      <p className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-ink-subtle">
+        Reach us
+      </p>
+
+      <ul className="mt-2">
+        {CONTACTS.map(({ label, detail, email }) => (
+          <li key={email} className="border-b border-line py-4">
+            <p className="text-[13px] font-medium text-ink">{label}</p>
+            <p className="text-[12.5px] text-ink-subtle">{detail}</p>
+            <a
+              href={`mailto:${email}`}
+              className="mt-2 inline-flex items-center gap-2 break-all text-[16px] font-medium text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
+            >
+              <Mail aria-hidden className="h-4 w-4 shrink-0 text-ink-muted" />
+              {email}
+            </a>
+          </li>
+        ))}
+        <li className="py-4">
+          <p className="text-[13px] font-medium text-ink">Grievance officer</p>
+          <p className="text-[12.5px] text-ink-subtle">Complaints under the IT Rules, 2021</p>
+          <p className="mt-2 text-[16px] font-medium text-ink">{COMPANY.grievanceOfficer}</p>
+        </li>
+      </ul>
+
+      <div className="mt-auto grid gap-2.5 pt-4">
+        {SOCIALS.map(({ label, href, handle }) => {
+          const Logo = BRAND_LOGOS[label];
+          return (
+            <a
+              key={href}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-3.5 rounded-2xl border border-line px-4 py-3 transition-colors duration-snap hover:border-line-strong hover:bg-surface-sunken"
+            >
+              <Logo className="h-8 w-8 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] font-medium text-ink">{label}</span>
+                <span className="block truncate text-[12.5px] text-ink-subtle">{handle}</span>
+              </span>
+              <ArrowUpRight
+                aria-hidden
+                className="h-4 w-4 text-ink-subtle transition-transform duration-snap group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+              />
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function AboutPage() {
   const [founder, ...crew] = TEAM;
@@ -250,28 +449,21 @@ export default function AboutPage() {
             </div>
 
             {ALUMNI.length > 0 && (
-              <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-full border border-line bg-surface px-5 py-3 sm:w-fit">
-                <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-subtle">
-                  Previously
-                </span>
-                {ALUMNI.map((person) => (
-                  <span key={person.name} className="text-[14.5px] text-ink-muted">
-                    {person.links[0] ? (
-                      <a
-                        href={person.links[0].href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-medium text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-                      >
-                        {person.name}
-                        <ArrowUpRight aria-hidden className="h-3.5 w-3.5 text-ink-subtle" />
-                      </a>
-                    ) : (
-                      <span className="font-medium text-ink">{person.name}</span>
-                    )}{' '}
-                    · {person.role}
-                  </span>
-                ))}
+              <div className="mt-14 sm:mt-16">
+                <div className="flex items-center gap-4">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-subtle">
+                    Alumni
+                  </p>
+                  <span aria-hidden className="h-px flex-1 bg-line" />
+                </div>
+                <p className="mt-3 max-w-[52ch] text-[15px] leading-relaxed text-ink-muted">
+                  People who helped build Spllit and have since moved on.
+                </p>
+                <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {ALUMNI.map((person) => (
+                    <TeamCard key={person.name} member={person} alumni />
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -340,143 +532,30 @@ export default function AboutPage() {
               A registered business, and the people to reach.
             </h2>
 
-            <div className="mt-10 grid gap-5 sm:mt-14 lg:grid-cols-[1.35fr_0.65fr]">
-              {/* The registration, laid out like a pass: who, then a tear
-                  line, then the number and the dates. */}
-              <div className="relative overflow-hidden rounded-[28px] border border-line bg-surface shadow-raised">
-                <div className="flex flex-wrap items-start justify-between gap-4 p-6 sm:p-8">
-                  <div>
-                    <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-subtle">
-                      Registered enterprise
-                    </p>
-                    <p className="mt-2 font-display text-[40px] font-semibold leading-none tracking-[-0.04em] text-ink sm:text-[48px]">
-                      {COMPANY.name}
-                    </p>
-                    <p className="mt-3 text-[14.5px] text-ink-muted">
-                      {COMPANY.classification} · {COMPANY.sector}
-                    </p>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-muted px-3.5 py-1.5 text-[12.5px] font-semibold text-brand">
-                    <BadgeCheck aria-hidden className="h-4 w-4" />
-                    MSME registered
-                  </span>
-                </div>
-
-                {/* Tear line, with the notches cut out of both edges. */}
-                <div aria-hidden className="relative h-px">
-                  <span className="absolute inset-x-8 top-0 border-t-2 border-dashed border-line" />
-                  <span className="absolute -left-3 -top-3 h-6 w-6 rounded-full border border-line bg-canvas" />
-                  <span className="absolute -right-3 -top-3 h-6 w-6 rounded-full border border-line bg-canvas" />
-                </div>
-
-                <div className="p-6 sm:p-8">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-subtle">
-                    Udyam registration number
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-2">
-                    <p className="break-all font-mono text-[clamp(1.25rem,3.6vw,1.9rem)] font-medium tracking-[0.04em] text-ink">
-                      {COMPANY.udyam}
-                    </p>
-                    <a
-                      href={COMPANY.register}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[13.5px] font-medium text-ink-muted underline decoration-line-strong underline-offset-4 hover:text-ink"
-                    >
-                      Check it on udyamregistration.gov.in
-                      <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
-                    </a>
-                  </div>
-
-                  <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-line pt-6 sm:grid-cols-4">
-                    {[
-                      { term: 'Operating since', detail: COMPANY.operatingSince },
-                      { term: 'Udyam since', detail: COMPANY.udyamSince },
-                      { term: 'Based in', detail: COMPANY.city },
-                      { term: 'Incubated by', detail: COMPANY.incubator },
-                    ].map(({ term, detail }) => (
-                      <div key={term}>
-                        <dt className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-subtle">
-                          {term}
-                        </dt>
-                        <dd className="mt-1.5 text-[15px] font-medium leading-snug text-ink">
-                          {detail}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-              </div>
-
-              {/* Who to reach. */}
-              <div className="flex flex-col rounded-[28px] border border-line bg-surface p-6 shadow-soft sm:p-8">
-                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-subtle">
-                  Reach us
-                </p>
-                <a
-                  href={`mailto:${SITE.email}`}
-                  className="mt-4 inline-flex items-center gap-2.5 break-all text-[17px] font-medium text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-                >
-                  <Mail aria-hidden className="h-4 w-4 shrink-0 text-ink-muted" />
-                  {SITE.email}
-                </a>
-                <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-subtle">
-                  Grievance officer
-                </p>
-                <p className="mt-2 text-[16px] font-medium text-ink">{COMPANY.grievanceOfficer}</p>
-
-                <ul className="mt-auto space-y-1 pt-8">
-                  {SOCIALS.map(({ label, href, handle }) => (
-                    <li key={href}>
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group flex items-center justify-between border-t border-line py-3.5 text-[15px] text-ink"
-                      >
-                        <span>
-                          <span className="font-medium">{label}</span>
-                          <span className="ml-2 text-ink-subtle">{handle}</span>
-                        </span>
-                        <ArrowUpRight
-                          aria-hidden
-                          className="h-4 w-4 text-ink-subtle transition-transform duration-snap group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                        />
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <div className="mt-10 grid gap-5 sm:mt-14 lg:grid-cols-[1.4fr_0.6fr]">
+              <RegistrationPass />
+              <ReachUs />
             </div>
           </div>
         </section>
 
         {/* ─── What it is not ─────────────────────────────────────────── */}
         <section className="border-b border-line bg-surface-sunken">
-          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-            <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-28">
+            <div className="grid items-end gap-6 lg:grid-cols-[1fr_1fr] lg:gap-16">
               <div>
                 <Eyebrow>What it is not</Eyebrow>
                 <h2 className="mt-4 font-sans text-[clamp(2rem,4.6vw,3.3rem)] font-medium leading-[1.02] tracking-[-0.045em] text-ink">
                   The limits, said plainly.
                 </h2>
-                <p className="mt-5 max-w-[36ch] text-[15.5px] leading-relaxed text-ink-muted">
-                  Being straight about what Spllit does not do is part of being safe to use.
-                </p>
               </div>
-              <ol className="grid gap-x-10 sm:grid-cols-2">
-                {NOT.map(({ title, body }, index) => (
-                  <li key={title} className="border-t border-line-strong py-6">
-                    <span className="font-mono text-[12px] text-ink-subtle">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <h3 className="mt-3 font-sans text-[19px] font-medium tracking-[-0.02em] text-ink">
-                      {title}
-                    </h3>
-                    <p className="mt-2 text-[15px] leading-relaxed text-ink-muted">{body}</p>
-                  </li>
-                ))}
-              </ol>
+              <p className="max-w-[44ch] text-[16px] leading-relaxed text-ink-muted lg:justify-self-end">
+                Being straight about what Spllit does not do is part of being safe to use. Here is
+                what people assume, crossed out, and what is true instead.
+              </p>
+            </div>
+            <div className="mt-10 sm:mt-14">
+              <Limits items={LIMITS} />
             </div>
           </div>
         </section>

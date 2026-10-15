@@ -76,11 +76,49 @@ export const COMPANY = {
   udyamSince: 'Feb 2026',
   city: 'Chennai, Tamil Nadu',
   incubator: 'VELS Innovation Council',
-  grievanceOfficer: 'Ankit Raj Choudhari',
+  /** Named the same in the Terms and the Privacy Policy — keep them in step. */
+  grievanceOfficer: 'Saurav Kumar',
   /** The government register. Its Verify page needs a session and bounces a
    * cold link to the home page, so the home page is what is linked. */
   register: 'https://udyamregistration.gov.in/',
 } as const;
+
+/** Who to write to, by what you need. */
+export const CONTACTS = [
+  { label: 'Support', detail: 'Help with the app or an account', email: 'support@spllit.app' },
+  {
+    label: 'Everything else',
+    detail: 'Partnerships, press and questions',
+    email: 'info@spllit.app',
+  },
+] as const;
+
+/**
+ * What Spllit is not, each paired with what it is instead. The struck-through
+ * phrase is what people assume; the line under it is what is actually true.
+ */
+export const LIMITS = [
+  {
+    not: 'A transport provider',
+    body: 'We do not employ drivers, own vehicles or operate journeys.',
+    instead: 'The coordination layer between people already travelling.',
+  },
+  {
+    not: 'A background check',
+    body: 'We do not vet drivers, inspect vehicles, or check licences or insurance.',
+    instead: 'A working institute email, verified on every account.',
+  },
+  {
+    not: 'A payment middleman',
+    body: 'We do not process payments or take a commission.',
+    instead: 'Money moves directly between the people travelling.',
+  },
+  {
+    not: 'Open to everyone',
+    body: 'Without a verified campus address you cannot create or join anything.',
+    instead: 'Campus-verified only. A smaller pool, on purpose.',
+  },
+] as const;
 
 export type MilestoneStatus = 'done' | 'now' | 'next';
 

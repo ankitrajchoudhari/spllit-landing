@@ -127,7 +127,7 @@ export const TERMS: LegalSection[] = [
     heading: 'Complaints and the Grievance Officer',
     paragraphs: [
       'Spllit is an intermediary under the Information Technology Act 2000. In line with the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules 2021, we publish a point of contact for complaints.',
-      'Grievance Officer: Ankit Raj Choudhari — spllittech@gmail.com.',
+      'Grievance Officer: Saurav Kumar — spllittech@gmail.com.',
       'We acknowledge complaints within 24 hours and aim to resolve them within 15 days. Content that is unlawful, or that shows a person without consent, is acted on faster.',
     ],
   },
@@ -237,7 +237,7 @@ export const PRIVACY: LegalSection[] = [
     heading: 'Grievance Officer',
     paragraphs: [
       'For complaints about how your data is handled, under the Information Technology Act 2000 and the DPDP Act 2023:',
-      'Ankit Raj Choudhari — spllittech@gmail.com. Acknowledged within 24 hours, resolved within 15 days.',
+      'Saurav Kumar — spllittech@gmail.com. Acknowledged within 24 hours, resolved within 15 days.',
     ],
   },
   {
@@ -251,9 +251,7 @@ export const PRIVACY: LegalSection[] = [
   },
   {
     heading: 'Contact',
-    paragraphs: [
-      'Questions, or a request about your data: spllittech@gmail.com',
-    ],
+    paragraphs: ['Questions, or a request about your data: spllittech@gmail.com'],
   },
 ];
 

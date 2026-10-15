@@ -34,10 +34,18 @@ function initials(name: string) {
  * on it set large, so a card without a face still reads as a portrait of
  * someone rather than an empty avatar slot.
  */
-function Bands({ name }: { name: string }) {
-  const shades = ['#8cc63f', '#3aaa4f', '#169447', '#0b7a3b', '#0b5e30'];
+const GREENS = ['#8cc63f', '#3aaa4f', '#169447', '#0b7a3b', '#0b5e30'];
+/** Alumni get the same bands in greys: the same team, a past tense. */
+const GREYS = ['#c9c9c6', '#a9a9a5', '#8a8a86', '#6b6b67', '#4d4d4a'];
+
+function Bands({ name, alumni }: { name: string; alumni?: boolean }) {
+  const shades = alumni ? GREYS : GREENS;
   return (
-    <div aria-hidden className="absolute inset-0 overflow-hidden bg-[#0b5e30]">
+    <div
+      aria-hidden
+      className="absolute inset-0 overflow-hidden"
+      style={{ background: shades[shades.length - 1] }}
+    >
       {shades.map((shade, index) => (
         <span
           key={shade}
@@ -66,7 +74,16 @@ function Bands({ name }: { name: string }) {
  * founder out sideways from sm up — photo on the left fading right — so the
  * section opens on one person rather than a row of equals.
  */
-export function TeamCard({ member, featured = false }: { member: TeamMember; featured?: boolean }) {
+export function TeamCard({
+  member,
+  featured = false,
+  alumni = false,
+}: {
+  member: TeamMember;
+  featured?: boolean;
+  /** Someone who has moved on: greyscale, and marked as such. */
+  alumni?: boolean;
+}) {
   return (
     <article
       className={cn(
@@ -94,10 +111,13 @@ export function TeamCard({ member, featured = false }: { member: TeamMember; fea
                 : '(min-width: 640px) 360px, 100vw'
             }
             {...blurProps(member.photo)}
-            className="object-cover object-[50%_28%] transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+            className={cn(
+              'object-cover object-[50%_28%] transition-transform duration-700 ease-out group-hover:scale-[1.03]',
+              alumni && 'grayscale',
+            )}
           />
         ) : (
-          <Bands name={member.name} />
+          <Bands name={member.name} alumni={alumni} />
         )}
 
         {/* Dissolve into the card. Downwards on every stacked card; sideways
@@ -132,7 +152,12 @@ export function TeamCard({ member, featured = false }: { member: TeamMember; fea
           featured && 'sm:mt-0 sm:justify-center sm:py-10 sm:pl-2 sm:pr-9',
         )}
       >
-        <span className="inline-flex w-fit items-center rounded-full border border-line bg-surface px-3 py-1 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-brand">
+        <span
+          className={cn(
+            'inline-flex w-fit items-center rounded-full border border-line bg-surface px-3 py-1 text-[11.5px] font-semibold uppercase tracking-[0.14em]',
+            alumni ? 'text-ink-muted' : 'text-brand',
+          )}
+        >
           {member.role}
         </span>
         <h3
