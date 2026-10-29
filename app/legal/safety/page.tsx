@@ -5,7 +5,8 @@ import { LegalFooter } from '@/components/shared/legal-footer';
 import { SAFETY } from '@/content/legal';
 
 export const metadata: Metadata = {
-  title: 'Safety · Spllit',
+  title: 'Safety',
+  alternates: { canonical: '/legal/safety' },
   description:
     'How to travel safely on Spllit: what we verify, what we do not, what to do before and during a journey, and how to report harassment.',
 };

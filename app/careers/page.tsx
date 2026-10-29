@@ -8,7 +8,7 @@ import { NoOpenRoles, RoleBoard } from '@/components/careers/role-board';
 import { blurProps } from '@/lib/image-blur';
 import { careersService } from '@/lib/services/careers';
 import { CAREERS_SUPPORT_EMAIL, roleStatus } from '@/content/careers';
-import { SITE } from '@/content/site';
+import { SITE, OG_IMAGE } from '@/content/site';
 
 export const metadata: Metadata = {
   title: 'Careers',
@@ -16,6 +16,7 @@ export const metadata: Metadata = {
     'Spllit is early — two cities in testing and most of the product still unwritten. Open roles, and what it is actually like to join now.',
   alternates: { canonical: '/careers' },
   openGraph: {
+    images: [OG_IMAGE],
     title: `Careers · ${SITE.name}`,
     description:
       'Two cities in testing, a small team, and most of the product still unwritten. See what is open.',

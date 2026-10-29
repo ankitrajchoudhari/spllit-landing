@@ -24,6 +24,20 @@ export const SITE = {
 } as const;
 
 /**
+ * The generated link-preview card (app/opengraph-image.tsx).
+ *
+ * A page that sets its own `openGraph` replaces the root's whole block, image
+ * included, so About, Blog and the rest were being shared with no picture at
+ * all. Those pages name this explicitly.
+ */
+export const OG_IMAGE = {
+  url: '/opengraph-image',
+  width: 1200,
+  height: 630,
+  alt: 'Spllit — campus ride sharing and travel group rides for students in India',
+} as const;
+
+/**
  * Profiles Google uses to tie the query "spllit" to this organisation.
  *
  * These go in the JSON-LD `sameAs` array, which is the single most useful thing

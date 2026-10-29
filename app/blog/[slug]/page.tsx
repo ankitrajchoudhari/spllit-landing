@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 
 import { allPosts } from '@/content/blog';
 import { blogService } from '@/lib/services/blog';
-import { SITE } from '@/content/site';
+import { OG_IMAGE, SITE } from '@/content/site';
 import { ArticleStructuredData } from '@/components/shared/structured-data';
 import { LandingNav } from '@/components/landing/landing-nav';
 import { ParallaxFooter } from '@/components/landing/parallax-footer';
@@ -70,7 +70,7 @@ export async function generateMetadata({
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt ?? post.publishedAt,
       tags: [...post.tags],
-      ...(post.image ? { images: [{ url: post.image, alt: post.imageAlt ?? '' }] } : {}),
+      images: post.image ? [{ url: post.image, alt: post.imageAlt ?? '' }] : [OG_IMAGE],
     },
     twitter: {
       card: 'summary_large_image',

@@ -17,7 +17,7 @@ import {
   TripSentence,
   TripStays,
 } from '@/components/spllit-trip/sections';
-import { SITE } from '@/content/site';
+import { SITE, OG_IMAGE } from '@/content/site';
 
 /**
  * The serif is this page's alone — postcards and travel posters, not the app.
@@ -48,11 +48,12 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Spllit Trip — You pick the place, we find the people',
+  title: { absolute: 'Spllit Trip — You pick the place, we find the people' },
   description:
     'Say where you want to go. Spllit Trip finds the people going, forms the group, fills the villa and splits the cost — before anyone books.',
   alternates: { canonical: '/trip' },
   openGraph: {
+    images: [OG_IMAGE],
     title: `Spllit Trip · ${SITE.name}`,
     description:
       'Turn “someday, Goa” into a real group, a real plan and a fair split — before anyone books a thing.',

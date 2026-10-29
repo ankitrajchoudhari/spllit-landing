@@ -5,7 +5,8 @@ import { LegalFooter } from '@/components/shared/legal-footer';
 import { REFUNDS } from '@/content/legal';
 
 export const metadata: Metadata = {
-  title: 'Refunds & Cancellations · Spllit',
+  title: 'Refunds & Cancellations',
+  alternates: { canonical: '/legal/refunds' },
   description:
     'When the ₹2 matching fee is refunded, when it is not, how carbon coins work, and how to request a refund.',
 };

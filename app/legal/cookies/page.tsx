@@ -5,7 +5,8 @@ import { LegalFooter } from '@/components/shared/legal-footer';
 import { COOKIES } from '@/content/legal';
 
 export const metadata: Metadata = {
-  title: 'Cookies · Spllit',
+  title: 'Cookies',
+  alternates: { canonical: '/legal/cookies' },
   description:
     'Every cookie and local-storage key Spllit sets, what each is for, and how to turn off the optional ones.',
 };

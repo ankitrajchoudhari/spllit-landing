@@ -5,7 +5,8 @@ import { LegalFooter } from '@/components/shared/legal-footer';
 import { TERMS } from '@/content/legal';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service · Spllit',
+  title: 'Terms of Service',
+  alternates: { canonical: '/legal/terms' },
   description: 'The terms that govern your use of Spllit.',
 };
 

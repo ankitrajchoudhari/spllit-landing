@@ -73,21 +73,13 @@ export const metadata: Metadata = {
     url: SITE.url,
     title: `${SITE.name} — Campus Ride Sharing & Travel Group Rides`,
     description: SITE.description,
-    /**
-     * The real dimensions. This claimed 1200x630 and the file is 666x375, so
-     * every scraper was told a size it then did not get — which is how a card
-     * ends up letterboxed or rejected. Below the 1200x630 most platforms want,
-     * but stating it honestly beats a number that is simply false.
-     */
-    images: [
-      { url: '/logo-full.png', width: 666, height: 375, alt: `${SITE.name} — ${SITE.tagline}` },
-    ],
+    // The image comes from app/opengraph-image.tsx: a real 1200x630 card,
+    // where this used to point at the 666x375 logo.
   },
   twitter: {
     card: 'summary_large_image',
     title: `${SITE.name} — Campus Ride Sharing & Travel Group Rides`,
     description: SITE.description,
-    images: ['/logo-full.png'],
   },
   robots: {
     index: true,

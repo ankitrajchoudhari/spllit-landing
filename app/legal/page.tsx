@@ -6,7 +6,8 @@ import { LegalFooter } from '@/components/shared/legal-footer';
 import { LEGAL_UPDATED } from '@/content/legal';
 
 export const metadata: Metadata = {
-  title: 'Legal · Spllit',
+  title: 'Legal',
+  alternates: { canonical: '/legal' },
   description:
     'Spllit’s terms of service, privacy policy, safety guidance, refunds and cancellations, cookie policy and intellectual property notice.',
 };

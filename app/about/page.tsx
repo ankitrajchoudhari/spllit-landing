@@ -12,16 +12,18 @@ import { TeamCard } from '@/components/about/team-card';
 import { PhoneFrame } from '@/components/ui/phone-frame';
 import { COMPANY, CONTACTS, LIMITS, MILESTONES } from '@/content/about';
 import { teamService } from '@/lib/services/team';
-import { SITE, SOCIALS } from '@/content/site';
+import { SITE, SOCIALS, OG_IMAGE } from '@/content/site';
 import { blurProps } from '@/lib/image-blur';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'About Spllit — the people and the route so far',
+  // Absolute: the brand is already in it, and the template would add it twice.
+  title: { absolute: 'About Spllit — the people and the route so far' },
   description:
     'Why Spllit exists, who is building it, and every stop from an idea at IIT Madras to live testing in Chennai and Jaipur.',
   alternates: { canonical: '/about' },
   openGraph: {
+    images: [OG_IMAGE],
     title: 'About Spllit — the people and the route so far',
     description:
       'Students travelling the same way rarely find each other. Who is building the fix, and how far it has come.',

@@ -5,7 +5,8 @@ import { LegalFooter } from '@/components/shared/legal-footer';
 import { PRIVACY } from '@/content/legal';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy · Spllit',
+  title: 'Privacy Policy',
+  alternates: { canonical: '/legal/privacy' },
   description: 'What Spllit collects, what it does not, and who can see it.',
 };
 

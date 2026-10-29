@@ -6,7 +6,7 @@ import { ParallaxFooter } from '@/components/landing/parallax-footer';
 import { FeaturedCard, PostCard } from '@/components/blog/post-cards';
 import { blurProps } from '@/lib/image-blur';
 import { blogService } from '@/lib/services/blog';
-import { SITE } from '@/content/site';
+import { SITE, OG_IMAGE } from '@/content/site';
 
 export const metadata: Metadata = {
   title: 'Blog & News — Campus travel, fare splitting and safety',
@@ -14,6 +14,7 @@ export const metadata: Metadata = {
     'Practical guides on sharing rides between students — splitting a cab fare fairly, staying safe carpooling with classmates, how group rides work — and what is new at Spllit.',
   alternates: { canonical: '/blog' },
   openGraph: {
+    images: [OG_IMAGE],
     title: `Blog & News · ${SITE.name}`,
     description:
       'Guides on sharing rides and splitting fares between students, and what is new at Spllit.',

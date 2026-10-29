@@ -5,7 +5,8 @@ import { LegalFooter } from '@/components/shared/legal-footer';
 import { INTELLECTUAL_PROPERTY } from '@/content/legal';
 
 export const metadata: Metadata = {
-  title: 'Intellectual Property · Spllit',
+  title: 'Intellectual Property',
+  alternates: { canonical: '/legal/intellectual-property' },
   description:
     'Copyright and trade mark ownership, what you may and may not do with Spllit, the licence you grant over your own content, and how to report infringement.',
 };
