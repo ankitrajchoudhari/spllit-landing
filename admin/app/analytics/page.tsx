@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api';
 import { formatCount, formatRelative } from '@/lib/utils';
 import { Badge, Button, Card, PageHeader, Stat } from '@/components/ui/primitives';
+import { CurveChart, SERIES_COLORS } from '@/components/curve-chart';
 import {
   ErrorState,
   NotImplementedState,
@@ -243,9 +244,17 @@ function RetentionCell({ value }: { value: number | null }) {
   );
 }
 
-/** Daily active users, drawn from the server-bucketed series. */
+/** "14 Sep" from an ISO day key. */
+function dayLabel(iso: string | undefined): string {
+  if (!iso) return '';
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+/** Daily active users, as a curve on a labelled scale. */
 function ActiveChart({ series }: { series: { date: string; count: number }[] }) {
-  const peak = Math.max(...series.map((point) => point.count), 1);
+  const peak = Math.max(...series.map((point) => point.count), 0);
 
   return (
     <Card className="flex flex-col gap-4">
@@ -254,23 +263,18 @@ function ActiveChart({ series }: { series: { date: string; count: number }[] }) 
         <span className="tabular text-xs text-ink-muted">peak {formatCount(peak)}</span>
       </div>
 
-      <div className="scroll-x">
-        <div className="flex h-32 min-w-[480px] items-end gap-1">
-          {series.map((point) => (
-            <div key={point.date} className="group relative flex flex-1 items-end" style={{ height: '100%' }}>
-              <div
-                className="w-full rounded-sm bg-accent/70 transition-colors duration-snap group-hover:bg-accent"
-                // A hairline for zero days, so an empty day reads as no
-                // activity rather than as a rendering fault.
-                style={{ height: `${Math.max((point.count / peak) * 100, 2)}%` }}
-              />
-              <span className="pointer-events-none absolute -top-7 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded border border-line bg-surface-raised px-2 py-1 text-[10px] text-ink group-hover:block">
-                {point.date}: {point.count}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <CurveChart
+        labels={series.map((point) => point.date)}
+        tickLabel={(i) => dayLabel(series[i]?.date)}
+        series={[
+          {
+            key: 'dau',
+            label: 'Active users',
+            color: SERIES_COLORS.accent,
+            values: series.map((point) => point.count),
+          },
+        ]}
+      />
     </Card>
   );
 }

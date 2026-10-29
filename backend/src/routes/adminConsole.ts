@@ -436,6 +436,91 @@ router.get(
   },
 );
 
+/**
+ * Cached /trends responses, keyed by month count. Same reasoning as the
+ * analytics cache below: a month-by-month comparison does not move inside five
+ * minutes, and every load is several dozen counts.
+ */
+const trendsCache = new Map<number, { at: number; payload: unknown }>();
+const TRENDS_CACHE_MS = 5 * 60_000;
+
+/**
+ * GET /api/admin-console/trends?months=6
+ * Month-by-month counts for the comparison chart, oldest month first.
+ *
+ * Months are UTC calendar months, so they line up with ActiveUserDay's UTC day
+ * keys; the edge of a month sits five and a half hours off IST midnight. The
+ * current month is partial and is flagged as such rather than left to read as
+ * a collapse.
+ */
+router.get(
+  '/trends',
+  requirePermission('dashboard.view'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const months = Math.min(Math.max(Number(req.query.months) || 6, 3), 12);
+
+      const cached = trendsCache.get(months);
+      if (cached && Date.now() - cached.at < TRENDS_CACHE_MS) {
+        return ok(res, cached.payload);
+      }
+
+      const now = new Date();
+      const windows = Array.from({ length: months }, (_, i) => {
+        const offset = months - 1 - i;
+        const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1));
+        const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset + 1, 1));
+        return { month: start.toISOString().slice(0, 7), start, end };
+      });
+
+      // One month at a time, five counts each: in parallel across every month
+      // this would open dozens of queries at once for a single page load.
+      const rows = [];
+      for (const { month, start, end } of windows) {
+        const createdIn = { createdAt: { gte: start, lt: end } };
+        const [users, rides, squads, events, active] = await Promise.all([
+          prisma.user.count({ where: createdIn }),
+          prisma.ride.count({ where: createdIn }),
+          prisma.squad.count({ where: createdIn }),
+          prisma.event.count({ where: createdIn }),
+          // Distinct people with at least one active day in the month.
+          prisma.activeUserDay.groupBy({
+            by: ['userId'],
+            where: {
+              day: {
+                gte: start.toISOString().slice(0, 10),
+                lt: end.toISOString().slice(0, 10),
+              },
+            },
+          }),
+        ]);
+        rows.push({ month, users, active: active.length, rides, squads, events });
+      }
+
+      const payload = {
+        generatedAt: now.toISOString(),
+        months,
+        partialMonth: windows[windows.length - 1].month,
+        metrics: [
+          { key: 'users', label: 'New users' },
+          { key: 'active', label: 'Active users' },
+          { key: 'rides', label: 'Rides' },
+          { key: 'squads', label: 'Group rides' },
+          { key: 'events', label: 'Events' },
+        ],
+        rows,
+      };
+
+      // Bounded by the 3–12 range above, so this cannot grow.
+      trendsCache.set(months, { at: Date.now(), payload });
+      return ok(res, payload);
+    } catch (error) {
+      console.error('[admin-console/trends]', error);
+      return fail(res, 500, 'Failed to load trends');
+    }
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Users
 // ---------------------------------------------------------------------------

@@ -1,11 +1,35 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle, LogIn, Mail } from 'lucide-react';
+import { AlertTriangle, LogIn } from 'lucide-react';
 
 import { isConfigured, zohoEnabled } from '@/lib/config';
 import { signInWithGoogle, signInWithPassword, signInWithZoho } from '@/lib/firebase';
 import { Button, Input } from '@/components/ui/primitives';
+
+/**
+ * Zoho's four tiles, in Zoho's brand colours, so the button reads as Zoho at a
+ * glance the way a Google button does.
+ */
+function ZohoMark() {
+  const tiles = ['#E42527', '#089949', '#226DB4', '#F9B21D'];
+  return (
+    <svg viewBox="0 0 32 8" className="h-3 w-12" aria-hidden="true">
+      {tiles.map((fill, i) => (
+        <rect
+          key={fill}
+          x={i * 8 + 1}
+          y={1}
+          width={6}
+          height={6}
+          rx={1.2}
+          fill={fill}
+          transform={`rotate(${i % 2 ? 8 : -8} ${i * 8 + 4} 4)`}
+        />
+      ))}
+    </svg>
+  );
+}
 
 /**
  * Console sign-in.
@@ -122,7 +146,7 @@ export function SignIn() {
               onClick={() => void withPopup(signInWithZoho, 'Zoho')}
               disabled={busy}
             >
-              <Mail className="h-4 w-4" aria-hidden="true" />
+              <ZohoMark />
               Continue with Zoho
             </Button>
           ) : null}

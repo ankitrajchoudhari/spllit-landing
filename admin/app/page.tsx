@@ -15,6 +15,8 @@ import { api, ApiError } from '@/lib/api';
 import { useLive } from '@/lib/live';
 import { ActivityFeed } from '@/components/activity-feed';
 import { HealthStrip } from '@/components/health-strip';
+import { CurveChart, SERIES_COLORS } from '@/components/curve-chart';
+import { TrendCompare } from '@/components/trend-compare';
 import { formatCount, formatRelative } from '@/lib/utils';
 import { Card, PageHeader, SectionHeader, Stat } from '@/components/ui/primitives';
 import {
@@ -259,6 +261,8 @@ export default function DashboardPage() {
 
           <SignupChart query={signups} />
 
+          <TrendCompare />
+
           <section className="flex flex-col gap-3">
             <SectionHeader title="Live activity" />
             <ActivityFeed />
@@ -290,14 +294,7 @@ const LABELS: Record<string, string> = {
   analytics: 'Retention & funnels',
 };
 
-/**
- * Signups over 30 days, drawn as bars from the server-bucketed series.
- *
- * Hand-drawn rather than pulled from a chart library: it is one series of
- * thirty values, and a charting dependency would be the single largest thing
- * in this bundle for a graphic that is thirty divs.
- */
-/** "14 Sep" from an ISO day key. Short, because it sits under a 12px bar. */
+/** "14 Sep" from an ISO day key. Short, because it sits under the x-axis. */
 function dayLabel(iso: string | undefined): string {
   if (!iso) return '';
   const date = new Date(`${iso}T00:00:00Z`);
@@ -305,74 +302,35 @@ function dayLabel(iso: string | undefined): string {
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+/** Signups over 30 days, as a curve on a labelled scale. */
 function SignupChart({ query }: { query: ReturnType<typeof useQuery<Signups>> }) {
-  if (query.isLoading) return <Skeleton className="h-48 w-full" />;
+  if (query.isLoading) return <Skeleton className="h-64 w-full" />;
   if (query.isError || !query.data) return null;
 
   const series = query.data.series;
-  const peak = Math.max(...series.map((point) => point.count), 1);
   const total = series.reduce((sum, point) => sum + point.count, 0);
 
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-bold text-ink">Signups</h2>
+        <h2 className="text-sm font-bold text-ink">Signups per day</h2>
         <span className="tabular text-xs text-ink-muted">
           {formatCount(total)} over {query.data.days} days
         </span>
       </div>
 
-      <div className="scroll-x">
-        <div className="min-w-[480px]">
-          {/*
-            A scale, because bars without one are decoration. Two gridlines and
-            the peak value are enough to read a height off — a full axis would
-            cost more room than it earns on a strip this short.
-          */}
-          <div className="relative flex h-32 items-end gap-1">
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-line"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-line/60"
-              aria-hidden
-            />
-            <span className="pointer-events-none absolute -top-1.5 right-0 tabular text-[10px] text-ink-subtle">
-              {peak}
-            </span>
-
-            {series.map((point) => (
-              <div
-                key={point.date}
-                className="group relative flex flex-1 items-end"
-                style={{ height: '100%' }}
-              >
-                <div
-                  className="w-full rounded-sm bg-brand/70 transition-colors duration-snap group-hover:bg-brand"
-                  // Zero-count days still get a hairline, so a gap in the data
-                  // reads as "no signups" rather than as a rendering fault.
-                  style={{ height: `${Math.max((point.count / peak) * 100, 2)}%` }}
-                />
-                <span className="pointer-events-none absolute -top-7 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded border border-line bg-surface-raised px-2 py-1 text-[10px] text-ink group-hover:block">
-                  {dayLabel(point.date)}: {point.count}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/*
-            Three dates, not thirty. A label under every bar at this width is an
-            unreadable smear; the ends and the middle are enough to place any
-            bar you are looking at.
-          */}
-          <div className="mt-1.5 flex justify-between text-[10px] text-ink-subtle">
-            <span>{dayLabel(series[0]?.date)}</span>
-            <span>{dayLabel(series[Math.floor(series.length / 2)]?.date)}</span>
-            <span>{dayLabel(series[series.length - 1]?.date)}</span>
-          </div>
-        </div>
-      </div>
+      <CurveChart
+        labels={series.map((point) => point.date)}
+        tickLabel={(i) => dayLabel(series[i]?.date)}
+        series={[
+          {
+            key: 'signups',
+            label: 'Signups',
+            color: SERIES_COLORS.brand,
+            values: series.map((point) => point.count),
+          },
+        ]}
+      />
     </Card>
   );
 }
