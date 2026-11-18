@@ -88,12 +88,19 @@ jobs:
 
       - name: Confirm the deploy is serving
         run: |
-          # A green wrangler step means "published", not "reachable". Check.
+          # A green wrangler step means "published", not "reachable". Check the
+          # Worker this job just published, at its own address.
+          #
+          # Not spllit.app: that domain is served by Vercel, so probing it
+          # tested a different deployment — and since the zone turned on a
+          # Cloudflare challenge (Nov 2026) it answers 403 to every runner,
+          # which failed this job on every push while the Worker was fine.
+          url=https://spllit-landing.spllittech.workers.dev/
           for i in $(seq 1 10); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://spllit.app/ || true)
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url" || true)
             echo "attempt $i: $code"
             [ "$code" = "200" ] && exit 0
             sleep 6
           done
-          echo "spllit.app did not return 200 after the deploy"
+          echo "$url did not return 200 after the deploy"
           exit 1
