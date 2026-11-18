@@ -3,13 +3,17 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 /**
- * A shopfront for the featured event: a striped awning over a white window,
- * with the event's poster displayed in the window.
+ * A shopfront for the featured event: a striped awning over a white window
+ * with the event's poster in it, standing on a strip of pavement.
  *
  * Drawn rather than an image so the poster can sit inside it at any size and
  * the awning stays crisp on every screen. The awning is a trapezoid of eight
  * stripes — narrower at the top, as if seen from just below — ending in a
  * scalloped edge, one scallop per stripe.
+ *
+ * It is lit like the rest of the site: flat colour and a real contact shadow,
+ * no glow. The kerb and the dashed road line put the shop on a street, which
+ * is where a ride app's events happen.
  *
  * The poster is portrait (2:3), the shape event posters are made in. It is
  * shown whole, not cropped: a poster with its date cut off is worse than one
@@ -27,17 +31,8 @@ function Awning({ className }: { className?: string }) {
   const bottomW = W / STRIPES;
   return (
     <svg viewBox={`0 0 ${W} ${DROP + SCALLOP + 2}`} aria-hidden className={className}>
-      <defs>
-        {/* A soft shade across the bottom, so the awning reads as cloth
-            catching light rather than as a flat sticker. */}
-        <linearGradient id="awning-shade" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#fff" stopOpacity="0.18" />
-          <stop offset="0.7" stopColor="#fff" stopOpacity="0" />
-          <stop offset="1" stopColor="#000" stopOpacity="0.12" />
-        </linearGradient>
-      </defs>
       {Array.from({ length: STRIPES }, (_, i) => {
-        const fill = i % 2 === 0 ? '#1fb34f' : '#8fe3a8';
+        const fill = i % 2 === 0 ? '#16a34a' : '#f4f6f2';
         const x0 = TOP_INSET + topW * i;
         const x1 = TOP_INSET + topW * (i + 1);
         const b0 = bottomW * i;
@@ -49,18 +44,30 @@ function Awning({ className }: { className?: string }) {
           </g>
         );
       })}
-      <polygon
-        points={`${TOP_INSET},0 ${W - TOP_INSET},0 ${W},${DROP} 0,${DROP}`}
-        fill="url(#awning-shade)"
+      {/* One crisp outline round the whole awning, the way a drawing is inked,
+          instead of shading it to look rendered. */}
+      <path
+        d={[
+          `M${TOP_INSET} 0 L${W - TOP_INSET} 0 L${W} ${DROP}`,
+          ...Array.from(
+            { length: STRIPES },
+            (_, i) => `A${SCALLOP} ${SCALLOP} 0 0 1 ${W - bottomW * (i + 1)} ${DROP}`,
+          ),
+          'Z',
+        ].join(' ')}
+        fill="none"
+        stroke="#0f3d22"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
       />
       {/* The rail the awning hangs from. */}
       <rect
-        x={TOP_INSET - 2}
+        x={TOP_INSET - 3}
         y="0"
-        width={W - TOP_INSET * 2 + 4}
-        height="3"
-        rx="1.5"
-        fill="#0d6b2c"
+        width={W - TOP_INSET * 2 + 6}
+        height="3.5"
+        rx="1.75"
+        fill="#0f3d22"
       />
     </svg>
   );
@@ -78,42 +85,49 @@ export function EventShop({
   className?: string;
 }) {
   return (
-    <div className={cn('relative mx-auto w-full max-w-[380px]', className)}>
-      {/* The glow the shop stands in. */}
-      <div
-        aria-hidden
-        className="absolute inset-x-[6%] bottom-[2%] top-[14%] rounded-[32px] bg-[#2bd35f] opacity-35 blur-[48px]"
-      />
+    <div className={cn('relative mx-auto w-full', className)}>
+      <Awning className="relative z-[2] block w-full" />
 
-      <Awning className="relative z-[2] block w-full drop-shadow-[0_8px_14px_rgba(0,0,0,0.35)]" />
-
-      {/* The window. Tucked a few pixels up under the awning so the scallops
-          overhang it, the way an awning does. */}
-      <div className="relative z-[1] mx-auto -mt-[11%] w-[86%] rounded-b-[26px] rounded-t-[10px] bg-[#f6f7f4] p-3 pt-[14%] shadow-[0_24px_60px_-18px_rgba(0,0,0,0.6)] sm:p-3.5 sm:pt-[14%]">
-        {/* The awning's shadow falling across the top of the window. */}
+      {/* The window, tucked up under the awning so the scallops overhang it. */}
+      <div className="relative z-[1] mx-auto -mt-[11%] w-[86%] rounded-b-[22px] rounded-t-[8px] border-[1.5px] border-[#0f3d22] bg-[#fbfcfa] p-2.5 pt-[13%] sm:p-3 sm:pt-[13%]">
+        {/* The awning's shadow across the top of the glass. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-16 rounded-t-[10px]"
-          style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.12), transparent)' }}
+          className="pointer-events-none absolute inset-x-0 top-0 h-10 rounded-t-[8px]"
+          style={{ background: 'linear-gradient(180deg, rgba(15,61,34,0.10), transparent)' }}
         />
-        <div className="relative aspect-[2/3] overflow-hidden rounded-[18px] bg-[#e9ece6] ring-1 ring-black/5">
+        <div className="relative aspect-[2/3] overflow-hidden rounded-[14px] bg-[#eef1ec]">
           {poster ? (
             <Image
               src={poster}
               alt={alt || `Poster for ${title}`}
               fill
-              sizes="(min-width: 1024px) 330px, 80vw"
+              sizes="(min-width: 1024px) 330px, (min-width: 640px) 300px, 72vw"
               className="object-contain"
             />
           ) : (
             // No poster yet: the title set as one, so the window is never empty.
-            <div className="flex h-full flex-col justify-end bg-[radial-gradient(120%_80%_at_20%_0%,#8fe3a8_0%,#1fb34f_45%,#0b5e30_100%)] p-6">
-              <p className="font-sans text-[clamp(1.6rem,6vw,2.2rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
+            <div className="flex h-full flex-col justify-end bg-[#16a34a] p-5">
+              <p className="font-sans text-[clamp(1.4rem,6vw,2rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
                 {title}
               </p>
             </div>
           )}
         </div>
+      </div>
+
+      {/* The street: a kerb the shop stands on, its contact shadow, and the
+          dashed centre line of the road in front of it. */}
+      <div aria-hidden className="relative mx-auto mt-0 w-[104%] -translate-x-[2%]">
+        <div className="mx-auto h-3 w-[92%] rounded-full bg-[rgba(15,61,34,0.18)] blur-[6px]" />
+        <div className="-mt-2 h-[9px] rounded-[3px] border-[1.5px] border-[#0f3d22] bg-[#dfe3dc]" />
+        <div
+          className="mx-auto mt-3 h-[3px] w-[86%]"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(90deg, var(--line-strong) 0 18px, transparent 18px 32px)',
+          }}
+        />
       </div>
     </div>
   );
