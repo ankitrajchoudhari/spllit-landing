@@ -30,6 +30,7 @@ import adminConsoleOpsRoutes from './routes/adminConsoleOps.js';
 import adminConsoleSettingsRoutes from './routes/adminConsoleSettings.js';
 import adminConsoleBlogRoutes from './routes/adminConsoleBlog.js';
 import adminConsoleTeamRoutes from './routes/adminConsoleTeam.js';
+import adminConsoleFeaturedEventsRoutes from './routes/adminConsoleFeaturedEvents.js';
 import adminConsoleCampaignRoutes from './routes/adminConsoleCampaigns.js';
 import adminConsoleActivityRoutes from './routes/adminConsoleActivity.js';
 import squadRoutes from './routes/squads.js';
@@ -389,6 +390,7 @@ app.use('/api/admin-console', adminConsoleOpsRoutes);
 app.use('/api/admin-console', adminConsoleSettingsRoutes);
 app.use('/api/admin-console', adminConsoleBlogRoutes);
 app.use('/api/admin-console', adminConsoleTeamRoutes);
+app.use('/api/admin-console', adminConsoleFeaturedEventsRoutes);
 // Announcements. Same namespace, non-overlapping prefix.
 app.use('/api/admin-console', adminConsoleCampaignRoutes);
 app.use('/api/admin-console', adminConsoleActivityRoutes);

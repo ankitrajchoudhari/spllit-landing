@@ -6,6 +6,7 @@ import { useState } from 'react';
 import {
   BarChart3,
   Briefcase,
+  Ticket,
   Contact,
   Newspaper,
   Layers,
@@ -63,6 +64,7 @@ const NAV: NavItem[] = [
   { href: '/careers', label: 'Careers', icon: Briefcase, permission: 'settings.view' },
   { href: '/blog', label: 'Blog & News', icon: Newspaper, permission: 'settings.view' },
   { href: '/team', label: 'Team', icon: Contact, permission: 'settings.view' },
+  { href: '/featured-events', label: 'Featured events', icon: Ticket, permission: 'settings.view' },
   { href: '/settings', label: 'Settings', icon: SlidersHorizontal, permission: 'settings.view' },
 ];
 
@@ -147,56 +149,56 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
           <div className="flex flex-col gap-0.5">
             {visible.map((item) => {
-                // Home is exact; a section matches its own prefix or any route
-                // folded into it.
-                const active =
-                  item.href === '/'
-                    ? pathname === '/'
-                    : pathname.startsWith(item.href) || section === item.href;
-                const Icon = item.icon;
+              // Home is exact; a section matches its own prefix or any route
+              // folded into it.
+              const active =
+                item.href === '/'
+                  ? pathname === '/'
+                  : pathname.startsWith(item.href) || section === item.href;
+              const Icon = item.icon;
 
-                if (item.unavailable) {
-                  return (
-                    <span
-                      key={item.href}
-                      title={item.unavailable}
-                      className="flex cursor-not-allowed items-center gap-2.5 rounded-md px-3 py-2 text-sm text-ink-subtle opacity-60"
-                    >
-                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className="flex-1">{item.label}</span>
-                      <span className="font-mono text-[9px] uppercase tracking-wider">n/a</span>
-                    </span>
-                  );
-                }
-
+              if (item.unavailable) {
                 return (
-                  <Link
+                  <span
                     key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'group relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm',
-                      'transition-colors duration-snap',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface-sunken',
-                      active
-                        // A rail against the edge plus a quiet fill, rather than
+                    title={item.unavailable}
+                    className="flex cursor-not-allowed items-center gap-2.5 rounded-md px-3 py-2 text-sm text-ink-subtle opacity-60"
+                  >
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="flex-1">{item.label}</span>
+                    <span className="font-mono text-[9px] uppercase tracking-wider">n/a</span>
+                  </span>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'group relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm',
+                    'transition-colors duration-snap',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface-sunken',
+                    active
+                      ? // A rail against the edge plus a quiet fill, rather than
                         // a saturated pill. Twenty pills stacked in a column is
                         // a lot of colour spent on something read once.
-                        ? 'bg-surface font-semibold text-ink before:absolute before:inset-y-1 before:-left-3 before:w-0.5 before:rounded-full before:bg-brand before:content-[""]'
-                        : 'text-ink-muted hover:bg-surface/60 hover:text-ink',
+                        'bg-surface font-semibold text-ink before:absolute before:inset-y-1 before:-left-3 before:w-0.5 before:rounded-full before:bg-brand before:content-[""]'
+                      : 'text-ink-muted hover:bg-surface/60 hover:text-ink',
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      'h-4 w-4 shrink-0 transition-colors duration-snap',
+                      active ? 'text-brand' : 'text-ink-subtle group-hover:text-ink-muted',
                     )}
-                  >
-                    <Icon
-                      className={cn(
-                        'h-4 w-4 shrink-0 transition-colors duration-snap',
-                        active ? 'text-brand' : 'text-ink-subtle group-hover:text-ink-muted',
-                      )}
-                      aria-hidden="true"
-                    />
-                    {item.label}
-                  </Link>
-                );
+                    aria-hidden="true"
+                  />
+                  {item.label}
+                </Link>
+              );
             })}
           </div>
         </nav>

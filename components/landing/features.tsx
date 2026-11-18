@@ -6,6 +6,8 @@ import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { blurProps } from '@/lib/image-blur';
 import { PhoneFrame } from '@/components/ui/phone-frame';
+import { EventSpotlight } from '@/components/landing/event-spotlight';
+import type { FeaturedEvent } from '@/lib/featured-event';
 
 const reveal = {
   hidden: { opacity: 0, y: 24 },
@@ -45,9 +47,7 @@ function FeatureRow({
       )}
     >
       <motion.div variants={reveal} transition={{ duration: 0.5 }}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-brand">
-          {eyebrow}
-        </p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-brand">{eyebrow}</p>
         <h3 className="mt-3 font-display text-[clamp(1.75rem,3.5vw,2.5rem)] font-semibold leading-tight tracking-[-0.025em] text-ink">
           {title}
         </h3>
@@ -201,26 +201,20 @@ const SOON = [
   },
 ];
 
-export function Features() {
-  return (
+/**
+ * `events` are the featured events from the admin console. With one still to
+ * come, the events row becomes a full-width spotlight for it; with none, the
+ * general row below stays, so the section never disappears.
+ */
+export function Features({
+  events = [],
+  renderedAt = 0,
+}: {
+  events?: FeaturedEvent[];
+  renderedAt?: number;
+}) {
+  const eventsRow = (
     <div className="mx-auto max-w-6xl px-5 lg:px-8">
-      <FeatureRow
-        id="rides"
-        eyebrow="Ride Together"
-        title="The cab you're already taking, shared."
-        body="Post where you're going or find someone already headed there. Watch them approach on the map, split the fare automatically, and never negotiate in a group chat again."
-        visual={<RideVisual />}
-      />
-
-      <FeatureRow
-        id="squads"
-        eyebrow="Group Rides"
-        title="Everyone converging on one point."
-        body="A group ride is a group with a place and a time. Set the meeting point once and every member sees where the others are and how long they'll be — live, without asking."
-        visual={<SquadVisual />}
-        flip
-      />
-
       <FeatureRow
         id="events"
         eyebrow="Events & Communities"
@@ -228,67 +222,97 @@ export function Features() {
         body="Events plot on the same map as everything else, with live attendance. Communities follow who you are — your campus while you are studying, your industry once you are working — and any ride can be limited to women only."
         visual={<EventVisual />}
       />
+    </div>
+  );
 
-      {/* Coming soon — deliberately quieter than the shipped features. */}
-      <section id="soon" className="border-t border-line py-12 sm:py-16 lg:py-20">
-        <div className="flex items-baseline gap-3">
-          <h3 className="font-display text-xl font-semibold tracking-[-0.02em] text-ink">
-            Next on the map
-          </h3>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-subtle">
-            Coming soon
-          </span>
-        </div>
+  return (
+    <>
+      <div className="mx-auto max-w-6xl px-5 lg:px-8">
+        <FeatureRow
+          id="rides"
+          eyebrow="Ride Together"
+          title="The cab you're already taking, shared."
+          body="Post where you're going or find someone already headed there. Watch them approach on the map, split the fare automatically, and never negotiate in a group chat again."
+          visual={<RideVisual />}
+        />
 
-        {/* A picture each, on a recessed shelf, instead of a grey line icon.
+        <FeatureRow
+          id="squads"
+          eyebrow="Group Rides"
+          title="Everyone converging on one point."
+          body="A group ride is a group with a place and a time. Set the meeting point once and every member sees where the others are and how long they'll be — live, without asking."
+          visual={<SquadVisual />}
+          flip
+        />
+      </div>
+
+      {/* Full width when there is an event to feature: the band is the point. */}
+      {events.length > 0 ? (
+        <EventSpotlight events={events} renderedAt={renderedAt} fallback={eventsRow} />
+      ) : (
+        eventsRow
+      )}
+
+      <div className="mx-auto max-w-6xl px-5 lg:px-8">
+        {/* Coming soon — deliberately quieter than the shipped features. */}
+        <section id="soon" className="border-t border-line py-12 sm:py-16 lg:py-20">
+          <div className="flex items-baseline gap-3">
+            <h3 className="font-display text-xl font-semibold tracking-[-0.02em] text-ink">
+              Next on the map
+            </h3>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-subtle">
+              Coming soon
+            </span>
+          </div>
+
+          {/* A picture each, on a recessed shelf, instead of a grey line icon.
             These stay quieter than the shipped features — dashed edge, muted
             type, a "soon" tag — because none of them has shipped, but they are
             no longer three identical boxes with a glyph in the corner. */}
-        <div
-          className={cn(
-            // Stacked, three teasers for things that have not shipped cost a
-            // thousand pixels of scrolling. On a rail they cost one swipe.
-            'no-scrollbar -mx-5 mt-7 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1',
-            'sm:mx-0 sm:mt-8 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 sm:snap-none',
-          )}
-        >
-          {SOON.map((item, index) => (
-            <motion.article
-              key={item.title}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: index * 0.08 }}
-              className={cn(
-                'w-[74%] shrink-0 snap-start overflow-hidden rounded-xl border border-dashed',
-                'border-line bg-surface-sunken sm:w-auto sm:shrink',
-              )}
-            >
-              <div className="relative flex h-[164px] items-center justify-center px-5 sm:h-[184px]">
-                <Image
-                  src={item.src}
-                  alt={item.alt}
-                  width={item.width}
-                  height={item.height}
-                  sizes={item.sizes}
-                  {...blurProps(item.src)}
-                  className={cn('w-auto', item.img)}
-                />
-                <span className="absolute right-3 top-3 rounded-full bg-canvas px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-subtle">
-                  Soon
-                </span>
-              </div>
+          <div
+            className={cn(
+              // Stacked, three teasers for things that have not shipped cost a
+              // thousand pixels of scrolling. On a rail they cost one swipe.
+              'no-scrollbar -mx-5 mt-7 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1',
+              'sm:mx-0 sm:mt-8 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 sm:snap-none',
+            )}
+          >
+            {SOON.map((item, index) => (
+              <motion.article
+                key={item.title}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: index * 0.08 }}
+                className={cn(
+                  'w-[74%] shrink-0 snap-start overflow-hidden rounded-xl border border-dashed',
+                  'border-line bg-surface-sunken sm:w-auto sm:shrink',
+                )}
+              >
+                <div className="relative flex h-[164px] items-center justify-center px-5 sm:h-[184px]">
+                  <Image
+                    src={item.src}
+                    alt={item.alt}
+                    width={item.width}
+                    height={item.height}
+                    sizes={item.sizes}
+                    {...blurProps(item.src)}
+                    className={cn('w-auto', item.img)}
+                  />
+                  <span className="absolute right-3 top-3 rounded-full bg-canvas px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-subtle">
+                    Soon
+                  </span>
+                </div>
 
-              <div className="border-t border-dashed border-line p-5">
-                <p className="text-sm font-semibold text-ink-muted">{item.title}</p>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-ink-subtle">
-                  {item.body}
-                </p>
-              </div>
-            </motion.article>
-          ))}
-        </div>
-      </section>
-    </div>
+                <div className="border-t border-dashed border-line p-5">
+                  <p className="text-sm font-semibold text-ink-muted">{item.title}</p>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-ink-subtle">{item.body}</p>
+                </div>
+              </motion.article>
+            ))}
+          </div>
+        </section>
+      </div>
+    </>
   );
 }

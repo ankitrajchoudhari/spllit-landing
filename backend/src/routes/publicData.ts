@@ -4,6 +4,7 @@ import prisma from '../utils/prisma.js';
 import { ok, fail, boundingBox, parseCoords } from '../utils/respond.js';
 import { publicView, readCareersContent } from '../services/careers.js';
 import { readTeamContent, teamPublicView } from '../services/teamContent.js';
+import { featuredEventsPublicView, readFeaturedEvents } from '../services/featuredEvents.js';
 import { readBlogContent, publicView as blogPublicView } from '../services/blogContent.js';
 import crypto from 'node:crypto';
 import { z } from 'zod';
@@ -135,6 +136,21 @@ router.get('/careers', async (_req: Request, res: Response) => {
   } catch (error) {
     console.error('[public/careers]', error);
     return fail(res, 500, 'Failed to load careers content');
+  }
+});
+
+/**
+ * GET /featured-events — what the home page may show: visible, not finished,
+ * soonest first. An empty list is normal; the page falls back to its built-in
+ * events section.
+ */
+router.get('/featured-events', async (_req: Request, res: Response) => {
+  try {
+    const content = await readFeaturedEvents();
+    return ok(res, content ? featuredEventsPublicView(content) : { events: [] });
+  } catch (error) {
+    console.error('[public/featured-events]', error);
+    return fail(res, 500, 'Failed to load featured events');
   }
 });
 

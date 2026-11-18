@@ -12,6 +12,7 @@ import { WhereWeAre } from '@/components/landing/where-we-are';
 import { Trajectory } from '@/components/landing/trajectory';
 import { Faq, FaqStructuredData } from '@/components/landing/faq';
 import { blurProps } from '@/lib/image-blur';
+import { featuredEventsService } from '@/lib/services/featured-events';
 
 /**
  * Landing page. Does not use AppShell — it has its own nav and a full-bleed
@@ -21,7 +22,20 @@ import { blurProps } from '@/lib/image-blur';
  * the whole viewport-height block rather than sitting inside the hero, so it
  * covers the nav too and both read cleanly over the map.
  */
-export default function LandingPage() {
+/**
+ * The featured event comes from the admin console. Saving there asks for an
+ * immediate rebuild; this is only the floor if that call never arrives. The
+ * event's state (counting down, on now, over) is decided in the browser, so a
+ * cached page is never wrong about it.
+ */
+export const revalidate = 300;
+
+export default async function LandingPage() {
+  const events = await featuredEventsService.list();
+  // Server clock for the first paint only; the client takes over on mount.
+  // eslint-disable-next-line react-hooks/purity
+  const renderedAt = Date.now();
+
   return (
     <div className="min-h-dvh bg-canvas">
       <section className="relative flex min-h-svh w-full flex-col overflow-hidden">
@@ -49,7 +63,7 @@ export default function LandingPage() {
             tour of it. */}
         <WhySpllit />
 
-        <Features />
+        <Features events={events} renderedAt={renderedAt} />
 
         {/* Where the product actually is. Replaces a generic "in your pocket"
             phone shot: this one says something only Spllit can say. */}
