@@ -1,30 +1,30 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ChevronRight, ExternalLink, ImagePlus, Loader2, Plus, Trash2 } from 'lucide-react';
 
 import { api, apiUpload, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import { Button, Card, Input, PageHeader } from '@/components/ui/primitives';
-import { ErrorState, PermissionState, Spinner } from '@/components/ui/states';
+import { Button, Card, Input } from '@/components/ui/primitives';
+import { ErrorState, Spinner } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/ui/confirm';
 import { useToast } from '@/components/ui/toast';
 
 /**
- * Featured events — the event shown on the spllit.app home page, inside the
- * shopfront, with its countdown and Register button.
+ * Home-page events — the event shown in the spllit.app Events section, inside
+ * the shopfront, with its countdown and Register button.
+ *
+ * Lives at the top of Content → Events, above the events people create in the
+ * app, so everything called an event is managed in one place.
  *
  * Add as many as you like. The site shows one at a time: whichever is on now,
  * otherwise the next to start. It counts down, switches to "happening now"
  * at the start time (registration closes then), and gives way to the next
  * event at the end time — all by the clock, with nothing to press. With none
  * left, the home page shows its general events section.
- *
- * Not the Events page in this console, which moderates events users create
- * inside the app.
- */
+ * */
 
 const LIVE_URL = 'https://spllit.app/#events';
 const SUMMARY_MAX = 320;
@@ -41,8 +41,18 @@ interface FeaturedEvent {
   startsAt: string;
   endsAt: string;
   registerUrl: string;
+  /** auto: closes at the start. open: until the end. closed: closed now. */
+  registration: Registration;
   hidden: boolean;
 }
+
+type Registration = 'auto' | 'open' | 'closed';
+
+const REGISTRATION: { value: Registration; label: string; hint: string }[] = [
+  { value: 'auto', label: 'Auto', hint: 'Open until the event starts, then closed.' },
+  { value: 'open', label: 'Open', hint: 'Open until the event ends — walk-ins welcome.' },
+  { value: 'closed', label: 'Closed', hint: 'Closed now, e.g. full. The button says so.' },
+];
 
 interface Content {
   events: FeaturedEvent[];
@@ -224,7 +234,7 @@ function PosterPicker({
   );
 }
 
-export default function FeaturedEventsAdminPage() {
+export function FeaturedEventsManager() {
   const { can } = useAuth();
   const toast = useToast();
   const canEdit = can('settings.edit');
@@ -241,7 +251,13 @@ export default function FeaturedEventsAdminPage() {
   // Read once per render for the status badges; a stale minute is harmless.
   const [now] = useState(() => Date.now());
 
-  const content = draft ?? loaded.data?.content ?? (loaded.isSuccess ? BLANK : null);
+  // Events saved before registration control existed read as 'auto'.
+  const stored = useMemo<Content | null>(() => {
+    const raw = loaded.data?.content;
+    if (!raw) return null;
+    return { events: raw.events.map((e) => ({ ...e, registration: e.registration ?? 'auto' })) };
+  }, [loaded.data]);
+  const content = draft ?? stored ?? (loaded.isSuccess ? BLANK : null);
 
   const save = useMutation({
     mutationFn: (body: Content) => api('/featured-events', { method: 'PUT', body }),
@@ -276,6 +292,7 @@ export default function FeaturedEventsAdminPage() {
       startsAt: '',
       endsAt: '',
       registerUrl: '',
+      registration: 'auto',
       hidden: false,
     };
     setDraft({ events: [event, ...content.events] });
@@ -308,9 +325,9 @@ export default function FeaturedEventsAdminPage() {
 
   if (loaded.isPending) return <Spinner label="Loading featured events" />;
   if (loaded.isError) {
-    if (loaded.error instanceof ApiError && loaded.error.isForbidden) {
-      return <PermissionState permission="settings.view" />;
-    }
+    // Without settings.view this block simply is not there; the app's events
+    // list below it still is.
+    if (loaded.error instanceof ApiError && loaded.error.isForbidden) return null;
     return (
       <ErrorState
         title="Could not load featured events"
@@ -330,26 +347,34 @@ export default function FeaturedEventsAdminPage() {
     ordered.find((e) => phaseOf(e, now) === 'upcoming');
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Featured events"
-        description={
-          onSite
-            ? `On the home page now: ${onSite.title || 'untitled'}`
-            : 'Nothing featured — the home page shows its general events section'
-        }
-        actions={
+    <div className="space-y-3">
+      <Card className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">On the spllit.app home page</h2>
+            <p className="mt-0.5 text-xs text-ink-subtle">
+              {onSite
+                ? `Showing now: ${onSite.title || 'untitled'}.`
+                : 'Nothing featured — the home page shows its general events section.'}{' '}
+              Times are IST; the site moves from countdown to live to the next event by itself.
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <a
               href={LIVE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-ink-muted hover:text-ink"
+              className="inline-flex h-7 items-center gap-1.5 rounded-[6px] px-2.5 text-xs font-medium text-ink-muted hover:text-ink"
             >
               View on site
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+              <ExternalLink className="h-3 w-3" aria-hidden />
             </a>
+            <Button size="sm" onClick={add} disabled={!canEdit}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              Add event
+            </Button>
             <Button
+              size="sm"
               variant="primary"
               onClick={publish}
               disabled={!canEdit || save.isPending || !dirty}
@@ -357,40 +382,19 @@ export default function FeaturedEventsAdminPage() {
               {save.isPending ? 'Publishing…' : dirty ? 'Publish' : 'Published'}
             </Button>
           </div>
-        }
-      />
-
-      {dirty ? (
-        <p className="text-xs font-medium text-warning">
-          Unpublished changes — the site still shows the last published events.
-        </p>
-      ) : (
-        <p className="text-xs text-ink-subtle">
-          Everything here is published. The site switches between counting down, live and the next
-          event by itself, at the times you set.
-        </p>
-      )}
-
-      {!canEdit ? (
-        <Card className="border-warning bg-warning-muted p-4 text-sm text-ink">
-          You can read this page but not change it. Editing needs the{' '}
-          <code className="font-mono text-xs">settings.edit</code> permission.
-        </Card>
-      ) : null}
-
-      <Card className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-ink">Events</h2>
-            <p className="mt-0.5 text-xs text-ink-subtle">
-              All times are IST. Registration closes when the event starts.
-            </p>
-          </div>
-          <Button size="sm" onClick={add} disabled={!canEdit}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-            Add event
-          </Button>
         </div>
+
+        {dirty ? (
+          <p className="mt-3 text-xs font-medium text-warning">
+            Unpublished changes — the site still shows the last published events.
+          </p>
+        ) : null}
+        {!canEdit ? (
+          <p className="mt-3 text-xs text-ink-subtle">
+            Read only — editing needs the <code className="font-mono">settings.edit</code>{' '}
+            permission.
+          </p>
+        ) : null}
 
         {ordered.length === 0 ? (
           <p className="mt-4 rounded-md border border-dashed border-line px-4 py-8 text-center text-sm text-ink-subtle">
@@ -426,6 +430,11 @@ export default function FeaturedEventsAdminPage() {
                         {event.venue ? ` · ${event.venue}` : ''}
                       </span>
                     </span>
+                    {event.registration === 'closed' && phase !== 'ended' ? (
+                      <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-[11px] font-medium text-ink-muted ring-1 ring-line">
+                        Registration closed
+                      </span>
+                    ) : null}
                     {onSite?.id === event.id ? (
                       <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] font-medium text-canvas">
                         On the site
@@ -510,10 +519,7 @@ export default function FeaturedEventsAdminPage() {
                       </Field>
 
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Field
-                          label="Starts (IST)"
-                          hint="Countdown runs to here; registration closes."
-                        >
+                        <Field label="Starts (IST)" hint="The countdown runs to here.">
                           <Input
                             type="datetime-local"
                             value={toIstInput(event.startsAt)}
@@ -548,6 +554,32 @@ export default function FeaturedEventsAdminPage() {
                           onChange={(e) => update(event.id, { registerUrl: e.target.value })}
                         />
                       </Field>
+
+                      <div>
+                        <span className="text-xs font-medium text-ink-muted">Registration</span>
+                        <div className="mt-1 inline-flex rounded-md border border-line bg-surface-sunken p-0.5">
+                          {REGISTRATION.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              disabled={!canEdit}
+                              aria-pressed={event.registration === option.value}
+                              onClick={() => update(event.id, { registration: option.value })}
+                              className={cn(
+                                'rounded-[5px] px-3 py-1.5 text-xs font-medium transition-colors duration-snap',
+                                event.registration === option.value
+                                  ? 'bg-surface-raised text-ink shadow-sm ring-1 ring-line'
+                                  : 'text-ink-muted hover:text-ink',
+                              )}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                        <span className="mt-1 block text-[11px] text-ink-subtle">
+                          {REGISTRATION.find((o) => o.value === event.registration)?.hint}
+                        </span>
+                      </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
                         <label className="inline-flex items-center gap-2 text-xs text-ink-muted">

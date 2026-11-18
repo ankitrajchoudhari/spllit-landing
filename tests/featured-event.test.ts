@@ -7,6 +7,7 @@ import {
   mapsHref,
   parseEvents,
   pickEvent,
+  registrationOpen,
   type FeaturedEvent,
 } from '../lib/featured-event.ts';
 
@@ -23,6 +24,7 @@ function event(id: string, startsAt: string, endsAt: string): FeaturedEvent {
     startsAt,
     endsAt,
     registerUrl: 'https://forms.gle/abc',
+    registration: 'auto',
   };
 }
 
@@ -97,4 +99,16 @@ test('says when in IST, with both dates only when it crosses midnight', () => {
   assert.equal(formatWhen(a), 'Fri, 20 Nov · 6:00 PM – 9:00 PM IST');
   const late = event('l', '2026-11-20T22:00:00+05:30', '2026-11-21T01:00:00+05:30');
   assert.equal(formatWhen(late), 'Fri, 20 Nov, 10:00 PM – Sat, 21 Nov, 1:00 AM IST');
+});
+
+test('registration: auto closes at the start, open runs to the end, closed is closed', () => {
+  assert.equal(registrationOpen({ registration: 'auto' }, 'upcoming'), true);
+  assert.equal(registrationOpen({ registration: 'auto' }, 'live'), false);
+  assert.equal(registrationOpen({ registration: 'open' }, 'live'), true);
+  assert.equal(registrationOpen({ registration: 'closed' }, 'upcoming'), false);
+});
+
+test('an unknown or missing registration setting reads as auto', () => {
+  const [parsed] = parseEvents({ events: [{ ...a, registration: 'sometimes' }] });
+  assert.equal(parsed?.registration, 'auto');
 });

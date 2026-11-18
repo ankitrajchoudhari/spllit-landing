@@ -24,7 +24,11 @@ export type FeaturedEvent = {
   startsAt: string;
   endsAt: string;
   registerUrl: string;
+  registration: Registration;
 };
+
+/** Set in the console. Anything unrecognised reads as auto. */
+export type Registration = 'auto' | 'open' | 'closed';
 
 /** Before the start, between start and end. After the end it is not shown. */
 export type EventPhase = 'upcoming' | 'live';
@@ -66,6 +70,8 @@ export function parseEvents(data: unknown): FeaturedEvent[] {
       startsAt: str(raw.startsAt),
       endsAt: str(raw.endsAt),
       registerUrl: https(raw.registerUrl),
+      registration:
+        raw.registration === 'open' || raw.registration === 'closed' ? raw.registration : 'auto',
     };
     const start = Date.parse(event.startsAt);
     const end = Date.parse(event.endsAt);
@@ -90,6 +96,20 @@ export function pickEvent(
   if (live) return { event: live, phase: 'live' };
   const next = open[0];
   return next ? { event: next, phase: 'upcoming' } : null;
+}
+
+/**
+ * Whether Register should work right now. Auto closes at the start; open
+ * stays open while the event runs; closed is closed regardless. Nothing is
+ * open once the event is over — it is not shown by then anyway.
+ */
+export function registrationOpen(
+  event: Pick<FeaturedEvent, 'registration'>,
+  phase: EventPhase,
+): boolean {
+  if (event.registration === 'closed') return false;
+  if (event.registration === 'open') return true;
+  return phase === 'upcoming';
 }
 
 export type Countdown = { days: number; hours: number; minutes: number; seconds: number };

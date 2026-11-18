@@ -10,6 +10,7 @@ import {
   formatWhen,
   mapsHref,
   pickEvent,
+  registrationOpen,
   type FeaturedEvent,
 } from '@/lib/featured-event';
 import { EventShop } from '@/components/landing/event-shop';
@@ -54,13 +55,18 @@ export function EventSpotlight({
   // The clock, as an external store: a tick a second in the browser, the
   // server's timestamp while hydrating, so both render the same HTML.
   const now = useSyncExternalStore(subscribeClock, readClock, () => renderedAt);
-  const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
 
   const picked = pickEvent(events, now);
   if (!picked) return <>{fallback}</>;
 
   const { event, phase } = picked;
   const live = phase === 'live';
+  const canRegister = registrationOpen(event, phase);
   const target = Date.parse(live ? event.endsAt : event.startsAt);
   const left = countdown(target, now);
 
@@ -143,11 +149,13 @@ export function EventSpotlight({
             </div>
           </div>
 
-          {/* The way in. Open until the event starts; a Google Form beyond. */}
+          {/* The way in, a Google Form. Whether it is open is set in the
+              console: closing at the start, staying open while it runs, or
+              closed outright. */}
           <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-3">
-            {live ? (
+            {!canRegister ? (
               <span className="inline-flex min-h-[52px] items-center rounded-full border border-white/15 px-7 text-[15px] font-medium text-white/60">
-                Registration closed — it’s on now
+                {live ? 'Registration closed — it’s on now' : 'Registration closed'}
               </span>
             ) : (
               <a
@@ -163,7 +171,7 @@ export function EventSpotlight({
                 />
               </a>
             )}
-            {!live && (
+            {canRegister && (
               <p className="text-[13px] text-white/50">Opens a Google Form in a new tab.</p>
             )}
           </div>

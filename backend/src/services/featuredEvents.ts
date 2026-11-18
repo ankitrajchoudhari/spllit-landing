@@ -58,6 +58,11 @@ export const featuredEventSchema = z
       .refine((value) => /^https:\/\//i.test(value), {
         message: 'The registration link must start with https://',
       }),
+    /**
+     * auto: open until the start. open: until the end (walk-ins). closed:
+     * closed now, whatever the time — full, or called off.
+     */
+    registration: z.enum(['auto', 'open', 'closed']).default('auto'),
     /** In the console but not on the site. */
     hidden: z.boolean().default(false),
   })

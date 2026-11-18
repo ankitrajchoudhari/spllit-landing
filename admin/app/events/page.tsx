@@ -1,6 +1,8 @@
 'use client';
 
 import { EntityPage } from '@/components/entity-page';
+import { FeaturedEventsManager } from '@/components/featured-events-manager';
+import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/primitives';
 import { useEntityList } from '@/lib/use-entity-list';
 import { formatAbsolute, formatRelative } from '@/lib/utils';
@@ -96,18 +98,24 @@ const COLUMNS: Column<EventRow>[] = [
 
 export default function EventsPage({ embedded }: { embedded?: boolean } = {}) {
   const list = useEntityList<EventRow>('events', '/events');
+  const { can } = useAuth();
 
   return (
-    <EntityPage
-      embedded={embedded}
-      title="Events"
-      description="Everything scheduled on Spllit, with its host and attendance."
-      permission="content.view"
-      searchPlaceholder="Search title, college or category"
-      filters={FILTERS}
-      columns={COLUMNS}
-      hrefFor={(row) => `/events/${row.id}`}
-      list={list}
-    />
+    <div className="space-y-6">
+      {/* The event on the spllit.app home page, above the events people make
+          in the app — one place for everything called an event. */}
+      {can('settings.view') ? <FeaturedEventsManager /> : null}
+      <EntityPage
+        embedded={embedded}
+        title="Events"
+        description="Everything scheduled on Spllit, with its host and attendance."
+        permission="content.view"
+        searchPlaceholder="Search title, college or category"
+        filters={FILTERS}
+        columns={COLUMNS}
+        hrefFor={(row) => `/events/${row.id}`}
+        list={list}
+      />
+    </div>
   );
 }
