@@ -12,6 +12,7 @@ import {
   pickEvent,
   plainSummary,
   registrationOpen,
+  ribbonFor,
   type FeaturedEvent,
 } from '@/lib/featured-event';
 import { BOARD, EventShop, PAPER } from '@/components/landing/event-shop';
@@ -76,6 +77,7 @@ export function EventSpotlight({
 
   const { event, phase } = picked;
   const live = phase === 'live';
+  const ended = phase === 'ended';
   const canRegister = registrationOpen(event, phase);
   const target = Date.parse(live ? event.endsAt : event.startsAt);
   const left = countdown(target, now);
@@ -128,7 +130,7 @@ export function EventSpotlight({
               className={cn('h-1.5 w-1.5 rounded-full', live ? 'animate-pulse' : '')}
               style={{ background: live ? '#dc2626' : '#0e0e0d' }}
             />
-            {live ? 'Happening now' : 'Next event'}
+            {ended ? 'Event over' : live ? 'Happening now' : 'Next event'}
           </span>
           <h2
             id="featured-event-title"
@@ -159,6 +161,7 @@ export function EventSpotlight({
             title={event.title}
             registerUrl={event.registerUrl}
             showQr={canRegister}
+            ribbon={ribbonFor(event, phase)}
             className={cn(
               'max-w-[min(62vw,260px)] -translate-x-[15%] sm:max-w-[290px] sm:-translate-x-[14%] lg:-translate-x-[16%]',
               card ? 'md:max-w-[260px]' : 'lg:max-w-[330px]',
@@ -206,28 +209,41 @@ export function EventSpotlight({
             </div>
           </dl>
 
-          <p className="mt-6 font-hand text-[20px] font-semibold leading-none text-[#bdb8ac]">
-            {live ? 'ends in…' : 'starts in…'}
-          </p>
-          {/* Four paper tiles that share whatever width there is, so the row
-              fits a 320px phone and never pushes the page sideways. */}
-          <div
-            className="mt-3 grid max-w-[360px] grid-cols-4 gap-2 sm:gap-3"
-            role="timer"
-            aria-live="off"
-          >
-            <Unit value={left.days} label="Days" ready={mounted} tilt={-2} />
-            <Unit value={left.hours} label="Hrs" ready={mounted} tilt={1.5} />
-            <Unit value={left.minutes} label="Min" ready={mounted} tilt={-1} />
-            <Unit value={left.seconds} label="Sec" ready={mounted} tilt={2} />
-          </div>
+          {ended ? (
+            // Over: no clock to count, just a line in the same hand.
+            <p className="mt-6 font-hand text-[22px] font-semibold leading-snug text-[#bdb8ac]">
+              that&apos;s a wrap — thanks for coming. the next one shows up right here.
+            </p>
+          ) : (
+            <>
+              <p className="mt-6 font-hand text-[20px] font-semibold leading-none text-[#bdb8ac]">
+                {live ? 'ends in…' : 'starts in…'}
+              </p>
+              {/* Four paper tiles that share whatever width there is, so the
+                  row fits a 320px phone and never pushes the page sideways. */}
+              <div
+                className="mt-3 grid max-w-[360px] grid-cols-4 gap-2 sm:gap-3"
+                role="timer"
+                aria-live="off"
+              >
+                <Unit value={left.days} label="Days" ready={mounted} tilt={-2} />
+                <Unit value={left.hours} label="Hrs" ready={mounted} tilt={1.5} />
+                <Unit value={left.minutes} label="Min" ready={mounted} tilt={-1} />
+                <Unit value={left.seconds} label="Sec" ready={mounted} tilt={2} />
+              </div>
+            </>
+          )}
 
           {/* The way in. A green sticker with a hard paper shadow; full width
               on a phone, where it is the thumb's target. */}
           <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-5">
             {!canRegister ? (
               <span className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-white/25 px-7 text-[15px] font-medium text-[#8f8a7f]">
-                {live ? 'Registration closed — it’s on now' : 'Registration closed'}
+                {ended
+                  ? 'Registration closed'
+                  : live
+                    ? 'Registration closed — it’s on now'
+                    : 'Registration closed'}
               </span>
             ) : (
               <a

@@ -67,6 +67,42 @@ export function Tape({ className }: { className?: string }) {
   );
 }
 
+const RIBBON = {
+  open: { label: 'Open', bg: '#16a34a', fg: '#ffffff' },
+  live: { label: 'Live', bg: '#f59e0b', fg: '#0e0e0d' },
+  closed: { label: 'Closed', bg: '#dc2626', fg: '#ffffff' },
+} as const;
+
+/**
+ * A band of tape-like ribbon across the poster's top-left corner — the
+ * corner the ticket never covers. Folded ends are suggested by the darker
+ * tail triangles; the band itself is flat, like everything else here.
+ */
+function Ribbon({ kind }: { kind: keyof typeof RIBBON }) {
+  const { label, bg, fg } = RIBBON[kind];
+  return (
+    <span
+      aria-label={`Registration ${kind === 'open' ? 'open' : kind === 'live' ? 'closed, event live' : 'closed'}`}
+      role="img"
+      className="pointer-events-none absolute left-0 top-0 z-[2] block h-[92px] w-[92px] overflow-hidden sm:h-[108px] sm:w-[108px]"
+    >
+      <span
+        className="absolute left-[-34px] top-[20px] block w-[150px] -rotate-45 py-1 text-center font-mono text-[11px] font-bold uppercase tracking-[0.26em] sm:left-[-38px] sm:top-[24px] sm:w-[170px] sm:py-1.5 sm:text-[12px]"
+        style={{
+          background: bg,
+          color: fg,
+          boxShadow: '0 2px 0 rgba(0,0,0,0.25)',
+          // A faint stitch line on both edges, the way ribbon is finished.
+          backgroundImage:
+            'linear-gradient(transparent 2px, rgba(255,255,255,0.35) 2px, rgba(255,255,255,0.35) 3px, transparent 3px, transparent calc(100% - 3px), rgba(255,255,255,0.35) calc(100% - 3px), rgba(255,255,255,0.35) calc(100% - 2px), transparent calc(100% - 2px))',
+        }}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
 /** Zig-zag top and bottom, like a stub torn from a roll of tickets. */
 const STUB_EDGE = (() => {
   const teeth = 9;
@@ -87,6 +123,7 @@ export function EventShop({
   title,
   registerUrl,
   showQr,
+  ribbon,
   className,
 }: {
   poster: string;
@@ -95,6 +132,8 @@ export function EventShop({
   registerUrl: string;
   /** Only while registration is open: a code to a closed form is a dead end. */
   showQr: boolean;
+  /** The band across the poster's corner. */
+  ribbon: 'open' | 'live' | 'closed';
   className?: string;
 }) {
   return (
@@ -112,6 +151,7 @@ export function EventShop({
           style={{ background: 'linear-gradient(180deg, rgba(14,14,13,0.16), transparent)' }}
         />
         <div className="relative aspect-[2/3] overflow-hidden rounded-[10px] bg-[#e6e1d4]">
+          <Ribbon kind={ribbon} />
           {poster ? (
             <Image
               src={poster}

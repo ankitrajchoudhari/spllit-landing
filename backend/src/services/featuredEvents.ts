@@ -86,16 +86,25 @@ export async function readFeaturedEvents(): Promise<FeaturedEvents | null> {
 }
 
 /**
- * What the home page may show: not hidden, not over, soonest first.
- *
- * Finished events are dropped here so the page never has to be told; the page
- * still re-checks the clock itself, because it is cached and an event can end
- * between one rebuild and the next.
+ * A finished event stays on the home page, marked closed, for this long when
+ * nothing newer is coming. Keep in step with ENDED_SHOWN_FOR_MS on the site.
  */
-export function featuredEventsPublicView(content: FeaturedEvents, now = Date.now()): FeaturedEvents {
+const ENDED_SHOWN_FOR_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * What the home page may show: not hidden, not long over, soonest first.
+ *
+ * The page decides what is current from its own clock — it is cached, and an
+ * event can start or end between rebuilds — so recently finished events are
+ * sent too, for it to show as closed when nothing else is left.
+ */
+export function featuredEventsPublicView(
+  content: FeaturedEvents,
+  now = Date.now(),
+): FeaturedEvents {
   return {
     events: content.events
-      .filter((event) => !event.hidden && Date.parse(event.endsAt) > now)
+      .filter((event) => !event.hidden && Date.parse(event.endsAt) > now - ENDED_SHOWN_FOR_MS)
       .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)),
   };
 }

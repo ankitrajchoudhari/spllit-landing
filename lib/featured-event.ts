@@ -31,7 +31,13 @@ export type FeaturedEvent = {
 export type Registration = 'auto' | 'open' | 'closed';
 
 /** Before the start, between start and end. After the end it is not shown. */
-export type EventPhase = 'upcoming' | 'live';
+export type EventPhase = 'upcoming' | 'live' | 'ended';
+
+/**
+ * How long a finished event stays up, marked closed, when nothing newer is
+ * coming. A new event replaces it at once; hiding it in the console does too.
+ */
+export const ENDED_SHOWN_FOR_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** Shown in IST whatever the visitor's own timezone, because the event is. */
 export const EVENT_TIMEZONE = 'Asia/Kolkata';
@@ -95,7 +101,17 @@ export function pickEvent(
   const live = open.find((event) => Date.parse(event.startsAt) <= now);
   if (live) return { event: live, phase: 'live' };
   const next = open[0];
-  return next ? { event: next, phase: 'upcoming' } : null;
+  if (next) return { event: next, phase: 'upcoming' };
+
+  // Nothing on or coming: keep the one that just finished up, marked over,
+  // rather than the section going blank the minute it ends.
+  const last = events
+    .filter((event) => {
+      const end = Date.parse(event.endsAt);
+      return end <= now && now - end < ENDED_SHOWN_FOR_MS;
+    })
+    .sort((a, b) => Date.parse(b.endsAt) - Date.parse(a.endsAt))[0];
+  return last ? { event: last, phase: 'ended' } : null;
 }
 
 /**
@@ -107,9 +123,22 @@ export function registrationOpen(
   event: Pick<FeaturedEvent, 'registration'>,
   phase: EventPhase,
 ): boolean {
-  if (event.registration === 'closed') return false;
+  if (phase === 'ended' || event.registration === 'closed') return false;
   if (event.registration === 'open') return true;
   return phase === 'upcoming';
+}
+
+/**
+ * The ribbon across the poster: open while registration is, live while it is
+ * running and registration has closed (CLOSED there would read as called
+ * off), closed otherwise.
+ */
+export function ribbonFor(
+  event: Pick<FeaturedEvent, 'registration'>,
+  phase: EventPhase,
+): 'open' | 'live' | 'closed' {
+  if (registrationOpen(event, phase)) return 'open';
+  return phase === 'live' ? 'live' : 'closed';
 }
 
 /**

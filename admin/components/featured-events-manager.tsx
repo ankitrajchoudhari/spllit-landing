@@ -11,6 +11,7 @@ import { Button, Card, Input } from '@/components/ui/primitives';
 import { ErrorState, Spinner } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/ui/confirm';
 import { useToast } from '@/components/ui/toast';
+import { RegisterQr } from '@/components/register-qr';
 
 /**
  * Home-page events — the event shown in the spllit.app Events section, inside
@@ -117,7 +118,10 @@ function phaseOf(event: FeaturedEvent, now: number): Phase {
 const PHASE_BADGE: Record<Phase, { label: string; className: string }> = {
   upcoming: { label: 'Upcoming', className: 'bg-brand-muted text-brand' },
   live: { label: 'Live now', className: 'bg-brand text-brand-fg' },
-  ended: { label: 'Ended', className: 'bg-surface-sunken text-ink-subtle ring-1 ring-line' },
+  ended: {
+    label: 'Ended · shown as Closed',
+    className: 'bg-surface-sunken text-ink-subtle ring-1 ring-line',
+  },
   hidden: { label: 'Hidden', className: 'bg-warning-muted text-warning' },
   incomplete: { label: 'Needs times', className: 'bg-danger-muted text-danger' },
 };
@@ -342,9 +346,14 @@ export function FeaturedEventsManager() {
   const ordered = [...content.events].sort(
     (a, b) => (Date.parse(a.startsAt) || Infinity) - (Date.parse(b.startsAt) || Infinity),
   );
+  // What the site shows: the one on now, else the next, else the last to
+  // finish within 30 days (shown with a Closed ribbon).
   const onSite =
     ordered.find((e) => phaseOf(e, now) === 'live') ??
-    ordered.find((e) => phaseOf(e, now) === 'upcoming');
+    ordered.find((e) => phaseOf(e, now) === 'upcoming') ??
+    [...ordered]
+      .filter((e) => phaseOf(e, now) === 'ended' && now - Date.parse(e.endsAt) < 30 * 86_400_000)
+      .sort((a, b) => Date.parse(b.endsAt) - Date.parse(a.endsAt))[0];
 
   return (
     <div className="space-y-3">
@@ -541,19 +550,26 @@ export function FeaturedEventsManager() {
                         </Field>
                       </div>
 
-                      <Field
-                        label="Registration — Google Form link"
-                        hint="The Register button opens this in a new tab."
-                      >
-                        <Input
-                          type="url"
-                          inputMode="url"
-                          value={event.registerUrl}
-                          disabled={!canEdit}
-                          placeholder="https://forms.gle/…"
-                          onChange={(e) => update(event.id, { registerUrl: e.target.value })}
-                        />
-                      </Field>
+                      {/* The link, and beside it the QR the site will show for it —
+                          generated as it is typed, ready to download for print. */}
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                        <div className="min-w-0 flex-1">
+                          <Field
+                            label="Registration — Google Form link"
+                            hint="The Register button and the QR on the site both open this. The QR updates as you type."
+                          >
+                            <Input
+                              type="url"
+                              inputMode="url"
+                              value={event.registerUrl}
+                              disabled={!canEdit}
+                              placeholder="https://forms.gle/…"
+                              onChange={(e) => update(event.id, { registerUrl: e.target.value })}
+                            />
+                          </Field>
+                        </div>
+                        <RegisterQr url={event.registerUrl} title={event.title} />
+                      </div>
 
                       <div>
                         <span className="text-xs font-medium text-ink-muted">Registration</span>

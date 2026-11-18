@@ -9,6 +9,7 @@ import {
   pickEvent,
   plainSummary,
   registrationOpen,
+  ribbonFor,
   type FeaturedEvent,
 } from '../lib/featured-event.ts';
 
@@ -42,13 +43,23 @@ test('an event in progress is live, and wins over later ones', () => {
   assert.deepEqual(pickEvent([b, a], now), { event: a, phase: 'live' });
 });
 
-test('a finished event gives way to the next, and then to nothing', () => {
-  assert.equal(pickEvent([a, b], Date.parse('2026-11-21T09:00:00+05:30'))?.event.id, 'b');
-  assert.equal(pickEvent([a, b], Date.parse('2026-11-26T09:00:00+05:30')), null);
+test('a finished event gives way to the next one', () => {
+  assert.deepEqual(pickEvent([a, b], Date.parse('2026-11-21T09:00:00+05:30')), {
+    event: b,
+    phase: 'upcoming',
+  });
+});
+
+test('with nothing coming, the last one stays up as ended, for 30 days', () => {
+  assert.deepEqual(pickEvent([a, b], Date.parse('2026-11-26T09:00:00+05:30')), {
+    event: b,
+    phase: 'ended',
+  });
+  assert.equal(pickEvent([a, b], Date.parse('2026-12-26T09:00:00+05:30')), null);
 });
 
 test('the end instant itself counts as over', () => {
-  assert.equal(pickEvent([a], Date.parse(a.endsAt)), null);
+  assert.equal(pickEvent([a], Date.parse(a.endsAt))?.phase, 'ended');
 });
 
 test('counts down in whole days, hours, minutes and seconds', () => {
@@ -122,4 +133,16 @@ test('pasted markdown reads as plain sentences', () => {
     'THE FUTURE IS HERE. Your Journey. One Spllit. Why travel alone? MEET SPLLIT AT ANNA UNIVERSITY! snacks on us.',
   );
   assert.equal(plainSummary('Plain words stay as they are.'), 'Plain words stay as they are.');
+});
+
+test('nothing registers once it is over, whatever the setting', () => {
+  assert.equal(registrationOpen({ registration: 'open' }, 'ended'), false);
+});
+
+test('the ribbon: open, live when on with registration shut, closed otherwise', () => {
+  assert.equal(ribbonFor({ registration: 'auto' }, 'upcoming'), 'open');
+  assert.equal(ribbonFor({ registration: 'auto' }, 'live'), 'live');
+  assert.equal(ribbonFor({ registration: 'open' }, 'live'), 'open');
+  assert.equal(ribbonFor({ registration: 'closed' }, 'upcoming'), 'closed');
+  assert.equal(ribbonFor({ registration: 'open' }, 'ended'), 'closed');
 });
