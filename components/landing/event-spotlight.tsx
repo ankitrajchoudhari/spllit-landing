@@ -14,12 +14,12 @@ import {
   registrationOpen,
   type FeaturedEvent,
 } from '@/lib/featured-event';
-import { EventShop } from '@/components/landing/event-shop';
+import { BOARD, EventShop, PAPER } from '@/components/landing/event-shop';
 
 /**
  * The featured event: what it is, where, when, a live countdown and the way
- * in — beside its poster in a shopfront. Lit like the rest of the site, on
- * its own surfaces and hairlines, so it reads as part of the page.
+ * in — beside its poster in a shopfront, laid out as a scrapbook page on black:
+ * paper, tape and a torn ticket with a QR code, rather than glow and gloss.
  *
  * Which event, and in what state, is decided from the visitor's own clock
  * every second, not from the moment the page was cached:
@@ -84,60 +84,70 @@ export function EventSpotlight({
     <section
       id={card ? undefined : 'events'}
       aria-labelledby="featured-event-title"
-      className={cn(
-        'relative overflow-hidden',
-        card
-          ? 'rounded-[28px] border border-line bg-surface shadow-soft'
-          : 'border-y border-line bg-surface-sunken',
-      )}
+      className={cn('relative overflow-hidden', card && 'rounded-[28px]')}
+      style={{ background: BOARD, color: PAPER }}
     >
+      {/* Paper grain, so the board reads as black card stock rather than a
+          screen colour. Static noise, not light. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-screen"
+        style={{ backgroundImage: GRAIN, backgroundSize: '180px 180px' }}
+      />
+
       {/*
         Three blocks, ordered for a phone first: the name, then the shop with
-        its poster, then where / when / the way in. On a wide screen the shop
-        moves to its own column and spans both text blocks, so the name and the
-        details read as one column beside it.
+        its poster and ticket, then where / when / the way in. On a wide screen
+        the shop takes its own column and spans both text blocks.
       */}
       <div
         className={cn(
           'relative mx-auto grid',
           card
-            ? 'gap-7 px-5 py-7 sm:px-8 sm:py-9 md:grid-cols-[1.1fr_0.9fr] md:grid-rows-[auto_1fr] md:gap-x-8 md:gap-y-6'
-            : 'max-w-6xl gap-8 px-5 py-12 sm:gap-10 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[auto_1fr] lg:gap-x-16 lg:gap-y-7 lg:px-8 lg:py-24',
+            ? 'gap-8 px-5 py-8 sm:px-8 sm:py-10 md:grid-cols-[1.1fr_0.9fr] md:grid-rows-[auto_1fr] md:gap-x-10 md:gap-y-6'
+            : 'max-w-6xl gap-9 px-5 py-14 sm:gap-11 sm:px-6 sm:py-18 lg:grid-cols-[1.05fr_0.95fr] lg:grid-rows-[auto_1fr] lg:gap-x-16 lg:gap-y-7 lg:px-8 lg:py-24',
         )}
       >
         {/* 1 — what it is called. */}
         <div
-          className={cn(
+          className={
             card
               ? 'md:col-start-1 md:row-start-1 md:self-end'
-              : 'lg:col-start-1 lg:row-start-1 lg:self-end',
-          )}
+              : 'lg:col-start-1 lg:row-start-1 lg:self-end'
+          }
         >
-          <p className="flex items-center gap-2.5 text-[11.5px] font-semibold uppercase tracking-[0.22em] text-brand sm:text-[12px]">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inset-0 animate-pulse-ring rounded-full bg-brand" />
-              <span className="relative h-2 w-2 rounded-full bg-brand" />
-            </span>
+          {/* The label, on a strip of tape. */}
+          <span
+            className="inline-flex -rotate-2 items-center gap-2 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0e0e0d]"
+            style={{
+              background: 'rgba(214, 196, 150, 0.92)',
+              clipPath: 'polygon(2% 10%, 98% 0%, 100% 50%, 97% 100%, 1% 92%, 0% 45%)',
+            }}
+          >
+            <span
+              className={cn('h-1.5 w-1.5 rounded-full', live ? 'animate-pulse' : '')}
+              style={{ background: live ? '#dc2626' : '#0e0e0d' }}
+            />
             {live ? 'Happening now' : 'Next event'}
-          </p>
+          </span>
           <h2
             id="featured-event-title"
             className={cn(
-              // Size before leading: cn() merges with tailwind-merge, which drops
-              // a leading-* that comes before a text-* size.
-              card ? 'text-[clamp(1.6rem,6vw,2.3rem)]' : 'text-[clamp(1.85rem,7.5vw,3.5rem)]',
-              'mt-3 font-sans font-medium leading-[1.04] tracking-[-0.045em] text-ink sm:mt-4',
+              // Size before leading: cn() runs tailwind-merge, which drops a
+              // leading-* that comes before a text-* size.
+              card ? 'text-[clamp(1.7rem,6.5vw,2.4rem)]' : 'text-[clamp(2rem,8vw,3.6rem)]',
+              'mt-4 font-sans font-semibold leading-[1.02] tracking-[-0.045em]',
             )}
           >
             {event.title}
           </h2>
         </div>
 
-        {/* 2 — the shop and its poster. Capped on a phone so the poster is a
-            picture on the way to the details, not a wall to scroll past. */}
+        {/* 2 — the shop, the poster and the ticket. Narrower on a phone, and
+            off-centre to leave the ticket room on the right. */}
         <div
           className={cn(
-            'self-center',
+            'self-center pb-2',
             card
               ? 'md:col-start-2 md:row-span-2 md:row-start-1'
               : 'lg:col-start-2 lg:row-span-2 lg:row-start-1',
@@ -147,9 +157,11 @@ export function EventSpotlight({
             poster={event.poster}
             alt={event.posterAlt}
             title={event.title}
+            registerUrl={event.registerUrl}
+            showQr={canRegister}
             className={cn(
-              'max-w-[min(74vw,290px)] sm:max-w-[320px]',
-              card ? 'md:max-w-[300px]' : 'lg:max-w-[380px]',
+              'max-w-[min(62vw,260px)] -translate-x-[15%] sm:max-w-[290px] sm:-translate-x-[14%] lg:-translate-x-[16%]',
+              card ? 'md:max-w-[260px]' : 'lg:max-w-[330px]',
             )}
           />
         </div>
@@ -161,30 +173,27 @@ export function EventSpotlight({
             card ? 'md:col-start-1 md:row-start-2' : 'lg:col-start-1 lg:row-start-2',
           )}
         >
-          <p className="line-clamp-5 max-w-[56ch] text-[15.5px] leading-relaxed text-ink-muted sm:line-clamp-4 sm:text-[16px]">
+          <p className="line-clamp-5 max-w-[56ch] text-[15.5px] leading-relaxed text-[#bdb8ac] sm:line-clamp-4 sm:text-[16px]">
             {plainSummary(event.summary)}
           </p>
 
-          {/* Where and when, as two ruled rows: easy to scan on a phone. */}
-          <dl className="mt-6 divide-y divide-line border-y border-line">
+          <dl className="mt-6 divide-y divide-white/10 border-y border-white/10">
             <div className="flex items-center gap-3 py-3.5">
               <dt className="sr-only">Where</dt>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-muted text-brand">
-                <MapPin aria-hidden className="h-[18px] w-[18px]" />
-              </span>
+              <MapPin aria-hidden className="h-5 w-5 shrink-0 text-[#4ade80]" />
               <dd className="min-w-0 flex-1">
-                <p className="truncate text-[15.5px] font-medium text-ink">{event.venue}</p>
-                {event.area && <p className="truncate text-[13px] text-ink-subtle">{event.area}</p>}
+                <p className="truncate text-[15.5px] font-medium">{event.venue}</p>
+                {event.area && <p className="truncate text-[13px] text-[#8f8a7f]">{event.area}</p>}
               </dd>
               <a
                 href={mapsHref(event)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 py-2 text-[13px] font-medium text-ink transition-colors duration-snap hover:bg-surface-raised"
+                className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/25 px-3.5 py-2 text-[13px] font-medium transition-colors duration-snap hover:bg-white/10"
               >
                 <MapPin
                   aria-hidden
-                  className="h-3.5 w-3.5 text-brand transition-transform duration-sheet group-hover:-translate-y-0.5"
+                  className="h-3.5 w-3.5 text-[#4ade80] transition-transform duration-sheet group-hover:-translate-y-0.5"
                 />
                 Map
                 <span className="sr-only">: open {event.venue} in Google Maps (new tab)</span>
@@ -192,36 +201,32 @@ export function EventSpotlight({
             </div>
             <div className="flex items-center gap-3 py-3.5">
               <dt className="sr-only">When</dt>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-muted text-brand">
-                <CalendarDays aria-hidden className="h-[18px] w-[18px]" />
-              </span>
-              <dd className="min-w-0 text-[15px] font-medium leading-snug text-ink">
-                {formatWhen(event)}
-              </dd>
+              <CalendarDays aria-hidden className="h-5 w-5 shrink-0 text-[#4ade80]" />
+              <dd className="min-w-0 text-[15px] font-medium leading-snug">{formatWhen(event)}</dd>
             </div>
           </dl>
 
-          <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.2em] text-ink-subtle">
-            {live ? 'Ends in' : 'Starts in'}
+          <p className="mt-6 font-hand text-[20px] font-semibold leading-none text-[#bdb8ac]">
+            {live ? 'ends in…' : 'starts in…'}
           </p>
-          {/* Four equal columns that share whatever width there is, so the
-              row fits a 320px phone and never pushes the page sideways. */}
+          {/* Four paper tiles that share whatever width there is, so the row
+              fits a 320px phone and never pushes the page sideways. */}
           <div
-            className="mt-2.5 grid max-w-[380px] grid-cols-4 gap-2 sm:gap-2.5"
+            className="mt-3 grid max-w-[360px] grid-cols-4 gap-2 sm:gap-3"
             role="timer"
             aria-live="off"
           >
-            <Unit value={left.days} label="Days" ready={mounted} />
-            <Unit value={left.hours} label="Hrs" ready={mounted} />
-            <Unit value={left.minutes} label="Min" ready={mounted} />
-            <Unit value={left.seconds} label="Sec" ready={mounted} />
+            <Unit value={left.days} label="Days" ready={mounted} tilt={-2} />
+            <Unit value={left.hours} label="Hrs" ready={mounted} tilt={1.5} />
+            <Unit value={left.minutes} label="Min" ready={mounted} tilt={-1} />
+            <Unit value={left.seconds} label="Sec" ready={mounted} tilt={2} />
           </div>
 
-          {/* The way in, a Google Form. Whether it is open is set in the
-              console. Full width on a phone, where it is the thumb's target. */}
-          <div className="mt-7 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-5">
+          {/* The way in. A green sticker with a hard paper shadow; full width
+              on a phone, where it is the thumb's target. */}
+          <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-5">
             {!canRegister ? (
-              <span className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-line-strong px-7 text-[15px] font-medium text-ink-muted">
+              <span className="inline-flex min-h-[52px] items-center justify-center rounded-full border border-white/25 px-7 text-[15px] font-medium text-[#8f8a7f]">
                 {live ? 'Registration closed — it’s on now' : 'Registration closed'}
               </span>
             ) : (
@@ -229,9 +234,10 @@ export function EventSpotlight({
                 href={event.registerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-ink px-8 text-[15px] font-semibold text-canvas transition-all duration-snap hover:opacity-85 active:scale-[0.98]"
+                className="group inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-[#22c55e] px-8 text-[15.5px] font-bold text-[#0e0e0d] transition-all duration-snap hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
+                style={{ boxShadow: `4px 4px 0 0 ${PAPER}` }}
               >
-                Register
+                Register now
                 <ArrowUpRight
                   aria-hidden
                   className="h-4 w-4 transition-transform duration-snap group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
@@ -239,8 +245,8 @@ export function EventSpotlight({
               </a>
             )}
             {canRegister && (
-              <p className="text-center text-[12.5px] text-ink-subtle sm:text-left">
-                Opens a Google Form in a new tab.
+              <p className="text-center text-[12.5px] text-[#8f8a7f] sm:text-left">
+                Google Form · opens in a new tab
               </p>
             )}
           </div>
@@ -250,14 +256,37 @@ export function EventSpotlight({
   );
 }
 
+/** Fine fractal noise as an image, for the board's paper grain. */
+const GRAIN =
+  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")";
+
 /**
- * One box of the countdown. The digits roll on change. Before mount it shows
- * dashes, so a page served from cache never flashes a stale number.
+ * One countdown tile: a square of paper stuck on slightly crooked. The digits
+ * roll on change. Before mount it shows dashes, so a page served from cache
+ * never flashes a stale number.
  */
-function Unit({ value, label, ready }: { value: number; label: string; ready: boolean }) {
+function Unit({
+  value,
+  label,
+  ready,
+  tilt,
+}: {
+  value: number;
+  label: string;
+  ready: boolean;
+  tilt: number;
+}) {
   const text = ready ? String(value).padStart(2, '0') : '--';
   return (
-    <div className="flex min-w-0 flex-col items-center rounded-[14px] border border-line bg-surface py-2.5 sm:py-3">
+    <div
+      className="flex min-w-0 flex-col items-center rounded-[6px] py-2.5 sm:py-3"
+      style={{
+        background: PAPER,
+        color: BOARD,
+        transform: `rotate(${tilt}deg)`,
+        boxShadow: '3px 3px 0 0 rgba(0,0,0,0.5)',
+      }}
+    >
       <span className="relative h-[30px] overflow-hidden sm:h-[36px]">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
@@ -266,13 +295,13 @@ function Unit({ value, label, ready }: { value: number; label: string; ready: bo
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="block font-sans text-[24px] font-semibold leading-[30px] tabular-nums tracking-[-0.02em] text-ink sm:text-[30px] sm:leading-[36px]"
+            className="block font-sans text-[24px] font-bold leading-[30px] tabular-nums tracking-[-0.03em] sm:text-[30px] sm:leading-[36px]"
           >
             {text}
           </motion.span>
         </AnimatePresence>
       </span>
-      <span className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-ink-subtle sm:text-[10.5px]">
+      <span className="mt-0.5 font-mono text-[9.5px] font-semibold uppercase tracking-[0.16em] opacity-60 sm:text-[10px]">
         {label}
       </span>
     </div>

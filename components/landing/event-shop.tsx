@@ -1,29 +1,30 @@
 import Image from 'next/image';
+import { ArrowUpRight } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { EventQr } from '@/components/landing/event-qr';
 
 /**
- * A shopfront for the featured event: a striped awning over a white window
- * with the event's poster in it, standing on a strip of pavement.
+ * The featured event as a scrapbook page on black: a cut-paper shopfront with
+ * the poster in its window, taped down, and a torn ticket stub pinned beside
+ * it carrying a QR code for the registration form.
  *
- * Drawn rather than an image so the poster can sit inside it at any size and
- * the awning stays crisp on every screen. The awning is a trapezoid of eight
- * stripes — narrower at the top, as if seen from just below — ending in a
- * scalloped edge, one scallop per stripe.
+ * Everything is flat paper on a dark board — no glow, no gradients posing as
+ * light. What gives it depth is what a real scrapbook has: tape, a slight
+ * tilt, a hard paper shadow, a torn edge.
  *
- * It is lit like the rest of the site: flat colour and a real contact shadow,
- * no glow. The kerb and the dashed road line put the shop on a street, which
- * is where a ride app's events happen.
- *
- * The poster is portrait (2:3), the shape event posters are made in. It is
- * shown whole, not cropped: a poster with its date cut off is worse than one
- * with a margin.
+ * The poster is portrait (2:3), the shape event posters are made in, and is
+ * shown whole: a poster with its date cut off is worse than one with a margin.
  */
 
+export const PAPER = '#f2eee4';
+export const BOARD = '#0e0e0d';
+const GREEN = '#16a34a';
+
 const STRIPES = 8;
-const W = 240; // viewBox width
-const TOP_INSET = 18; // how much narrower the awning is at the top, per side
-const DROP = 44; // height of the striped part
+const W = 240;
+const TOP_INSET = 18;
+const DROP = 44;
 const SCALLOP = W / STRIPES / 2;
 
 function Awning({ className }: { className?: string }) {
@@ -32,7 +33,7 @@ function Awning({ className }: { className?: string }) {
   return (
     <svg viewBox={`0 0 ${W} ${DROP + SCALLOP + 2}`} aria-hidden className={className}>
       {Array.from({ length: STRIPES }, (_, i) => {
-        const fill = i % 2 === 0 ? '#16a34a' : '#f4f6f2';
+        const fill = i % 2 === 0 ? GREEN : PAPER;
         const x0 = TOP_INSET + topW * i;
         const x1 = TOP_INSET + topW * (i + 1);
         const b0 = bottomW * i;
@@ -44,59 +45,73 @@ function Awning({ className }: { className?: string }) {
           </g>
         );
       })}
-      {/* One crisp outline round the whole awning, the way a drawing is inked,
-          instead of shading it to look rendered. */}
-      <path
-        d={[
-          `M${TOP_INSET} 0 L${W - TOP_INSET} 0 L${W} ${DROP}`,
-          ...Array.from(
-            { length: STRIPES },
-            (_, i) => `A${SCALLOP} ${SCALLOP} 0 0 1 ${W - bottomW * (i + 1)} ${DROP}`,
-          ),
-          'Z',
-        ].join(' ')}
-        fill="none"
-        stroke="#0f3d22"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      {/* The rail the awning hangs from. */}
-      <rect
-        x={TOP_INSET - 3}
-        y="0"
-        width={W - TOP_INSET * 2 + 6}
-        height="3.5"
-        rx="1.75"
-        fill="#0f3d22"
-      />
+      <rect x={TOP_INSET - 3} y="0" width={W - TOP_INSET * 2 + 6} height="4" rx="2" fill={PAPER} />
     </svg>
   );
 }
+
+/** A strip of masking tape. */
+export function Tape({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn('absolute z-[3] block h-[18px] w-[62px] sm:h-5 sm:w-[72px]', className)}
+      style={{
+        background: 'rgba(214, 196, 150, 0.82)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+        // Torn ends: a strip of tape is never cut square.
+        clipPath:
+          'polygon(3% 8%, 97% 0%, 100% 30%, 96% 55%, 100% 82%, 97% 100%, 2% 94%, 0% 66%, 4% 44%, 0% 18%)',
+      }}
+    />
+  );
+}
+
+/** Zig-zag top and bottom, like a stub torn from a roll of tickets. */
+const STUB_EDGE = (() => {
+  const teeth = 9;
+  const top = Array.from(
+    { length: teeth * 2 + 1 },
+    (_, i) => `${(i / (teeth * 2)) * 100}% ${i % 2 ? 4 : 0}%`,
+  );
+  const bottom = Array.from(
+    { length: teeth * 2 + 1 },
+    (_, i) => `${100 - (i / (teeth * 2)) * 100}% ${i % 2 ? 96 : 100}%`,
+  );
+  return `polygon(${[...top, ...bottom].join(', ')})`;
+})();
 
 export function EventShop({
   poster,
   alt,
   title,
+  registerUrl,
+  showQr,
   className,
 }: {
   poster: string;
   alt: string;
   title: string;
+  registerUrl: string;
+  /** Only while registration is open: a code to a closed form is a dead end. */
+  showQr: boolean;
   className?: string;
 }) {
   return (
     <div className={cn('relative mx-auto w-full', className)}>
       <Awning className="relative z-[2] block w-full" />
 
-      {/* The window, tucked up under the awning so the scallops overhang it. */}
-      <div className="relative z-[1] mx-auto -mt-[11%] w-[86%] rounded-b-[22px] rounded-t-[8px] border-[1.5px] border-[#0f3d22] bg-[#fbfcfa] p-2.5 pt-[13%] sm:p-3 sm:pt-[13%]">
-        {/* The awning's shadow across the top of the glass. */}
+      {/* The window: a sheet of paper under the awning, the poster taped in. */}
+      <div
+        className="relative z-[1] mx-auto -mt-[11%] w-[86%] rounded-b-[18px] rounded-t-[6px] p-2.5 pt-[13%] sm:p-3 sm:pt-[13%]"
+        style={{ background: PAPER, boxShadow: '6px 6px 0 0 rgba(242,238,228,0.14)' }}
+      >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-10 rounded-t-[8px]"
-          style={{ background: 'linear-gradient(180deg, rgba(15,61,34,0.10), transparent)' }}
+          className="pointer-events-none absolute inset-x-0 top-0 h-10 rounded-t-[6px]"
+          style={{ background: 'linear-gradient(180deg, rgba(14,14,13,0.16), transparent)' }}
         />
-        <div className="relative aspect-[2/3] overflow-hidden rounded-[14px] bg-[#eef1ec]">
+        <div className="relative aspect-[2/3] overflow-hidden rounded-[10px] bg-[#e6e1d4]">
           {poster ? (
             <Image
               src={poster}
@@ -106,29 +121,61 @@ export function EventShop({
               className="object-contain"
             />
           ) : (
-            // No poster yet: the title set as one, so the window is never empty.
-            <div className="flex h-full flex-col justify-end bg-[#16a34a] p-5">
+            <div className="flex h-full flex-col justify-end p-5" style={{ background: GREEN }}>
               <p className="font-sans text-[clamp(1.4rem,6vw,2rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
                 {title}
               </p>
             </div>
           )}
         </div>
+        <Tape className="-bottom-2 -left-4 -rotate-[24deg]" />
+        <Tape className="-bottom-2 -right-4 rotate-[22deg]" />
       </div>
 
-      {/* The street: a kerb the shop stands on, its contact shadow, and the
-          dashed centre line of the road in front of it. */}
-      <div aria-hidden className="relative mx-auto mt-0 w-[104%] -translate-x-[2%]">
-        <div className="mx-auto h-3 w-[92%] rounded-full bg-[rgba(15,61,34,0.18)] blur-[6px]" />
-        <div className="-mt-2 h-[9px] rounded-[3px] border-[1.5px] border-[#0f3d22] bg-[#dfe3dc]" />
+      {/* The kerb, and the road line in front of the shop. */}
+      <div aria-hidden className="relative mx-auto w-[104%] -translate-x-[2%]">
+        <div className="mt-2 h-[7px] rounded-[2px]" style={{ background: PAPER }} />
         <div
           className="mx-auto mt-3 h-[3px] w-[86%]"
           style={{
             backgroundImage:
-              'repeating-linear-gradient(90deg, var(--line-strong) 0 18px, transparent 18px 32px)',
+              'repeating-linear-gradient(90deg, rgba(242,238,228,0.35) 0 18px, transparent 18px 32px)',
           }}
         />
       </div>
+
+      {/* The ticket stub with the QR, pinned over the shop's corner. Tapping
+          it opens the form too, because on a phone nobody can scan their own
+          screen. */}
+      {showQr && (
+        <a
+          href={registerUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group absolute -right-[33%] bottom-[5%] z-[4] block w-[86px] rotate-[6deg] transition-transform duration-sheet hover:rotate-[2deg] hover:scale-[1.04] sm:-right-[34%] sm:bottom-[12%] sm:w-[120px] lg:-right-[36%] lg:w-[132px]"
+        >
+          <Tape className="-top-2.5 left-1/2 -translate-x-1/2 -rotate-[4deg]" />
+          <span
+            className="block px-2 pb-2.5 pt-3.5 text-center sm:px-3 sm:pb-3 sm:pt-4"
+            style={{
+              background: PAPER,
+              clipPath: STUB_EDGE,
+              filter: 'drop-shadow(4px 5px 0 rgba(0,0,0,0.45))',
+            }}
+          >
+            <span className="block font-mono text-[8.5px] uppercase tracking-[0.22em] text-[#0e0e0d]/60 sm:text-[9px]">
+              Admit one
+            </span>
+            <EventQr value={registerUrl} className="mx-auto mt-1.5 block w-full" />
+            <span className="mt-1.5 flex items-center justify-center gap-1 font-hand text-[15px] font-semibold leading-[0.95] text-[#0e0e0d] sm:text-[19px]">
+              <span className="sm:hidden">tap to register</span>
+              <span className="hidden sm:inline">scan to register</span>
+              <ArrowUpRight aria-hidden className="h-3.5 w-3.5 sm:hidden" />
+            </span>
+          </span>
+          <span className="sr-only">Register (opens a Google Form in a new tab)</span>
+        </a>
+      )}
     </div>
   );
 }

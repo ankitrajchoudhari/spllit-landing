@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Poppins } from 'next/font/google';
+import { Caveat, Inter, Poppins } from 'next/font/google';
 
 import './globals.css';
 import { Providers } from '@/app/providers';
@@ -17,6 +17,20 @@ const poppins = Poppins({
   subsets: ['latin'],
   weight: ['500', '600', '700'],
   variable: '--font-display',
+  display: 'swap',
+});
+
+/**
+ * Handwriting, for the few words meant to look written on — the note on the
+ * event ticket, the captions on /trip. Loaded here because next/font cannot be
+ * called from a client component. Must match /trip's Caveat call exactly
+ * (weights, options): two different Caveat configs in one build made
+ * Turbopack fail with "Can't resolve …/internal/font/google/font".
+ */
+const hand = Caveat({
+  subsets: ['latin'],
+  weight: ['500', '600'],
+  variable: '--font-hand',
   display: 'swap',
 });
 
@@ -110,7 +124,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${poppins.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${poppins.variable} ${hand.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased">
         {/* In the initial HTML on purpose — the crawlers this exists for do
             not execute JavaScript. */}
