@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { CalendarDays, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -9,6 +11,8 @@ import { SkeletonList } from '@/components/ui/skeleton';
 import { EventCard } from '@/components/shared/entity-cards';
 import { useGeolocation } from '@/lib/hooks/use-geolocation';
 import { useEvents } from '@/lib/hooks/queries';
+import { featuredEventsService } from '@/lib/services/featured-events';
+import { EventSpotlight } from '@/components/landing/event-spotlight';
 
 export default function EventsPage() {
   const { center } = useGeolocation();
@@ -17,6 +21,19 @@ export default function EventsPage() {
     Boolean(center),
   );
   const events = data?.items ?? [];
+
+  /**
+   * The event featured from the console — the same one the home page shows,
+   * in the same shopfront, at the top of this screen. Signed-in students land
+   * here, not on the home page, so this is where most of them will see it.
+   * It needs no location: it is one event for everyone.
+   */
+  const featured = useQuery({
+    queryKey: ['featured-events'],
+    queryFn: () => featuredEventsService.list(),
+    staleTime: 60_000,
+  });
+  const [mountedAt] = useState(() => Date.now());
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -36,6 +53,15 @@ export default function EventsPage() {
           </Button>
         </Link>
       </header>
+
+      {featured.data && featured.data.length > 0 ? (
+        <EventSpotlight
+          variant="card"
+          events={featured.data}
+          renderedAt={mountedAt}
+          fallback={null}
+        />
+      ) : null}
 
       {isPending || !center ? (
         <SkeletonList count={4} />

@@ -48,11 +48,19 @@ export function EventSpotlight({
   events,
   renderedAt,
   fallback,
+  variant = 'band',
 }: {
   events: FeaturedEvent[];
   renderedAt: number;
   fallback: React.ReactNode;
+  /**
+   * band: full-width, the home page's Events section (and the target of the
+   * nav's Events link). card: a rounded panel for the app's Events screen,
+   * which sits in a narrower column.
+   */
+  variant?: 'band' | 'card';
 }) {
+  const card = variant === 'card';
   // The clock, as an external store: a tick a second in the browser, the
   // server's timestamp while hydrating, so both render the same HTML.
   const now = useSyncExternalStore(subscribeClock, readClock, () => renderedAt);
@@ -73,8 +81,11 @@ export function EventSpotlight({
 
   return (
     <section
-      id="events"
-      className="relative overflow-hidden bg-[#071a0e] text-white"
+      id={card ? undefined : 'events'}
+      className={cn(
+        'relative overflow-hidden bg-[#071a0e] text-white',
+        card && 'rounded-[28px] shadow-float',
+      )}
       aria-labelledby="featured-event-title"
     >
       {/* Light falling from behind the shop, so the band is not flat black. */}
@@ -87,7 +98,14 @@ export function EventSpotlight({
         }}
       />
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:px-8 lg:py-24">
+      <div
+        className={cn(
+          'relative mx-auto grid items-center',
+          card
+            ? 'gap-10 px-5 py-9 sm:px-8 sm:py-10 md:grid-cols-[1.1fr_0.9fr] md:gap-8'
+            : 'max-w-6xl gap-12 px-5 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:px-8 lg:py-24',
+        )}
+      >
         <div>
           <p className="flex items-center gap-2.5 text-[12px] font-semibold uppercase tracking-[0.24em] text-[#8fe3a8]">
             <span className="relative flex h-2 w-2">
@@ -99,7 +117,10 @@ export function EventSpotlight({
 
           <h2
             id="featured-event-title"
-            className="mt-4 font-sans text-[clamp(2rem,5vw,3.5rem)] font-medium leading-[1.02] tracking-[-0.045em]"
+            className={cn(
+              'mt-4 font-sans font-medium leading-[1.02] tracking-[-0.045em]',
+              card ? 'text-[clamp(1.7rem,4vw,2.3rem)]' : 'text-[clamp(2rem,5vw,3.5rem)]',
+            )}
           >
             {event.title}
           </h2>
@@ -178,7 +199,12 @@ export function EventSpotlight({
           </div>
         </div>
 
-        <EventShop poster={event.poster} alt={event.posterAlt} title={event.title} />
+        <EventShop
+          poster={event.poster}
+          alt={event.posterAlt}
+          title={event.title}
+          className={card ? 'max-w-[300px]' : undefined}
+        />
       </div>
     </section>
   );
