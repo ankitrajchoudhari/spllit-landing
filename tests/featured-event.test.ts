@@ -7,6 +7,7 @@ import {
   mapsHref,
   parseEvents,
   pickEvent,
+  plainSummary,
   registrationOpen,
   type FeaturedEvent,
 } from '../lib/featured-event.ts';
@@ -111,4 +112,14 @@ test('registration: auto closes at the start, open runs to the end, closed is cl
 test('an unknown or missing registration setting reads as auto', () => {
   const [parsed] = parseEvents({ events: [{ ...a, registration: 'sometimes' }] });
   assert.equal(parsed?.registration, 'auto');
+});
+
+test('pasted markdown reads as plain sentences', () => {
+  assert.equal(
+    plainSummary(
+      '# THE FUTURE IS HERE.\n\n### Your Journey. One Spllit\n\nWhy travel alone?\n\n**MEET SPLLIT AT ANNA UNIVERSITY!**\n\n- snacks *on us*',
+    ),
+    'THE FUTURE IS HERE. Your Journey. One Spllit. Why travel alone? MEET SPLLIT AT ANNA UNIVERSITY! snacks on us.',
+  );
+  assert.equal(plainSummary('Plain words stay as they are.'), 'Plain words stay as they are.');
 });

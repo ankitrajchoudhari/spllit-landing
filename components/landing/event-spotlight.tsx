@@ -10,6 +10,7 @@ import {
   formatWhen,
   mapsHref,
   pickEvent,
+  plainSummary,
   registrationOpen,
   type FeaturedEvent,
 } from '@/lib/featured-event';
@@ -103,7 +104,7 @@ export function EventSpotlight({
             {event.title}
           </h2>
           <p className="mt-5 line-clamp-4 max-w-[52ch] text-[16px] leading-relaxed text-white/75">
-            {event.summary}
+            {plainSummary(event.summary)}
           </p>
 
           {/* Where. */}

@@ -112,6 +112,28 @@ export function registrationOpen(
   return phase === 'upcoming';
 }
 
+/**
+ * The description as plain sentences. People paste it from wherever they
+ * wrote it — a doc, WhatsApp, a README — and bring "# headings", "**bold**"
+ * and blank lines with them; on the page those would show as literal symbols.
+ * Strips the markers and joins the lines; the words are left alone.
+ */
+export function plainSummary(text: string): string {
+  return text
+    .split(/\n+/)
+    .map((line) =>
+      line
+        .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+[.)])\s+/, '')
+        .replace(/(\*\*|__)(.+?)\1/g, '$2')
+        .replace(/(\*|_)(\S(?:.*?\S)?)\1/g, '$2')
+        .replace(/`([^`]+)`/g, '$1')
+        .trim(),
+    )
+    .filter(Boolean)
+    .map((line) => (/[.!?…:]$/.test(line) ? line : `${line}.`))
+    .join(' ');
+}
+
 export type Countdown = { days: number; hours: number; minutes: number; seconds: number };
 
 /** Whole units left until `target`; zeros once it has passed. */
